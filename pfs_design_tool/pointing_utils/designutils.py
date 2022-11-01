@@ -1,40 +1,17 @@
-import argparse
-import os
-import tempfile
-import time
-from re import I
-
-import ets_fiber_assigner.netflow as nf
 import matplotlib.path as mppath
 import numpy as np
 import pandas as pd
 import pfs.datamodel
-import psycopg2
-import psycopg2.extras
-import toml
 from astroplan import FixedTarget
 from astroplan import Observer
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-from astropy.table import Table
-from astropy.time import Time
-from ets_shuffle import query_utils
 from ets_shuffle.convenience import flag_close_pairs
 from ets_shuffle.convenience import guidecam_geometry
-from ets_shuffle.convenience import update_coords_for_proper_motion
-from ics.cobraOps.Bench import Bench
-from ics.cobraOps.BlackDotsCalibrationProduct import BlackDotsCalibrationProduct
-from ics.cobraOps.cobraConstants import NULL_TARGET_ID
-from ics.cobraOps.cobraConstants import NULL_TARGET_POSITION
-from ics.cobraOps.CollisionSimulator2 import CollisionSimulator2
-from ics.cobraOps.TargetGroup import TargetGroup
 from pfs.utils.coordinates.CoordTransp import CoordinateTransform as ctrans
 from pfs.utils.coordinates.CoordTransp import ag_pfimm_to_pixel
 from pfs.utils.fiberids import FiberIds
 from pfs.utils.pfsDesignUtils import makePfsDesign
-from pointing_utils.dbutils import connect_subaru_gaiadb
-from procedures.moduleTest.cobraCoach import CobraCoach
-from targetdb import targetdb
 
 
 def generate_pfs_design(

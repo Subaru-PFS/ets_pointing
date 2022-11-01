@@ -300,7 +300,7 @@ def main():
     for d in [args.design_dir, args.cobra_coach_dir]:
         try:
             os.makedirs(d, exist_ok=False)
-        except:
+        except BaseException:
             pass
 
     df_targets = dbutils.generate_targets_from_targetdb(
