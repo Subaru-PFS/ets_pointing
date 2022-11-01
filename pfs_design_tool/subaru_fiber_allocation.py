@@ -61,7 +61,8 @@ def get_arguments():
         "--telescope_elevation",
         type=float,
         default=None,
-        help="Telescope elevation in degree (default: None to set automatically from (ra, dec, observation_time))",
+        help="Telescope elevation in degree \
+        (default: None to set automatically from (ra, dec, observation_time))",
     )
     parser.add_argument(
         "--arms",
@@ -172,7 +173,8 @@ def get_arguments():
     parser.add_argument(
         "--good_fluxstd",
         action="store_true",
-        help="Select fluxstd stars with prob_f_star>0.5, flags_dist=False, and flags_ebv=False (default: False)",
+        help="Select fluxstd stars with prob_f_star>0.5, \
+            flags_dist=False, and flags_ebv=False (default: False)",
     )
     parser.add_argument(
         "--fluxstd_min_prob_f_star",
@@ -335,7 +337,10 @@ def main():
         if args.reduce_sky_targets:
             n_sky_target = 30000  # this value can be tuned
             if len(df_sky) > n_sky_target:
-                df_sky = df_sky.sample(n_sky_target, ignore_index=True)
+                df_sky = df_sky.sample(n_sky_target,
+                                       ignore_index=True,
+                                       random_state=1
+                                       )
         # df_sky = dbutils.generate_skyobjects_from_targetdb(
         #    args.ra,
         #    args.dec,

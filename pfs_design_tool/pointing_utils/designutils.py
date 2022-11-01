@@ -286,7 +286,9 @@ def generate_guidestars_from_gaiadb(
             pointing_center,
         ).alt.value
         print(
-            f"Telescope elevation is set to {telescope_elevation:.1f} degrees from the pointing center ({ra:.5f}, {dec:.5f}) and observing time {observation_time} at Subaru Telescope"
+            f"Telescope elevation is set to {telescope_elevation:.1f} degrees \
+                from the pointing center ({ra:.5f}, {dec:.5f}) and observing \
+                    time {observation_time} at Subaru Telescope"
         )
 
     # guidestar_mag_max = guidestar_mag_max
