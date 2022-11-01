@@ -531,4 +531,5 @@ def fiber_allocation(
         targets,
         target_class_dict,
         is_no_target,
+        bench
     )

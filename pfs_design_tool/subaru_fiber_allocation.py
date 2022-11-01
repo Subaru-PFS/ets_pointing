@@ -377,7 +377,7 @@ def main():
 
     # exit()
 
-    vis, tp, tel, tgt, tgt_class_dict, is_no_target = nfutils.fiber_allocation(
+    vis, tp, tel, tgt, tgt_class_dict, is_no_target, bench = nfutils.fiber_allocation(
         df_targets,
         df_fluxstds,
         df_sky,
@@ -410,6 +410,7 @@ def main():
         tel,
         tgt,
         tgt_class_dict,
+        bench,
         arms=args.arms,
         df_raster=df_raster,
         is_no_target=is_no_target,

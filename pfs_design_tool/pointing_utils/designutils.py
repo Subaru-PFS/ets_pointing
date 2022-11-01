@@ -23,12 +23,18 @@ def generate_pfs_design(
     tel,
     tgt,
     tgt_class_dict,
+    bench,
     arms="br",
     n_fiber=2394,
     df_raster=None,
     is_no_target=False,
     design_name=None,
 ):
+
+    gfm = FiberIds()  # 2604
+    cobra_ids = gfm.cobraId
+    scifiber_ids = gfm.scienceFiberId
+
     is_raster = df_raster is not None
 
     # n_fiber = len(FiberIds().scienceFiberId)
@@ -43,6 +49,14 @@ def generate_pfs_design(
     cat_id = np.full(n_fiber, -1, dtype=int)
     obj_id = np.full(n_fiber, -1, dtype=np.int64)
     target_type = np.full(n_fiber, 4, dtype=int)  # filled as unassigned number
+    fiber_status = np.full(n_fiber, 1, dtype=int)  # filled as GOOD=1
+    for cidx in range(n_fiber):
+        fidx = (
+            cobra_ids[np.logical_and(scifiber_ids >= 0, scifiber_ids <= n_fiber)]
+            == cidx + 1
+        )
+        fiber_status[fidx] = bench.cobras.status[cidx]
+    fiber_status[fiber_status > 1] = 2  # filled bad fibers ad BROKENFIBER=2
 
     filter_band_names = ["g", "r", "i", "z", "y"]
     flux_default_values = np.full(len(filter_band_names), np.nan)
@@ -75,10 +89,6 @@ def generate_pfs_design(
     # filter_names = [["none", "none", "none"]] * n_fiber
 
     if not is_no_target:
-
-        gfm = FiberIds()  # 2604
-        cobra_ids = gfm.cobraId
-        scifiber_ids = gfm.scienceFiberId
 
         for tidx, cidx in vis.items():
 
@@ -217,7 +227,7 @@ def generate_pfs_design(
         catId=cat_id,
         objId=obj_id,
         targetType=target_type,
-        # fiberStatus=FiberStatus.GOOD,
+        fiberStatus=fiber_status,
         # fiberFlux=dict_of_flux_lists["fiber_flux"],
         psfFlux=dict_of_flux_lists["psf_flux"],
         # psfFlux=psf_flux,
