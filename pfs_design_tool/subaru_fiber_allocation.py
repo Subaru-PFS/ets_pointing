@@ -343,7 +343,7 @@ def main():
         #    # extra_where="LIMIT 1000",
         # )
 
-    #print(df_sky)
+    # print(df_sky)
     # exit()
 
     if args.raster_scan:
@@ -368,7 +368,7 @@ def main():
     else:
         df_raster = None
 
-    #print(df_raster)
+    # print(df_raster)
 
     # exit()
 
