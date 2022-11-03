@@ -20,7 +20,7 @@ def connect_subaru_gaiadb(conf=None):
 
 
 def connect_targetdb(conf=None):
-    db = targetdb.TargetDB(**dict(conf["targetdb"]))
+    db = targetdb.TargetDB(**dict(conf["targetdb"]["db"]))
     db.connect()
     return db
 
@@ -95,41 +95,41 @@ def generate_query_list(
 
         return qlist
 
-    if tablename == "fluxstd":
-        for i in range(len(ra1)):
-            query_target = f"""SELECT * FROM {tablename}
-    WHERE ra >= {ra1[i]} AND ra < {ra2[i]}
-    AND dec >= {dec1} AND dec < {dec2}
-    """
-            if extra_where is None:
-                extra_where = ""
-            if good_fluxstd:
-                extra_where += f"""
-                AND flags_dist IS FALSE
-                AND flags_ebv IS FALSE
-                AND prob_f_star > 0.5
-                AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}
-                """
-            if not good_fluxstd:
-                extra_where = f"""
-                AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}
-                AND prob_f_star > {min_prob_f_star}
-                """
-                if flags_dist:
-                    extra_where += f"""
-                    AND flags_dist IS FALSE
-                    """
-                if flags_ebv:
-                    extra_where += f"""
-                    AND flags_ebv IS FALSE
-                    """
-            query_target += extra_where
+    # if tablename == "fluxstd":
+    #     for i in range(len(ra1)):
+    #         query_target = f"""SELECT * FROM {tablename}
+    # WHERE ra >= {ra1[i]} AND ra < {ra2[i]}
+    # AND dec >= {dec1} AND dec < {dec2}
+    # """
+    #         if extra_where is None:
+    #             extra_where = ""
+    #         if good_fluxstd:
+    #             extra_where += f"""
+    #             AND flags_dist IS FALSE
+    #             AND flags_ebv IS FALSE
+    #             AND prob_f_star > 0.5
+    #             AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}
+    #             """
+    #         if not good_fluxstd:
+    #             extra_where = f"""
+    #             AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}
+    #             AND prob_f_star > {min_prob_f_star}
+    #             """
+    #             if flags_dist:
+    #                 extra_where += f"""
+    #                 AND flags_dist IS FALSE
+    #                 """
+    #             if flags_ebv:
+    #                 extra_where += f"""
+    #                 AND flags_ebv IS FALSE
+    #                 """
+    #         query_target += extra_where
 
-            query_target += ";"
+    #         query_target += ";"
 
-            qlist.append(query_target)
+    #         qlist.append(query_target)
 
-        return qlist
+    #     return qlist
 
     # if tablename == "sky":
     #     for i in range(len(ra1)):
@@ -226,8 +226,8 @@ def generate_fluxstds_from_targetdb(
     tablename="fluxstd",
     fp_radius_degree=260.0 * 10.2 / 3600,  # "Radius" of PFS FoV in degree (?)
     fp_fudge_factor=1.5,  # fudge factor for search widths
-    width=None,
-    height=None,
+    # width=None,
+    # height=None,
     good_fluxstd=False,
     flags_dist=False,
     flags_ebv=False,
@@ -240,44 +240,83 @@ def generate_fluxstds_from_targetdb(
 
     db = connect_targetdb(conf)
 
-    dw = fp_radius_degree * fp_fudge_factor
+    search_radius = fp_radius_degree * fp_fudge_factor
 
-    # consider the cosine term
-    cos_term = 1.0 / np.cos(dec * u.deg)
+    query_string = f"""SELECT *
+    FROM {tablename}
+    WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
+    """
 
-    if width is None:
-        dw_ra = dw * cos_term
-    else:
-        dw_ra = width * cos_term / 2.0
+    if extra_where is None:
+        extra_where = ""
 
-    if height is not None:
-        dw = height / 2.0
+    if good_fluxstd:
+        extra_where += f"""
+        AND flags_dist IS FALSE
+        AND flags_ebv IS FALSE
+        AND prob_f_star > 0.5
+        AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}
+        """
 
-    qlist = generate_query_list(
-        ra,
-        dec,
-        dw_ra,
-        dw,
-        tablename,
-        good_fluxstd=good_fluxstd,
-        flags_dist=flags_dist,
-        flags_ebv=flags_ebv,
-        extra_where=extra_where,
-        mag_min=mag_min,
-        mag_max=mag_max,
-        mag_filter=mag_filter,
-        min_prob_f_star=min_prob_f_star,
-    )
+    if not good_fluxstd:
+        extra_where = f"""
+        AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}
+        AND prob_f_star > {min_prob_f_star}
+        """
+        if flags_dist:
+            extra_where += f"""
+            AND flags_dist IS FALSE
+            """
+        if flags_ebv:
+            extra_where += f"""
+            AND flags_ebv IS FALSE
+            """
 
-    df = pd.DataFrame()
+    query_string += extra_where
 
-    for q in qlist:
-        print(q)
-        t_begin = time.time()
-        df_tmp = db.fetch_query(q)
-        t_end = time.time()
-        print("Time spent for querying: {:f}".format(t_end - t_begin))
-        df = pd.concat([df, df_tmp], ignore_index=True)
+    query_string += ";"
+
+    print(query_string)
+
+    # dw = fp_radius_degree * fp_fudge_factor
+
+    # # consider the cosine term
+    # cos_term = 1.0 / np.cos(dec * u.deg)
+
+    # if width is None:
+    #     dw_ra = dw * cos_term
+    # else:
+    #     dw_ra = width * cos_term / 2.0
+
+    # if height is not None:
+    #     dw = height / 2.0
+
+    # qlist = generate_query_list(
+    #     ra,
+    #     dec,
+    #     dw_ra,
+    #     dw,
+    #     tablename,
+    #     good_fluxstd=good_fluxstd,
+    #     flags_dist=flags_dist,
+    #     flags_ebv=flags_ebv,
+    #     extra_where=extra_where,
+    #     mag_min=mag_min,
+    #     mag_max=mag_max,
+    #     mag_filter=mag_filter,
+    #     min_prob_f_star=min_prob_f_star,
+    # )
+
+    # df = pd.DataFrame()
+
+    # for q in qlist:
+    #     print(q)
+
+    t_begin = time.time()
+    df = db.fetch_query(query_string)
+    t_end = time.time()
+    print("Time spent for querying: {:f}".format(t_end - t_begin))
+    # df = pd.concat([df, df_tmp], ignore_index=True)
 
     df.loc[df["pmra"].isna(), "pmra"] = 0.0
     df.loc[df["pmdec"].isna(), "pmdec"] = 0.0
@@ -488,8 +527,8 @@ def fixcols_gaiadb_to_targetdb(
     df["bp_flux_njy"] = tb["bp_mag_ab"].to("nJy").value
     df["rp_flux_njy"] = tb["rp_mag_ab"].to("nJy").value
 
-    #df["priority"] = np.array(tb["g_mag_ab"].value, dtype=int)
-    #df["priority"][tb["g_mag_ab"].value > 12] = 9999
+    # df["priority"] = np.array(tb["g_mag_ab"].value, dtype=int)
+    # df["priority"][tb["g_mag_ab"].value > 12] = 9999
     df["priority"] = np.array(tb["g_mag_ab"].value - 7, dtype=int)
     df["priority"][tb["g_mag_ab"].value - 7 > 12] = 9999
 
