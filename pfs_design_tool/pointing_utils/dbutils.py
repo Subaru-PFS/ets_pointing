@@ -20,7 +20,7 @@ def connect_subaru_gaiadb(conf=None):
 
 
 def connect_targetdb(conf=None):
-    db = targetdb.TargetDB(**dict(conf["targetdb"]))
+    db = targetdb.TargetDB(**dict(conf["targetdb"]["db"]))
     db.connect()
     return db
 
@@ -307,9 +307,29 @@ def generate_skyobjects_from_targetdb(
 
     search_radius = fp_radius_degree * fp_fudge_factor
 
+    try:
+        sky_versions = conf["targetdb"]["sky"]["version"]
+    except:
+        sky_versions = None
+
+    where_condition = f"WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})"
+
+    if sky_versions is not None:
+        version_condition = "("
+        first_condition = True
+        for sky_version in sky_versions:
+            if first_condition:
+                first_condition = False
+            else:
+                version_condition += " OR "
+            version_condition += f"version = '{sky_version}'"
+        version_condition += ")"
+
+        where_condition += f" AND {version_condition}"
+
     query_string = f"""SELECT *
     FROM {tablename}
-    WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
+    {where_condition}
     """
 
     query_string += ";"
@@ -488,8 +508,8 @@ def fixcols_gaiadb_to_targetdb(
     df["bp_flux_njy"] = tb["bp_mag_ab"].to("nJy").value
     df["rp_flux_njy"] = tb["rp_mag_ab"].to("nJy").value
 
-    #df["priority"] = np.array(tb["g_mag_ab"].value, dtype=int)
-    #df["priority"][tb["g_mag_ab"].value > 12] = 9999
+    # df["priority"] = np.array(tb["g_mag_ab"].value, dtype=int)
+    # df["priority"][tb["g_mag_ab"].value > 12] = 9999
     df["priority"] = np.array(tb["g_mag_ab"].value - 7, dtype=int)
     df["priority"][tb["g_mag_ab"].value - 7 > 12] = 9999
 
