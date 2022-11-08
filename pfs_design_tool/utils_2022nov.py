@@ -585,7 +585,7 @@ class CheckDesign(object):
     def plot_mag_hist(self):
         isSm1 = is_smx(self.pfsDesign, moduleIds=[1])
         isSm3 = is_smx(self.pfsDesign, moduleIds=[3])
-        # isSm13 = isSm1 + isSm3
+        isSm13 = isSm1 + isSm3
         isSci = (self.pfsDesign.targetType == TargetType.SCIENCE)
         isFst = (self.pfsDesign.targetType == TargetType.FLUXSTD)
         isSky = (self.pfsDesign.targetType == TargetType.SKY)
@@ -614,14 +614,16 @@ class CheckDesign(object):
         axe.set_ylabel('Number ')
         axe.grid(color='gray', linestyle='dotted', linewidth=1)
         ''' plot SCIENCE & FLUXSTD & SKY '''
+        if len(isTgt[isTgt]) > 0:
+            axe.hist(magnitude[isTgt*isSm13], histtype='step', bins=20, range=(xmin, xmax),
+                     color='red', ls='solid', lw=2, zorder=3, label='MAIN (SM1/SM3)')
         axe.hist(magnitude[isSci*isSm1], histtype='step', bins=20, range=(xmin, xmax),
-                 color='C0', ls='solid', lw=2, label='SCIENCE (SM1)')
+                 color='C0', ls='solid', lw=2, zorder=1, label='SCIENCE (SM1)')
         axe.hist(magnitude[isSci*isSm3], histtype='step', bins=20, range=(xmin, xmax),
-                 color='C0', ls='dashed', lw=2, label='SCIENCE (SM3)')
-
+                 color='C0', ls='dashed', lw=2, zorder=1, label='SCIENCE (SM3)')
         axe.hist(magnitude[isFst*isSm1], histtype='step', bins=20, range=(xmin, xmax),
-                 color='C1', ls='solid', lw=2, label='FLUXSTD (SM1)')
+                 color='C1', ls='solid', lw=2, zorder=2, label='FLUXSTD (SM1)')
         axe.hist(magnitude[isFst*isSm3], histtype='step', bins=20, range=(xmin, xmax),
-                 color='C1', ls='dashed', lw=2, label='FLUXSTD (SM3)')
+                 color='C1', ls='dashed', lw=2, zorder=2, label='FLUXSTD (SM3)')
 
         axe.legend(loc='upper left', fontsize=10)
