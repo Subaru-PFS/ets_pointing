@@ -47,20 +47,18 @@ plt.rcParams["ytick.labelsize"] = 12
 plt.rcParams["axes.labelsize"] = 12
 plt.rcParams["figure.facecolor"] = 'white'
 
-
-gaia_gmag_thresh = 12.5
 sm = [1, 3]
-gfm = FiberIds()  # 2604
+gfm = FiberIds()
 
 
 def is_smx(pfsDesign, moduleIds=[1, 3]):
     ''' isSmX '''
     isSmX = np.full(len(pfsDesign.fiberId), False)
     for x in moduleIds:
-        cobrasForSmX = gfm.cobrasForSpectrograph(x)
+        cobrasForSmX = gfm.cobrasForSpectrograph(x)  # cobra index
         for i, fid in enumerate(pfsDesign.fiberId):
-            cid = gfm.fiberIdToCobraId(fid)
-            if cid in cobrasForSmX:
+            cid = gfm.fiberIdToCobraId(fid)  # cobra ID
+            if cid in cobrasForSmX+1:
                 isSmX[i] = True
     return isSmX
 
@@ -257,6 +255,8 @@ class CheckDesign(object):
                  dataDir='.',
                  repoDir='.',
                  dotMargin=1.0,
+                 gaiaCsv=None,
+                 gaia_gmag_thresh=12.5,
                  ):
         self.pfsDesignId = pfsDesignId
         self.obsTime = obsTime
@@ -265,6 +265,8 @@ class CheckDesign(object):
         self.dataDir = dataDir
         self.repoDir = repoDir
         self.dotMargin = dotMargin
+        self.gaiaCsv = gaiaCsv
+        self.gaia_gmag_thresh = gaia_gmag_thresh
 
         if pfsDesignId is not None:
             self.setPfsDesignId(self.pfsDesignId)
@@ -395,10 +397,9 @@ class CheckDesign(object):
 
     def getGaiaSources(self):
         ''' read Gaia sources '''
-        filename = 'gaia3_ngc1980.csv'
-        df = pd.read_csv(os.path.join(self.dataDir, filename))
+        df = pd.read_csv(os.path.join(self.dataDir, self.gaiaCsv))
         gmag = np.array(df['phot_g_mean_mag'])
-        msk = (gmag < gaia_gmag_thresh) * (gmag > 0.0)
+        msk = (gmag < self.gaia_gmag_thresh) * (gmag > 0.0)
 
         id_gaia_bright = np.array(df[msk]['source_id'])
         ra_gaia_bright = df[msk]['ra']
@@ -420,13 +421,22 @@ class CheckDesign(object):
         isFst = (self.pfsDesign.targetType == TargetType.FLUXSTD)
         isSky = (self.pfsDesign.targetType == TargetType.SKY)
         isUna = (self.pfsDesign.targetType == TargetType.UNASSIGNED)
+        try:
+            isTgt = (self.pfsDesign.targetType == TargetType.SCIENCE) * \
+                (self.pfsDesign.objId == int(self.objId))
+        except ValueError:
+            isTgt = np.full(len(self.pfsDesign), False)
 
         print("=====================================")
+        if len(isTgt[isTgt]) > 0:
+            print("The number of MAIN       (SM1) : %4d" % (len(self.pfsDesign[isTgt*isSm1])))
         print("The number of SCIENCE    (SM1) : %4d" % (len(self.pfsDesign[isSci*isSm1])))
         print("The number of FLUXSTD    (SM1) : %4d" % (len(self.pfsDesign[isFst*isSm1])))
         print("The number of SKY        (SM1) : %4d" % (len(self.pfsDesign[isSky*isSm1])))
         print("The number of UNASSIGNED (SM1) : %4d" % (len(self.pfsDesign[isUna*isSm1])))
         print("=====================================")
+        if len(isTgt[isTgt]) > 0:
+            print("The number of MAIN       (SM3) : %4d" % (len(self.pfsDesign[isTgt*isSm3])))
         print("The number of SCIENCE    (SM3) : %4d" % (len(self.pfsDesign[isSci*isSm3])))
         print("The number of FLUXSTD    (SM3) : %4d" % (len(self.pfsDesign[isFst*isSm3])))
         print("The number of SKY        (SM3) : %4d" % (len(self.pfsDesign[isSky*isSm3])))
@@ -447,10 +457,10 @@ class CheckDesign(object):
         gmag = -2.5*np.log10(f[:, 0]*1e-09) + 8.9  # conversion from nJy to ABmag
         fid = self.pfsDesign[flg].fiberId
         pos = self.pfsDesign[flg].pfiNominal
-        msk = (gmag < gaia_gmag_thresh) * (gmag > 0.0)
+        msk = (gmag < self.gaia_gmag_thresh) * (gmag > 0.0)
         bright_center_pfi_x = pos[msk].T[0]
         bright_center_pfi_y = pos[msk].T[1]
-        print("The number of objects brighter than %.1f (SM1): %d" % (gaia_gmag_thresh, len(fid[msk])))
+        print("The number of objects brighter than %.1f (SM1): %d" % (self.gaia_gmag_thresh, len(fid[msk])))
         print("fiberId:", fid[msk])
         print("gmag:", gmag[msk])
         print("X:", bright_center_pfi_x)
@@ -463,10 +473,10 @@ class CheckDesign(object):
         gmag = -2.5*np.log10(f[:, 0]*1e-09) + 8.9  # conversion from nJy to ABmag
         fid = self.pfsDesign[flg].fiberId
         pos = self.pfsDesign[flg].pfiNominal
-        msk = (gmag < gaia_gmag_thresh) * (gmag > 0.0)
+        msk = (gmag < self.gaia_gmag_thresh) * (gmag > 0.0)
         bright_center_pfi_x = pos[msk].T[0]
         bright_center_pfi_y = pos[msk].T[1]
-        print("The number of objects brighter than %.1f (SM3): %d" % (gaia_gmag_thresh, len(fid[msk])))
+        print("The number of objects brighter than %.1f (SM3): %d" % (self.gaia_gmag_thresh, len(fid[msk])))
         print("fiberId:", fid[msk])
         print("gmag:", gmag[msk])
         print("X:", bright_center_pfi_x)
@@ -488,10 +498,15 @@ class CheckDesign(object):
     def plot_pfi_fov(self):
         isSm1 = is_smx(self.pfsDesign, moduleIds=[1])
         isSm3 = is_smx(self.pfsDesign, moduleIds=[3])
-        # isSm13 = isSm1 + isSm3
+        isSm13 = isSm1 + isSm3
         isSci = (self.pfsDesign.targetType == TargetType.SCIENCE)
         isFst = (self.pfsDesign.targetType == TargetType.FLUXSTD)
         isSky = (self.pfsDesign.targetType == TargetType.SKY)
+        try:
+            isTgt = (self.pfsDesign.targetType == TargetType.SCIENCE) * \
+                (self.pfsDesign.objId == int(self.objId))
+        except ValueError:
+            isTgt = np.full(len(self.pfsDesign), False)
 
         fig = plt.figure(figsize=(6, 6))
         axe = fig.add_subplot(111)
@@ -506,28 +521,40 @@ class CheckDesign(object):
         y = self.pfsDesign.pfiNominal[:, 1]
 
         ''' plot SCIENCE & FLUXSTD & SKY '''
+        if len(isTgt[isTgt]) > 0:
+            axe.scatter(x[isTgt*isSm1], y[isTgt*isSm13],
+                        marker='o', s=100, facecolor='red', edgecolor='k', alpha=0.7,
+                        zorder=2,
+                        label=f'MAIN targets ({len(x[isTgt*isSm13])})'
+                        )
         axe.scatter(x[isSci*isSm1], y[isSci*isSm1],
                     marker='o', s=50, facecolor='C0', edgecolor='k', alpha=0.7,
+                    zorder=1,
                     label=f'SCIENCE targets (SM1) ({len(x[isSci*isSm1])})'
                     )
         axe.scatter(x[isSci*isSm3], y[isSci*isSm3],
                     marker='^', s=50, facecolor='C0', edgecolor='k', alpha=0.7,
+                    zorder=1,
                     label=f'SCIENCE targets (SM3) ({len(x[isSci*isSm3])})'
                     )
         axe.scatter(x[isFst*isSm1], y[isFst*isSm1],
                     marker='o', s=50, facecolor='C1', edgecolor='k', alpha=0.7,
+                    zorder=1,
                     label=f'FLXSTD targets ({len(x[isFst*isSm1])})'
                     )
         axe.scatter(x[isFst*isSm3], y[isFst*isSm3],
                     marker='^', s=50, facecolor='C1', edgecolor='k', alpha=0.7,
+                    zorder=1,
                     label=f'FLXSTD targets ({len(x[isFst*isSm3])})'
                     )
         axe.scatter(x[isSky*isSm1], y[isSky*isSm1],
                     marker='o', s=50, facecolor='C2', edgecolor='k', alpha=0.7,
+                    zorder=1,
                     label=f'SKY targets ({len(x[isSky*isSm1])})'
                     )
         axe.scatter(x[isSky*isSm3], y[isSky*isSm3],
                     marker='^', s=50, facecolor='C2', edgecolor='k', alpha=0.7,
+                    zorder=1,
                     label=f'SKY targets ({len(x[isSky*isSm3])})'
                     )
 
@@ -535,7 +562,7 @@ class CheckDesign(object):
         axe.scatter(self.x_gaia_bright, self.y_gaia_bright,
                     marker='o', s=50, facecolor='none', edgecolor='red',
                     linewidth=2, alpha=0.7,
-                    label=f'All Gaia sources brighter than g<{gaia_gmag_thresh} mag'
+                    label=f'All Gaia sources brighter than g<{self.gaia_gmag_thresh} mag'
                     )
 
         ''' plot cobra patrol regions and dots '''
