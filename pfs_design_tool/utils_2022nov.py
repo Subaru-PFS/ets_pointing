@@ -63,12 +63,11 @@ def is_smx(pfsDesign, moduleIds=[1, 3]):
     return isSmX
 
 
-def pfi2sky(pfsDesign, observation_time):
+def pfi2sky(pfsDesign, observation_time, epoch=2016.0):
     ''' coordinate transformation utils '''
     pmra = np.array([0.0 for _ in range(len(pfsDesign.ra))])
     pmdec = np.array([0.0 for _ in range(len(pfsDesign.ra))])
     parallax = np.array([1.0e-07 for _ in range(len(pfsDesign.ra))])
-    epoch = 2015.5
 
     tmp = np.array([pfsDesign.pfiNominal[:, 0], pfsDesign.pfiNominal[:, 1]])
     tmp = ctrans(
@@ -88,11 +87,10 @@ def pfi2sky(pfsDesign, observation_time):
     return sky_x, sky_y
 
 
-def pfi2sky_array(pfi_x, pfi_y, pfsDesign, observation_time):
+def pfi2sky_array(pfi_x, pfi_y, pfsDesign, observation_time, epoch=2016.0):
     pmra = np.array([0.0 for _ in range(len(pfi_x))])
     pmdec = np.array([0.0 for _ in range(len(pfi_x))])
     parallax = np.array([1.0e-07 for _ in range(len(pfi_x))])
-    epoch = 2015.5
 
     tmp = np.array([pfi_x, pfi_y])
     tmp = ctrans(
@@ -112,11 +110,10 @@ def pfi2sky_array(pfi_x, pfi_y, pfsDesign, observation_time):
     return sky_x, sky_y
 
 
-def sky2pfi(pfsDesign, observation_time):
+def sky2pfi(pfsDesign, observation_time, epoch=2016.0):
     pmra = np.array([0.0 for _ in range(len(pfsDesign.ra))])
     pmdec = np.array([0.0 for _ in range(len(pfsDesign.ra))])
     parallax = np.array([1.0e-07 for _ in range(len(pfsDesign.ra))])
-    epoch = 2015.5
 
     tmp = np.array([pfsDesign.ra, pfsDesign.dec])
     tmp = ctrans(
@@ -136,11 +133,10 @@ def sky2pfi(pfsDesign, observation_time):
     return pfi_x, pfi_y
 
 
-def sky2pfi_array(sky_x, sky_y, pfsDesign, observation_time):
+def sky2pfi_array(sky_x, sky_y, pfsDesign, observation_time, epoch=2016.0):
     pmra = np.array([0.0 for _ in range(len(sky_x))])
     pmdec = np.array([0.0 for _ in range(len(sky_x))])
     parallax = np.array([1.0e-07 for _ in range(len(sky_x))])
-    epoch = 2015.5
 
     tmp = np.array([sky_x, sky_y])
     tmp = ctrans(
@@ -256,7 +252,8 @@ class CheckDesign(object):
                  repoDir='.',
                  dotMargin=1.0,
                  gaiaCsv=None,
-                 gaia_gmag_thresh=12.5,
+                 gaia_gmag_min=12.0,
+                 gaia_gmag_max=12.5,
                  ):
         self.pfsDesignId = pfsDesignId
         self.obsTime = obsTime
@@ -266,7 +263,8 @@ class CheckDesign(object):
         self.repoDir = repoDir
         self.dotMargin = dotMargin
         self.gaiaCsv = gaiaCsv
-        self.gaia_gmag_thresh = gaia_gmag_thresh
+        self.gaia_gmag_min = gaia_gmag_min
+        self.gaia_gmag_max = gaia_gmag_max
 
         if pfsDesignId is not None:
             self.setPfsDesignId(self.pfsDesignId)
@@ -399,7 +397,7 @@ class CheckDesign(object):
         ''' read Gaia sources '''
         df = pd.read_csv(os.path.join(self.dataDir, self.gaiaCsv))
         gmag = np.array(df['phot_g_mean_mag'])
-        msk = (gmag < self.gaia_gmag_thresh) * (gmag > 0.0)
+        msk = (gmag < self.gaia_gmag_max) * (gmag > self.gaia_gmag_min)
 
         id_gaia_bright = np.array(df[msk]['source_id'])
         ra_gaia_bright = df[msk]['ra']
@@ -457,10 +455,11 @@ class CheckDesign(object):
         gmag = -2.5*np.log10(f[:, 0]*1e-09) + 8.9  # conversion from nJy to ABmag
         fid = self.pfsDesign[flg].fiberId
         pos = self.pfsDesign[flg].pfiNominal
-        msk = (gmag < self.gaia_gmag_thresh) * (gmag > 0.0)
+        msk = (gmag < self.gaia_gmag_max) * (gmag > self.gaia_gmag_min)
         bright_center_pfi_x = pos[msk].T[0]
         bright_center_pfi_y = pos[msk].T[1]
-        print("The number of objects brighter than %.1f (SM1): %d" % (self.gaia_gmag_thresh, len(fid[msk])))
+        print("The number of bright objects (%.1f<g<%.1f) (SM1): %d" %
+              (self.gaia_gmag_min, self.gaia_gmag_max, len(fid[msk])))
         print("fiberId:", fid[msk])
         print("gmag:", gmag[msk])
         print("X:", bright_center_pfi_x)
@@ -473,10 +472,11 @@ class CheckDesign(object):
         gmag = -2.5*np.log10(f[:, 0]*1e-09) + 8.9  # conversion from nJy to ABmag
         fid = self.pfsDesign[flg].fiberId
         pos = self.pfsDesign[flg].pfiNominal
-        msk = (gmag < self.gaia_gmag_thresh) * (gmag > 0.0)
+        msk = (gmag < self.gaia_gmag_max) * (gmag > self.gaia_gmag_min)
         bright_center_pfi_x = pos[msk].T[0]
         bright_center_pfi_y = pos[msk].T[1]
-        print("The number of objects brighter than %.1f (SM3): %d" % (self.gaia_gmag_thresh, len(fid[msk])))
+        print("The number of bright objects (%.1f<g<%.1f) (SM3): %d" %
+              (self.gaia_gmag_min, self.gaia_gmag_max, len(fid[msk])))
         print("fiberId:", fid[msk])
         print("gmag:", gmag[msk])
         print("X:", bright_center_pfi_x)
@@ -562,7 +562,7 @@ class CheckDesign(object):
         axe.scatter(self.x_gaia_bright, self.y_gaia_bright,
                     marker='o', s=50, facecolor='none', edgecolor='red',
                     linewidth=2, alpha=0.7,
-                    label=f'All Gaia sources brighter than g<{self.gaia_gmag_thresh} mag'
+                    label=f'All Gaia sources ({self.gaia_gmag_min}<g<{self.gaia_gmag_max} mag)'
                     )
 
         ''' plot cobra patrol regions and dots '''
@@ -581,3 +581,47 @@ class CheckDesign(object):
 
         # plt.savefig(f'./figures/test_{self.objId}_pfi.pdf', dpi=150, bbox_inches='tight')
         # plt.savefig(f'./figures/test_{self.objId}_pfi.png', dpi=150, bbox_inches='tight')
+
+    def plot_mag_hist(self):
+        isSm1 = is_smx(self.pfsDesign, moduleIds=[1])
+        isSm3 = is_smx(self.pfsDesign, moduleIds=[3])
+        # isSm13 = isSm1 + isSm3
+        isSci = (self.pfsDesign.targetType == TargetType.SCIENCE)
+        isFst = (self.pfsDesign.targetType == TargetType.FLUXSTD)
+        isSky = (self.pfsDesign.targetType == TargetType.SKY)
+        isUna = (self.pfsDesign.targetType == TargetType.UNASSIGNED)
+        try:
+            isTgt = (self.pfsDesign.targetType == TargetType.SCIENCE) * \
+                (self.pfsDesign.objId == int(self.objId))
+        except ValueError:
+            isTgt = np.full(len(self.pfsDesign), False)
+
+        magnitude = np.zeros(len(self.pfsDesign))
+        for i, flx in enumerate(self.pfsDesign.psfFlux):
+            if len(flx) > 0:
+                m = -2.5*np.log10(flx[0]*1e-09) + 8.9
+            else:
+                m = np.nan
+            magnitude[i] = m
+            # mag=np.append(mag, m)
+
+        xmin = 11.0
+        xmax = 18.0
+        fig = plt.figure(figsize=(6, 6))
+        axe = fig.add_subplot(111)
+        axe.set_title(f'{self.objId}')
+        axe.set_xlabel('Magnitude (AB)')
+        axe.set_ylabel('Number ')
+        axe.grid(color='gray', linestyle='dotted', linewidth=1)
+        ''' plot SCIENCE & FLUXSTD & SKY '''
+        axe.hist(magnitude[isSci*isSm1], histtype='step', bins=20, range=(xmin, xmax),
+                 color='C0', ls='solid', lw=2, label='SCIENCE (SM1)')
+        axe.hist(magnitude[isSci*isSm3], histtype='step', bins=20, range=(xmin, xmax),
+                 color='C0', ls='dashed', lw=2, label='SCIENCE (SM3)')
+
+        axe.hist(magnitude[isFst*isSm1], histtype='step', bins=20, range=(xmin, xmax),
+                 color='C1', ls='solid', lw=2, label='FLUXSTD (SM1)')
+        axe.hist(magnitude[isFst*isSm3], histtype='step', bins=20, range=(xmin, xmax),
+                 color='C1', ls='dashed', lw=2, label='FLUXSTD (SM3)')
+
+        axe.legend(loc='upper left', fontsize=10)
