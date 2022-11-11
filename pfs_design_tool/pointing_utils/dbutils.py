@@ -130,6 +130,26 @@ def generate_fluxstds_from_targetdb(
             AND flags_ebv IS FALSE
             """
 
+    try:
+        fluxstd_versions = conf["targetdb"]["fluxstd"]["version"]
+    except:
+        fluxstd_versions = None
+
+    if fluxstd_versions is not None:
+        version_condition = "("
+        first_condition = True
+        for fluxstd_version in fluxstd_versions:
+            if first_condition:
+                first_condition = False
+            else:
+                version_condition += " OR "
+            version_condition += f"version = '{fluxstd_version}'"
+        version_condition += ")"
+
+        extra_where += f"""
+        AND {version_condition
+        }"""
+
     query_string += extra_where
 
     query_string += ";"
