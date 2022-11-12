@@ -271,6 +271,8 @@ class CheckDesign(object):
         else:
             self.pfsDesignId = self.pfsDesignId
 
+        self.configGeometry()
+
     def setPfsDesignId(self, pfsDesignId):
         self.pfsDesignId = pfsDesignId
         self.pfsDesign = PfsDesign.read(pfsDesignId=self.pfsDesignId, dirName=self.designDir)
@@ -495,7 +497,7 @@ class CheckDesign(object):
         print("Bright Gaia source coverage: %.2f" % (gaia_completeness_in_sms_new))
         return gaia_completeness_in_fov_new, gaia_completeness_in_sms_new
 
-    def plot_pfi_fov(self):
+    def plot_pfi_fov(self, fig=None, axe=None):
         isSm1 = is_smx(self.pfsDesign, moduleIds=[1])
         isSm3 = is_smx(self.pfsDesign, moduleIds=[3])
         isSm13 = isSm1 + isSm3
@@ -508,8 +510,10 @@ class CheckDesign(object):
         except ValueError:
             isTgt = np.full(len(self.pfsDesign), False)
 
-        fig = plt.figure(figsize=(6, 6))
-        axe = fig.add_subplot(111)
+        if fig is None:
+            fig = plt.figure(figsize=(6, 6))
+        if axe is None:
+            axe = fig.add_subplot(111)
         axe.set_title(f'{self.objId}')
         axe.set_xlabel('X (mm)')
         axe.set_ylabel('Y (mm)')
@@ -582,7 +586,7 @@ class CheckDesign(object):
         # plt.savefig(f'./figures/test_{self.objId}_pfi.pdf', dpi=150, bbox_inches='tight')
         # plt.savefig(f'./figures/test_{self.objId}_pfi.png', dpi=150, bbox_inches='tight')
 
-    def plot_mag_hist(self):
+    def plot_mag_hist(self, fig=None, axe=None):
         isSm1 = is_smx(self.pfsDesign, moduleIds=[1])
         isSm3 = is_smx(self.pfsDesign, moduleIds=[3])
         isSm13 = isSm1 + isSm3
@@ -607,8 +611,10 @@ class CheckDesign(object):
 
         xmin = 11.0
         xmax = 18.0
-        fig = plt.figure(figsize=(6, 6))
-        axe = fig.add_subplot(111)
+        if fig is None:
+            fig = plt.figure(figsize=(6, 6))
+        if axe is None:
+            axe = fig.add_subplot(111)
         axe.set_title(f'{self.objId}')
         axe.set_xlabel('Magnitude (AB)')
         axe.set_ylabel('Number ')
@@ -627,3 +633,11 @@ class CheckDesign(object):
                  color='C1', ls='dashed', lw=2, zorder=2, label='FLUXSTD (SM3)')
 
         axe.legend(loc='upper left', fontsize=10)
+
+    def plot_integrated(self):
+        fig = plt.figure(figsize=(8, 4))
+        ax1 = fig.add_subplot(121)
+        ax2 = fig.add_subplot(122)
+        self.check_statistics()
+        self.plot_pfi_fov(fig=fig, axe=ax1)
+        self.plot_mag_hist(fig=fig, axe=ax2)
