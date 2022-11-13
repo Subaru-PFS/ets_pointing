@@ -1,26 +1,16 @@
 import logging
 import sys
 import os
-import datetime
 import numpy as np
-import psycopg2
 import pandas as pd
-from astropy.io import fits
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-from matplotlib.ticker import MultipleLocator
 from matplotlib.patches import Circle
 from matplotlib.collections import PatchCollection
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from astroquery.gaia import Gaia
-from astropy.coordinates import SkyCoord
-import astropy.units as u
 
 from pfs.utils.fiberids import FiberIds
-from pfs.datamodel import PfsDesign, FiberStatus, TargetType
+from pfs.datamodel import PfsDesign, TargetType
 
 from astropy.utils import iers
-from astropy.time import Time
 # os.path.append('/work/pfs/commissioning/2022nov/fiber_allocation/pfs_utils/python')
 from pfs.utils.coordinates.CoordTransp import CoordinateTransform as ctrans
 
@@ -291,8 +281,6 @@ class CheckDesign(object):
         from ics.cobraCharmer.pfiDesign import PFIDesign
         from ics.cobraOps.Bench import Bench
         from ics.cobraOps.BlackDotsCalibrationProduct import BlackDotsCalibrationProduct
-        from ics.cobraOps.cobraConstants import NULL_TARGET_ID
-        from ics.cobraOps.cobraConstants import NULL_TARGET_POSITION
         # from ics.cobraOps.CollisionSimulator2 import CollisionSimulator2
         # from ics.cobraOps.TargetGroup import TargetGroup
         from procedures.moduleTest.cobraCoach import CobraCoach
@@ -592,8 +580,6 @@ class CheckDesign(object):
         isSm13 = isSm1 + isSm3
         isSci = (self.pfsDesign.targetType == TargetType.SCIENCE)
         isFst = (self.pfsDesign.targetType == TargetType.FLUXSTD)
-        isSky = (self.pfsDesign.targetType == TargetType.SKY)
-        isUna = (self.pfsDesign.targetType == TargetType.UNASSIGNED)
         try:
             isTgt = (self.pfsDesign.targetType == TargetType.SCIENCE) * \
                 (self.pfsDesign.objId == int(self.objId))

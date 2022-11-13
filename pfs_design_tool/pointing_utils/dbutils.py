@@ -10,7 +10,6 @@ import psycopg2
 import psycopg2.extras
 from astropy import units as u
 from astropy.table import Table
-from astropy.time import Time
 from logzero import logger
 from targetdb import targetdb
 
@@ -122,17 +121,17 @@ def generate_fluxstds_from_targetdb(
         AND prob_f_star > {min_prob_f_star}
         """
         if flags_dist:
-            extra_where += f"""
+            extra_where += """
             AND flags_dist IS FALSE
             """
         if flags_ebv:
-            extra_where += f"""
+            extra_where += """
             AND flags_ebv IS FALSE
             """
 
     try:
         fluxstd_versions = conf["targetdb"]["fluxstd"]["version"]
-    except:
+    except Exception:
         fluxstd_versions = None
 
     if fluxstd_versions is not None:
@@ -186,7 +185,7 @@ def generate_skyobjects_from_targetdb(
 
     try:
         sky_versions = conf["targetdb"]["sky"]["version"]
-    except:
+    except Exception:
         sky_versions = None
 
     where_condition = f"WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})"
