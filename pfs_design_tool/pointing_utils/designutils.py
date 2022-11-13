@@ -140,6 +140,8 @@ def generate_pfs_design(
                         for band in filter_band_names
                     ]
                 )
+                msk = dict_of_flux_lists["psf_flux_err"][i_fiber] <= 0
+                dict_of_flux_lists["psf_flux_err"][i_fiber][msk] = np.nan
                 dict_of_flux_lists["filter_names"][i_fiber] = [
                     df_targets[f"filter_{band}"][idx_target].values[0]
                     if df_targets[f"filter_{band}"][idx_target].values[0] is not None
@@ -171,6 +173,8 @@ def generate_pfs_design(
                         for band in filter_band_names
                     ]
                 )
+                msk = dict_of_flux_lists["psf_flux_err"][i_fiber] <= 0
+                dict_of_flux_lists["psf_flux_err"][i_fiber][msk] = np.nan
                 dict_of_flux_lists["filter_names"][i_fiber] = [
                     df_fluxstds[f"filter_{band}"][idx_fluxstd].values[0]
                     if df_fluxstds[f"filter_{band}"][idx_fluxstd].values[0] is not None

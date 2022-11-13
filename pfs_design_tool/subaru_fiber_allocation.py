@@ -377,7 +377,6 @@ def main():
         df_raster = None
 
     # print(df_raster)
-    print(df_raster["priority"])
 
     # exit()
 
