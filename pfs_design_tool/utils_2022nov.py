@@ -480,8 +480,14 @@ class CheckDesign(object):
                                              self.gaia_info,
                                              self.cobra_ids_use
                                              )
-        gaia_completeness_in_fov_new = num_gaia_assigned_in_fov / num_gaia_all_in_fov
-        gaia_completeness_in_sms_new = num_gaia_assigned_in_sms / num_gaia_all_in_sms
+        if num_gaia_all_in_fov > 0:
+            gaia_completeness_in_fov_new = num_gaia_assigned_in_fov / num_gaia_all_in_fov
+        else:
+            gaia_completeness_in_fov_new = np.nan
+        if num_gaia_all_in_sms > 0:
+            gaia_completeness_in_sms_new = num_gaia_assigned_in_sms / num_gaia_all_in_sms
+        else:
+            gaia_completeness_in_sms_new = np.nan
         print("Bright Gaia source coverage: %.2f" % (gaia_completeness_in_sms_new))
         return gaia_completeness_in_fov_new, gaia_completeness_in_sms_new
 

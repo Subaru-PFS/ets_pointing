@@ -265,10 +265,16 @@ def get_arguments():
     )
     parser.add_argument(
         "--dot_margin",
-        nargs="+",
         type=float,
         default=1.0,
         help="Margin factor for dot avoidance (default: 1.0)",
+    )
+    parser.add_argument(
+        "--input_catalog",
+        nargs="+",
+        type=int,
+        default=None,
+        help="Input catalog IDs for targets (default: None)",
     )
 
     args = parser.parse_args()
@@ -306,7 +312,7 @@ def main():
             pass
 
     df_targets = dbutils.generate_targets_from_targetdb(
-        args.ra, args.dec, conf=conf, arms=args.arms, force_priority=1
+        args.ra, args.dec, conf=conf, arms=args.arms, force_priority=1, input_catalog=args.input_catalog
     )
     df_fluxstds = dbutils.generate_fluxstds_from_targetdb(
         args.ra,

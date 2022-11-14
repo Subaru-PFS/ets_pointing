@@ -35,6 +35,7 @@ def generate_targets_from_targetdb(
     fp_fudge_factor=1.5,  # fudge factor for search widths
     extra_where=None,
     force_priority=None,
+    input_catalog=None,
 ):
 
     db = connect_targetdb(conf)
@@ -53,6 +54,9 @@ def generate_targets_from_targetdb(
 
     if extra_where is not None:
         query_string += extra_where
+
+    if input_catalog is not None:
+        query_string += ' AND (' + 'OR'.join([f"input_catalog_id={v}" for v in input_catalog]) + ')'
 
     query_string += ";"
 
