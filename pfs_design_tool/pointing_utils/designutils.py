@@ -78,6 +78,7 @@ def generate_pfs_design(
         "fiber_flux": [flux_default_values for _ in range(n_fiber)],
         "total_flux": [flux_default_values for _ in range(n_fiber)],
         "psf_flux": [flux_default_values for _ in range(n_fiber)],
+        "psf_flux_error": [flux_default_values for _ in range(n_fiber)],
         "filter_names": [filter_default_values for _ in range(n_fiber)],
     }
     # dict_of_flux_lists = {
@@ -165,6 +166,15 @@ def generate_pfs_design(
                         for band in filter_band_names
                     ]
                 )
+                dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
+                    [
+                        df_fluxstds[f"psf_flux_error_{band}"][idx_fluxstd].values[0]
+                        if df_fluxstds[f"psf_flux_error_{band}"][idx_fluxstd].values[0]
+                        is not None
+                        else np.nan
+                        for band in filter_band_names
+                    ]
+                )
                 dict_of_flux_lists["filter_names"][i_fiber] = [
                     df_fluxstds[f"filter_{band}"][idx_fluxstd].values[0]
                     if df_fluxstds[f"filter_{band}"][idx_fluxstd].values[0] is not None
@@ -189,15 +199,33 @@ def generate_pfs_design(
                             df_raster["g_flux_njy"][idx_raster].values[0],
                             df_raster["bp_flux_njy"][idx_raster].values[0],
                             df_raster["rp_flux_njy"][idx_raster].values[0],
+                            np.nan,
+                            np.nan,
+                        ]
+                    )
+                    dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
+                        [
+                            df_raster["g_flux_err_njy"][idx_raster].values[0],
+                            df_raster["bp_flux_err_njy"][idx_raster].values[0],
+                            df_raster["rp_flux_err_njy"][idx_raster].values[0],
+                            np.nan,
+                            np.nan,
                         ]
                     )
                     dict_of_flux_lists["filter_names"][i_fiber] = [
                         "g_gaia",
                         "bp_gaia",
                         "rp_gaia",
+                        "none",
+                        "none",
                     ]
 
-    # print(dict_of_flux_lists)
+            # print(dict_of_flux_lists)
+
+    for i in range(len(dict_of_flux_lists["filter_names"])):
+        dict_of_flux_lists["psf_flux_error"][i][
+            dict_of_flux_lists["psf_flux_error"][i] == 0.0
+        ] = 1.0e-6
 
     pfs_design = makePfsDesign(
         pfi_nominal,
@@ -218,7 +246,7 @@ def generate_pfs_design(
         # psfFlux=psf_flux,
         # totalFlux=dict_of_flux_lists["total_flux"],
         # fiberFluxErr=np.NaN,
-        # psfFluxErr=np.NaN,
+        psfFluxErr=dict_of_flux_lists["psf_flux_error"],
         # totalFluxErr=np.NaN,
         filterNames=dict_of_flux_lists["filter_names"],
         # filterNames=filter_names,
