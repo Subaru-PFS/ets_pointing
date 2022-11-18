@@ -296,7 +296,7 @@ def generate_targets_from_gaiadb(
 
     query_string = f"""SELECT
     source_id,ref_epoch,ra,dec,pmra,pmdec,parallax,
-    phot_g_mean_mag,phot_bp_mean_mag,phot_rp_mean_mag
+    phot_g_mean_mag,phot_bp_mean_mag,phot_rp_mean_mag,
     phot_g_mean_flux_over_error, phot_bp_mean_flux_over_error, phot_rp_mean_flux_over_error
     FROM gaia3
     WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
@@ -325,12 +325,9 @@ def generate_targets_from_gaiadb(
             "phot_g_mean_mag",
             "phot_bp_mean_mag",
             "phot_rp_mean_mag",
-            "phot_g_mean_flux",
-            "phot_bp_mean_flux",
-            "phot_rp_mean_flux",
-            "phot_g_mean_flux_error",
-            "phot_bp_mean_flux_error",
-            "phot_rp_mean_flux_error",
+            "phot_g_mean_flux_over_error",
+            "phot_bp_mean_flux_over_error",
+            "phot_rp_mean_flux_over_error",
         ],
     )
 
@@ -376,13 +373,6 @@ def fixcols_gaiadb_to_targetdb(
     df["g_flux_njy"] = tb["g_mag_ab"].to("nJy").value
     df["bp_flux_njy"] = tb["bp_mag_ab"].to("nJy").value
     df["rp_flux_njy"] = tb["rp_mag_ab"].to("nJy").value
-    df["g_flux_err_njy"] = tb["g_mag_ab"].to("nJy").value * \
-        (df["phot_g_mean_flux_error"].to_numpy() / df["phot_g_mean_flux"].to_numpy())
-    df["bp_flux_err_njy"] = tb["bp_mag_ab"].to("nJy").value * \
-        (df["phot_bp_mean_flux_error"].to_numpy() / df["phot_bp_mean_flux"].to_numpy())
-    df["rp_flux_err_njy"] = tb["rp_mag_ab"].to("nJy").value * \
-        (df["phot_rp_mean_flux_error"].to_numpy() / df["phot_rp_mean_flux"].to_numpy())
-
     df["g_flux_err_njy"] = df["g_flux_njy"] / df["phot_g_mean_flux_over_error"]
     df["bp_flux_err_njy"] = df["bp_flux_njy"] / df["phot_bp_mean_flux_over_error"]
     df["rp_flux_err_njy"] = df["rp_flux_njy"] / df["phot_rp_mean_flux_over_error"]

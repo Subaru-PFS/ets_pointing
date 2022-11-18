@@ -133,7 +133,7 @@ def generate_pfs_design(
                         for band in filter_band_names
                     ]
                 )
-                dict_of_flux_lists["psf_flux_err"][i_fiber] = np.array(
+                dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
                     [
                         df_targets[f"psf_flux_error_{band}"][idx_target].values[0]
                         if df_targets[f"psf_flux_error_{band}"][idx_target].values[0]
@@ -142,8 +142,8 @@ def generate_pfs_design(
                         for band in filter_band_names
                     ]
                 )
-                msk = dict_of_flux_lists["psf_flux_err"][i_fiber] <= 0
-                dict_of_flux_lists["psf_flux_err"][i_fiber][msk] = np.nan
+                msk = dict_of_flux_lists["psf_flux_error"][i_fiber] <= 0
+                dict_of_flux_lists["psf_flux_error"][i_fiber][msk] = np.nan
                 dict_of_flux_lists["filter_names"][i_fiber] = [
                     df_targets[f"filter_{band}"][idx_target].values[0]
                     if df_targets[f"filter_{band}"][idx_target].values[0] is not None
@@ -175,8 +175,8 @@ def generate_pfs_design(
                         for band in filter_band_names
                     ]
                 )
-                msk = dict_of_flux_lists["psf_flux_err"][i_fiber] <= 0
-                dict_of_flux_lists["psf_flux_err"][i_fiber][msk] = np.nan
+                msk = dict_of_flux_lists["psf_flux_error"][i_fiber] <= 0
+                dict_of_flux_lists["psf_flux_error"][i_fiber][msk] = np.nan
                 dict_of_flux_lists["filter_names"][i_fiber] = [
                     df_fluxstds[f"filter_{band}"][idx_fluxstd].values[0]
                     if df_fluxstds[f"filter_{band}"][idx_fluxstd].values[0] is not None
@@ -214,7 +214,7 @@ def generate_pfs_design(
                             np.nan,
                         ]
                     )
-                    dict_of_flux_lists["psf_flux_err"][i_fiber] = np.array(
+                    dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
                         [
                             df_raster["g_flux_err_njy"][idx_raster].values[0],
                             df_raster["bp_flux_err_njy"][idx_raster].values[0],
