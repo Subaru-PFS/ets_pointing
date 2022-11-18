@@ -13,6 +13,8 @@ from pfs.utils.coordinates.CoordTransp import ag_pfimm_to_pixel
 from pfs.utils.fiberids import FiberIds
 from pfs.utils.pfsDesignUtils import makePfsDesign
 
+from pointing_utils.dbutils import connect_subaru_gaiadb
+
 
 def generate_pfs_design(
     df_targets,
@@ -217,6 +219,8 @@ def generate_pfs_design(
                             df_raster["g_flux_err_njy"][idx_raster].values[0],
                             df_raster["bp_flux_err_njy"][idx_raster].values[0],
                             df_raster["rp_flux_err_njy"][idx_raster].values[0],
+                            np.nan,
+                            np.nan,
                         ]
                     )
                     dict_of_flux_lists["filter_names"][i_fiber] = [

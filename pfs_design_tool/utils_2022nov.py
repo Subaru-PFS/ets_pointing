@@ -271,6 +271,9 @@ class CheckDesign(object):
     def updatePfsDesignId(self, pfsDesignId):
         self.setPfsDesignId(pfsDesignId)
 
+    def getPfsDesign(self):
+        return self.pfsDesign
+
     def configGeometry(self):
         ''' get cobra+dots geometry '''
         sys.path.append(os.path.join(self.repoDir, 'ics_fpsActor/python'))
