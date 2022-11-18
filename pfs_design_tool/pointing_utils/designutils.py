@@ -32,10 +32,9 @@ from pfs.utils.coordinates.CoordTransp import CoordinateTransform as ctrans
 from pfs.utils.coordinates.CoordTransp import ag_pfimm_to_pixel
 from pfs.utils.fiberids import FiberIds
 from pfs.utils.pfsDesignUtils import makePfsDesign
+from pointing_utils.dbutils import connect_subaru_gaiadb
 from procedures.moduleTest.cobraCoach import CobraCoach
 from targetdb import targetdb
-
-from pointing_utils.dbutils import connect_subaru_gaiadb
 
 
 def generate_pfs_design(
@@ -68,7 +67,7 @@ def generate_pfs_design(
     obj_id = np.full(n_fiber, -1, dtype=np.int64)
     target_type = np.full(n_fiber, 4, dtype=int)  # filled as unassigned number
 
-    filter_band_names = ["g", "r", "i"]
+    filter_band_names = ["g", "r", "i", "z", "y"]
     flux_default_values = np.full(len(filter_band_names), np.nan)
     filter_default_values = ["none" for _ in filter_band_names]
 
