@@ -445,7 +445,10 @@ class CheckDesign(object):
         ''' check bright targets (SM1) '''
         flg = (isSci+isFst)*isSm1
         f = np.array(self.pfsDesign[flg].psfFlux)
-        gmag = -2.5*np.log10(f[:, 0]*1e-09) + 8.9  # conversion from nJy to ABmag
+        if len(f) > 0:
+            gmag = -2.5*np.log10(f[:, 0]*1e-09) + 8.9  # conversion from nJy to ABmag
+        else:
+            gmag = np.array([])
         fid = self.pfsDesign[flg].fiberId
         pos = self.pfsDesign[flg].pfiNominal
         msk = (gmag < self.gaia_gmag_max) * (gmag > self.gaia_gmag_min)
@@ -462,7 +465,10 @@ class CheckDesign(object):
         ''' check bright targets (SM3) '''
         flg = (isSci+isFst)*isSm3
         f = np.array(self.pfsDesign[flg].psfFlux)
-        gmag = -2.5*np.log10(f[:, 0]*1e-09) + 8.9  # conversion from nJy to ABmag
+        if len(f) > 0:
+            gmag = -2.5*np.log10(f[:, 0]*1e-09) + 8.9  # conversion from nJy to ABmag
+        else:
+            gmag = np.array([])
         fid = self.pfsDesign[flg].fiberId
         pos = self.pfsDesign[flg].pfiNominal
         msk = (gmag < self.gaia_gmag_max) * (gmag > self.gaia_gmag_min)
