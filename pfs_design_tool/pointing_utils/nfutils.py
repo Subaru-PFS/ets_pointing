@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import math
 import os
 
 import ets_fiber_assigner.netflow as nf
@@ -341,47 +340,48 @@ def fiber_allocation(
 
     # exit()
 
-    cobra_coach, bench = getBench(pfs_instdata_dir, cobra_coach_dir, cobra_coach_module_version, sm, black_dot_radius_margin=dot_margin)
+    cobra_coach, bench = getBench(pfs_instdata_dir, cobra_coach_dir,
+                                  cobra_coach_module_version, sm, black_dot_radius_margin=dot_margin)
 
-    #os.environ["PFS_INSTDATA_DIR"] = pfs_instdata_dir
-    #cobra_coach = CobraCoach(
+    # os.environ["PFS_INSTDATA_DIR"] = pfs_instdata_dir
+    # cobra_coach = CobraCoach(
     #    "fpga", loadModel=False, trajectoryMode=True, rootDir=cobra_coach_dir
-    #)
+    # )
 
-    #cobra_coach.loadModel(version="ALL", moduleVersion=cobra_coach_module_version)
+    # cobra_coach.loadModel(version="ALL", moduleVersion=cobra_coach_module_version)
 
-    #calibration_product = cobra_coach.calibModel
+    # calibration_product = cobra_coach.calibModel
 
     # load Bench with the default setting
-    #bench = Bench(layout="full")
+    # bench = Bench(layout="full")
 
-    # copy values into calibration_product using the default Bench object
-    #calibration_product.status = bench.cobras.status.copy()
-    #calibration_product.tht0 = bench.cobras.tht0.copy()
-    #calibration_product.tht1 = bench.cobras.tht1.copy()
-    #calibration_product.phiIn = bench.cobras.phiIn.copy()
-    #calibration_product.phiOut = bench.cobras.phiOut.copy()
-    #calibration_product.L1 = bench.cobras.L1.copy()
-    #calibration_product.L2 = bench.cobras.L2.copy()
+    #  copy values into calibration_product using the default Bench object
+    # calibration_product.status = bench.cobras.status.copy()
+    # calibration_product.tht0 = bench.cobras.tht0.copy()
+    # calibration_product.tht1 = bench.cobras.tht1.copy()
+    # calibration_product.phiIn = bench.cobras.phiIn.copy()
+    # calibration_product.phiOut = bench.cobras.phiOut.copy()
+    # calibration_product.L1 = bench.cobras.L1.copy()
+    # calibration_product.L2 = bench.cobras.L2.copy()
 
     # Limit spectral modules
-    #gfm = FiberIds()  # 2604
-    #cobra_ids_use = np.array([], dtype=np.uint16)
-    #for sm_use in sm:
+    # gfm = FiberIds()  # 2604
+    # cobra_ids_use = np.array([], dtype=np.uint16)
+    # for sm_use in sm:
     #    cobra_ids_use = np.append(cobra_ids_use, gfm.cobrasForSpectrograph(sm_use))
 
-    ## print(cobra_ids_use)
+    # print(cobra_ids_use)
 
     # set Bad Cobra status for unused spectral modules
-    #for cobra_id in range(calibration_product.nCobras):
+    # for cobra_id in range(calibration_product.nCobras):
     #    if cobra_id not in cobra_ids_use:
     #        calibration_product.status[cobra_id] = ~PFIDesign.COBRA_OK_MASK
 
     # load Bench with the updated calibration products
-    #bench = Bench(
+    # bench = Bench(
     #    layout="calibration",
     #    calibrationProduct=calibration_product,
-    #)
+    # )
 
     # create the dictionary containing the costs and constraints for all classes
     # of targets
@@ -531,4 +531,5 @@ def fiber_allocation(
         targets,
         target_class_dict,
         is_no_target,
+        bench
     )

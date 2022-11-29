@@ -10,7 +10,6 @@ import psycopg2
 import psycopg2.extras
 from astropy import units as u
 from astropy.table import Table
-from astropy.time import Time
 from logzero import logger
 from targetdb import targetdb
 
@@ -36,6 +35,7 @@ def generate_targets_from_targetdb(
     fp_fudge_factor=1.5,  # fudge factor for search widths
     extra_where=None,
     force_priority=None,
+    input_catalog=None,
 ):
 
     db = connect_targetdb(conf)
@@ -54,6 +54,9 @@ def generate_targets_from_targetdb(
 
     if extra_where is not None:
         query_string += extra_where
+
+    if input_catalog is not None:
+        query_string += ' AND (' + 'OR'.join([f"input_catalog_id={v}" for v in input_catalog]) + ')'
 
     query_string += ";"
 
@@ -122,17 +125,17 @@ def generate_fluxstds_from_targetdb(
         AND prob_f_star > {min_prob_f_star}
         """
         if flags_dist:
-            extra_where += f"""
+            extra_where += """
             AND flags_dist IS FALSE
             """
         if flags_ebv:
-            extra_where += f"""
+            extra_where += """
             AND flags_ebv IS FALSE
             """
 
     try:
         fluxstd_versions = conf["targetdb"]["fluxstd"]["version"]
-    except:
+    except Exception:
         fluxstd_versions = None
 
     if fluxstd_versions is not None:
@@ -186,7 +189,7 @@ def generate_skyobjects_from_targetdb(
 
     try:
         sky_versions = conf["targetdb"]["sky"]["version"]
-    except:
+    except Exception:
         sky_versions = None
 
     where_condition = f"WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})"
@@ -293,7 +296,7 @@ def generate_targets_from_gaiadb(
 
     query_string = f"""SELECT
     source_id,ref_epoch,ra,dec,pmra,pmdec,parallax,
-    phot_g_mean_mag,phot_bp_mean_mag,phot_rp_mean_mag
+    phot_g_mean_mag,phot_bp_mean_mag,phot_rp_mean_mag,
     phot_g_mean_flux_over_error, phot_bp_mean_flux_over_error, phot_rp_mean_flux_over_error
     FROM gaia3
     WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
@@ -322,6 +325,9 @@ def generate_targets_from_gaiadb(
             "phot_g_mean_mag",
             "phot_bp_mean_mag",
             "phot_rp_mean_mag",
+            "phot_g_mean_flux_over_error",
+            "phot_bp_mean_flux_over_error",
+            "phot_rp_mean_flux_over_error",
         ],
     )
 
@@ -367,7 +373,6 @@ def fixcols_gaiadb_to_targetdb(
     df["g_flux_njy"] = tb["g_mag_ab"].to("nJy").value
     df["bp_flux_njy"] = tb["bp_mag_ab"].to("nJy").value
     df["rp_flux_njy"] = tb["rp_mag_ab"].to("nJy").value
-
     df["g_flux_err_njy"] = df["g_flux_njy"] / df["phot_g_mean_flux_over_error"]
     df["bp_flux_err_njy"] = df["bp_flux_njy"] / df["phot_bp_mean_flux_over_error"]
     df["rp_flux_err_njy"] = df["rp_flux_njy"] / df["phot_rp_mean_flux_over_error"]

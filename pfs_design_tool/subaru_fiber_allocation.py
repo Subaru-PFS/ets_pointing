@@ -28,6 +28,8 @@ import pointing_utils.nfutils as nfutils
 iers.conf.auto_download = True
 # iers.conf.iers_degraded_accuracy = "warn"
 
+N_SKY_RANDOM = 30000
+
 
 def get_arguments():
     parser = argparse.ArgumentParser()
@@ -61,7 +63,8 @@ def get_arguments():
         "--telescope_elevation",
         type=float,
         default=None,
-        help="Telescope elevation in degree (default: None to set automatically from (ra, dec, observation_time))",
+        help="Telescope elevation in degree \
+        (default: None to set automatically from (ra, dec, observation_time))",
     )
     parser.add_argument(
         "--arms",
@@ -172,7 +175,8 @@ def get_arguments():
     parser.add_argument(
         "--good_fluxstd",
         action="store_true",
-        help="Select fluxstd stars with prob_f_star>0.5, flags_dist=False, and flags_ebv=False (default: False)",
+        help="Select fluxstd stars with prob_f_star>0.5, \
+            flags_dist=False, and flags_ebv=False (default: False)",
     )
     parser.add_argument(
         "--fluxstd_min_prob_f_star",
@@ -261,10 +265,16 @@ def get_arguments():
     )
     parser.add_argument(
         "--dot_margin",
-        nargs="+",
         type=float,
         default=1.0,
         help="Margin factor for dot avoidance (default: 1.0)",
+    )
+    parser.add_argument(
+        "--input_catalog",
+        nargs="+",
+        type=int,
+        default=None,
+        help="Input catalog IDs for targets (default: None)",
     )
 
     args = parser.parse_args()
@@ -298,11 +308,11 @@ def main():
     for d in [args.design_dir, args.cobra_coach_dir]:
         try:
             os.makedirs(d, exist_ok=False)
-        except:
+        except BaseException:
             pass
 
     df_targets = dbutils.generate_targets_from_targetdb(
-        args.ra, args.dec, conf=conf, arms=args.arms, force_priority=1
+        args.ra, args.dec, conf=conf, arms=args.arms, force_priority=1, input_catalog=args.input_catalog
     )
     df_fluxstds = dbutils.generate_fluxstds_from_targetdb(
         args.ra,
@@ -323,7 +333,7 @@ def main():
     elif args.sky_random:
         logger.info("Random sky objects will be generated.")
         # n_sky_target = (df_targets.size + df_fluxstds.size) * 2
-        n_sky_target = 30000  # this value can be tuned
+        n_sky_target = N_SKY_RANDOM  # this value can be tuned
         df_sky = dbutils.generate_random_skyobjects(
             args.ra,
             args.dec,
@@ -333,9 +343,13 @@ def main():
         logger.info("Sky objects will be generated using targetdb.")
         df_sky = dbutils.generate_skyobjects_from_targetdb(args.ra, args.dec, conf=conf)
         if args.reduce_sky_targets:
-            n_sky_target = 30000  # this value can be tuned
+            n_sky_target = N_SKY_RANDOM  # this value can be tuned
             if len(df_sky) > n_sky_target:
-                df_sky = df_sky.sample(n_sky_target, ignore_index=True)
+                df_sky = df_sky.sample(n_sky_target,
+                                       ignore_index=True,
+                                       random_state=1
+                                       )
+        logger.info(f"Fetched target DataFrame: \n{df_sky}")
         # df_sky = dbutils.generate_skyobjects_from_targetdb(
         #    args.ra,
         #    args.dec,
@@ -372,7 +386,7 @@ def main():
 
     # exit()
 
-    vis, tp, tel, tgt, tgt_class_dict, is_no_target = nfutils.fiber_allocation(
+    vis, tp, tel, tgt, tgt_class_dict, is_no_target, bench = nfutils.fiber_allocation(
         df_targets,
         df_fluxstds,
         df_sky,
@@ -405,6 +419,7 @@ def main():
         tel,
         tgt,
         tgt_class_dict,
+        bench,
         arms=args.arms,
         df_raster=df_raster,
         is_no_target=is_no_target,

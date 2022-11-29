@@ -1,40 +1,19 @@
-import argparse
-import os
-import tempfile
-import time
-from re import I
-
-import ets_fiber_assigner.netflow as nf
 import matplotlib.path as mppath
 import numpy as np
 import pandas as pd
 import pfs.datamodel
-import psycopg2
-import psycopg2.extras
-import toml
 from astroplan import FixedTarget
 from astroplan import Observer
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-from astropy.table import Table
-from astropy.time import Time
-from ets_shuffle import query_utils
 from ets_shuffle.convenience import flag_close_pairs
 from ets_shuffle.convenience import guidecam_geometry
-from ets_shuffle.convenience import update_coords_for_proper_motion
-from ics.cobraOps.Bench import Bench
-from ics.cobraOps.BlackDotsCalibrationProduct import BlackDotsCalibrationProduct
-from ics.cobraOps.cobraConstants import NULL_TARGET_ID
-from ics.cobraOps.cobraConstants import NULL_TARGET_POSITION
-from ics.cobraOps.CollisionSimulator2 import CollisionSimulator2
-from ics.cobraOps.TargetGroup import TargetGroup
 from pfs.utils.coordinates.CoordTransp import CoordinateTransform as ctrans
 from pfs.utils.coordinates.CoordTransp import ag_pfimm_to_pixel
 from pfs.utils.fiberids import FiberIds
 from pfs.utils.pfsDesignUtils import makePfsDesign
+
 from pointing_utils.dbutils import connect_subaru_gaiadb
-from procedures.moduleTest.cobraCoach import CobraCoach
-from targetdb import targetdb
 
 
 def generate_pfs_design(
@@ -46,12 +25,18 @@ def generate_pfs_design(
     tel,
     tgt,
     tgt_class_dict,
+    bench,
     arms="br",
     n_fiber=2394,
     df_raster=None,
     is_no_target=False,
     design_name=None,
 ):
+
+    gfm = FiberIds()  # 2604
+    cobra_ids = gfm.cobraId
+    scifiber_ids = gfm.scienceFiberId
+
     is_raster = df_raster is not None
 
     # n_fiber = len(FiberIds().scienceFiberId)
@@ -66,6 +51,14 @@ def generate_pfs_design(
     cat_id = np.full(n_fiber, -1, dtype=int)
     obj_id = np.full(n_fiber, -1, dtype=np.int64)
     target_type = np.full(n_fiber, 4, dtype=int)  # filled as unassigned number
+    fiber_status = np.full(n_fiber, 1, dtype=int)  # filled as GOOD=1
+    for cidx in range(n_fiber):
+        fidx = (
+            cobra_ids[np.logical_and(scifiber_ids >= 0, scifiber_ids <= n_fiber)]
+            == cidx + 1
+        )
+        fiber_status[fidx] = bench.cobras.status[cidx]
+    fiber_status[fiber_status > 1] = 2  # filled bad fibers ad BROKENFIBER=2
 
     filter_band_names = ["g", "r", "i", "z", "y"]
     flux_default_values = np.full(len(filter_band_names), np.nan)
@@ -98,10 +91,6 @@ def generate_pfs_design(
     # filter_names = [["none", "none", "none"]] * n_fiber
 
     if not is_no_target:
-
-        gfm = FiberIds()  # 2604
-        cobra_ids = gfm.cobraId
-        scifiber_ids = gfm.scienceFiberId
 
         for tidx, cidx in vis.items():
 
@@ -144,6 +133,17 @@ def generate_pfs_design(
                         for band in filter_band_names
                     ]
                 )
+                dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
+                    [
+                        df_targets[f"psf_flux_error_{band}"][idx_target].values[0]
+                        if df_targets[f"psf_flux_error_{band}"][idx_target].values[0]
+                        is not None
+                        else np.nan
+                        for band in filter_band_names
+                    ]
+                )
+                msk = dict_of_flux_lists["psf_flux_error"][i_fiber] <= 0
+                dict_of_flux_lists["psf_flux_error"][i_fiber][msk] = np.nan
                 dict_of_flux_lists["filter_names"][i_fiber] = [
                     df_targets[f"filter_{band}"][idx_target].values[0]
                     if df_targets[f"filter_{band}"][idx_target].values[0] is not None
@@ -175,6 +175,8 @@ def generate_pfs_design(
                         for band in filter_band_names
                     ]
                 )
+                msk = dict_of_flux_lists["psf_flux_error"][i_fiber] <= 0
+                dict_of_flux_lists["psf_flux_error"][i_fiber][msk] = np.nan
                 dict_of_flux_lists["filter_names"][i_fiber] = [
                     df_fluxstds[f"filter_{band}"][idx_fluxstd].values[0]
                     if df_fluxstds[f"filter_{band}"][idx_fluxstd].values[0] is not None
@@ -199,6 +201,15 @@ def generate_pfs_design(
                             df_raster["g_flux_njy"][idx_raster].values[0],
                             df_raster["bp_flux_njy"][idx_raster].values[0],
                             df_raster["rp_flux_njy"][idx_raster].values[0],
+                            np.nan,
+                            np.nan,
+                        ]
+                    )
+                    dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
+                        [
+                            df_raster["g_flux_err_njy"][idx_raster].values[0],
+                            df_raster["bp_flux_err_njy"][idx_raster].values[0],
+                            df_raster["rp_flux_err_njy"][idx_raster].values[0],
                             np.nan,
                             np.nan,
                         ]
@@ -240,7 +251,7 @@ def generate_pfs_design(
         catId=cat_id,
         objId=obj_id,
         targetType=target_type,
-        # fiberStatus=FiberStatus.GOOD,
+        fiberStatus=fiber_status,
         # fiberFlux=dict_of_flux_lists["fiber_flux"],
         psfFlux=dict_of_flux_lists["psf_flux"],
         # psfFlux=psf_flux,
@@ -286,7 +297,9 @@ def generate_guidestars_from_gaiadb(
             pointing_center,
         ).alt.value
         print(
-            f"Telescope elevation is set to {telescope_elevation:.1f} degrees from the pointing center ({ra:.5f}, {dec:.5f}) and observing time {observation_time} at Subaru Telescope"
+            f"Telescope elevation is set to {telescope_elevation:.1f} degrees \
+                from the pointing center ({ra:.5f}, {dec:.5f}) and observing \
+                    time {observation_time} at Subaru Telescope"
         )
 
     # guidestar_mag_max = guidestar_mag_max
