@@ -118,6 +118,10 @@ def generate_pfs_design(
                 df_fluxstds["obj_id"] == np.int64(tgt[tidx].ID),
                 df_fluxstds["target_type_id"] == tgt_class_dict[tgt[tidx].targetclass],
             )
+            idx_sky = np.logical_and(
+                df_sky["obj_id"] == np.int64(tgt[tidx].ID),
+                df_sky["target_type_id"] == tgt_class_dict[tgt[tidx].targetclass],
+            )
 
             if np.any(idx_target):
                 cat_id[i_fiber] = df_targets["input_catalog_id"][idx_target].values[0]
@@ -185,6 +189,8 @@ def generate_pfs_design(
                 ]
             # psf_flux[i_fiber] = df_fluxstds["psfFlux"][idx_fluxstd][0]
             # filter_names[i_fiber] = df_fluxstds["filterNames"][idx_fluxstd][0].tolist()
+            if np.any(idx_sky):
+                cat_id[i_fiber] = df_sky["input_catalog_id"][idx_sky].values[0]
 
             if is_raster:
                 idx_raster = np.logical_and(
