@@ -642,3 +642,10 @@ class CheckDesign(object):
         self.check_statistics()
         self.plot_pfi_fov(fig=fig, axe=ax1)
         self.plot_mag_hist(fig=fig, axe=ax2)
+
+    def plot_prob_f_star(self):
+
+        fig = plt.figure(figsize=(5, 5))
+        axe = fig.add_subplot()
+        axe.set_xlabel('prob_f_star')
+        axe.set_ylabel('number')
