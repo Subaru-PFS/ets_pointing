@@ -645,9 +645,30 @@ class CheckDesign(object):
         self.plot_pfi_fov(fig=fig, axe=ax1)
         self.plot_mag_hist(fig=fig, axe=ax2)
 
-    def plot_prob_f_star(self):
+    def plot_prob_f_star(self, fig=None, axe=None):
+        ''' get objId of FLUXSTD '''
+        isSm1 = is_smx(self.pfsDesign, moduleIds=[1])
+        isSm3 = is_smx(self.pfsDesign, moduleIds=[3])
+        isSm13 = isSm1 + isSm3
+        isFst = (self.pfsDesign.targetType == TargetType.FLUXSTD)
+        objId_fluxstd = self.pfsDesign.objId[isFst * isSm13]
 
-        fig = plt.figure(figsize=(5, 5))
+        ''' get prob_f_star '''
+        df = pd.read_csv(os.path.join(self.dataDir, self.fluxstdCsv))
+        objId_all = df['obj_id']
+        prob_f_star_all = df['prob_f_star']
+        prob_f_star = np.zeros(len(objId_fluxstd)) + np.nan
+        for i, oid1 in enumerate(objId_fluxstd):
+            for oid2, prob in zip(objId_all, prob_f_star_all):
+                if int(oid1) == int(oid2):
+                    prob_f_star[i] = prob
+        print(len(objId_all))
+        print(len(objId_fluxstd))
+        print(len(prob_f_star))
+
+        ''' plot histogram '''
+        fig = plt.figure(figsize=(4, 4))
         axe = fig.add_subplot()
         axe.set_xlabel('prob_f_star')
         axe.set_ylabel('number')
+        axe.hist(prob_f_star, bins=10)
