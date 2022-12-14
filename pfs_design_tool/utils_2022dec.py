@@ -244,6 +244,7 @@ class CheckDesign(object):
                  gaiaCsv=None,
                  gaia_gmag_min=12.0,
                  gaia_gmag_max=12.5,
+                 fluxstdCsv=None,
                  ):
         self.pfsDesignId = pfsDesignId
         self.obsTime = obsTime
@@ -255,6 +256,7 @@ class CheckDesign(object):
         self.gaiaCsv = gaiaCsv
         self.gaia_gmag_min = gaia_gmag_min
         self.gaia_gmag_max = gaia_gmag_max
+        self.fluxstdCsv = fluxstdCsv
 
         if pfsDesignId is not None:
             self.setPfsDesignId(self.pfsDesignId)
