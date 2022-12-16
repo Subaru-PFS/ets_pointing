@@ -533,63 +533,115 @@ class CheckDesign(object):
         if len(isTgt[isTgt]) > 0:
             axe.scatter(x[isTgt*isSm1], y[isTgt*isSm13],
                         marker='o', s=100, facecolor='red', edgecolor='k', alpha=0.7,
-                        zorder=2,
+                        zorder=3,
                         label=f'MAIN targets ({len(x[isTgt*isSm13])})'
                         )
         axe.scatter(x[isSci*isSm1], y[isSci*isSm1],
                     marker='o', s=50, facecolor='C0', edgecolor='k', alpha=0.7,
-                    zorder=1,
+                    zorder=2,
                     label=f'SCIENCE targets (SM1) ({len(x[isSci*isSm1])})'
                     )
         axe.scatter(x[isSci*isSm3], y[isSci*isSm3],
                     marker='^', s=50, facecolor='C0', edgecolor='k', alpha=0.7,
-                    zorder=1,
+                    zorder=2,
                     label=f'SCIENCE targets (SM3) ({len(x[isSci*isSm3])})'
                     )
         axe.scatter(x[isFst*isSm1], y[isFst*isSm1],
                     marker='o', s=50, facecolor='C1', edgecolor='k', alpha=0.7,
-                    zorder=1,
+                    zorder=2,
                     label=f'FLXSTD targets ({len(x[isFst*isSm1])})'
                     )
         axe.scatter(x[isFst*isSm3], y[isFst*isSm3],
                     marker='^', s=50, facecolor='C1', edgecolor='k', alpha=0.7,
-                    zorder=1,
+                    zorder=2,
                     label=f'FLXSTD targets ({len(x[isFst*isSm3])})'
                     )
         axe.scatter(x[isSky*isSm1], y[isSky*isSm1],
                     marker='o', s=50, facecolor='C2', edgecolor='k', alpha=0.7,
-                    zorder=1,
+                    zorder=2,
                     label=f'SKY targets ({len(x[isSky*isSm1])})'
                     )
         axe.scatter(x[isSky*isSm3], y[isSky*isSm3],
                     marker='^', s=50, facecolor='C2', edgecolor='k', alpha=0.7,
-                    zorder=1,
+                    zorder=2,
                     label=f'SKY targets ({len(x[isSky*isSm3])})'
                     )
 
         ''' plot bright Gaia sources '''
         axe.scatter(self.x_gaia_bright, self.y_gaia_bright,
                     marker='o', s=50, facecolor='none', edgecolor='red',
-                    linewidth=2, alpha=0.7,
+                    linewidth=2, alpha=0.7, zorder=2,
                     label=f'All Gaia sources ({self.gaia_gmag_min}<g<{self.gaia_gmag_max} mag)'
                     )
 
         ''' plot cobra patrol regions and dots '''
         p1 = PatchCollection(self.cobra_mpl_patches, facecolor='none',
-                             edgecolor='gray', alpha=0.5)
+                             edgecolor='gray', alpha=0.5, zorder=1)
         axe.add_collection(p1)
         p2 = PatchCollection(self.dot_mpl_patches, facecolor='gray',
-                             edgecolor='none', alpha=0.5)
+                             edgecolor='none', alpha=0.5, zorder=1)
         axe.add_collection(p2)
         for i in range(len(self.cobra_mpl_id)):
             center = self.cobra_mpl_patches[i].center
             axe.text(center[0], center[1], f'{self.cobra_mpl_id[i]}',
-                     color='gray', fontsize=5)
+                     color='gray', fontsize=5, zorder=1)
 
         axe.legend(loc='upper left', fontsize=8)
 
         # plt.savefig(f'./figures/test_{self.objId}_pfi.pdf', dpi=150, bbox_inches='tight')
         # plt.savefig(f'./figures/test_{self.objId}_pfi.png', dpi=150, bbox_inches='tight')
+
+    def plot_pfi_fov_only_calibs(self, fig=None, axe=None):
+        isSm1 = is_smx(self.pfsDesign, moduleIds=[1])
+        isSm3 = is_smx(self.pfsDesign, moduleIds=[3])
+        isFst = (self.pfsDesign.targetType == TargetType.FLUXSTD)
+        isSky = (self.pfsDesign.targetType == TargetType.SKY)
+
+        if fig is None:
+            fig = plt.figure(figsize=(6, 6))
+        if axe is None:
+            axe = fig.add_subplot(111)
+            axe.set_title(f'{self.objId}')
+        axe.set_xlabel('X (mm)')
+        axe.set_ylabel('Y (mm)')
+        axe.grid(color='gray', linestyle='dotted', linewidth=1)
+        axe.set_xlim(-250., +250.)
+        axe.set_ylim(-250., +250.)
+
+        x = self.pfsDesign.pfiNominal[:, 0]
+        y = self.pfsDesign.pfiNominal[:, 1]
+
+        ''' plot FLUXSTD & SKY '''
+        axe.scatter(x[isFst*isSm1], y[isFst*isSm1],
+                    marker='o', s=50, facecolor='C1', edgecolor='k', alpha=0.7,
+                    zorder=2,
+                    label=f'FLXSTD targets ({len(x[isFst*isSm1])})'
+                    )
+        axe.scatter(x[isFst*isSm3], y[isFst*isSm3],
+                    marker='^', s=50, facecolor='C1', edgecolor='k', alpha=0.7,
+                    zorder=2,
+                    label=f'FLXSTD targets ({len(x[isFst*isSm3])})'
+                    )
+        axe.scatter(x[isSky*isSm1], y[isSky*isSm1],
+                    marker='o', s=50, facecolor='C2', edgecolor='k', alpha=0.7,
+                    zorder=2,
+                    label=f'SKY targets ({len(x[isSky*isSm1])})'
+                    )
+        axe.scatter(x[isSky*isSm3], y[isSky*isSm3],
+                    marker='^', s=50, facecolor='C2', edgecolor='k', alpha=0.7,
+                    zorder=2,
+                    label=f'SKY targets ({len(x[isSky*isSm3])})'
+                    )
+
+        ''' plot cobra patrol regions and dots '''
+        p1 = PatchCollection(self.cobra_mpl_patches, facecolor='none',
+                             edgecolor='gray', alpha=0.5, zorder=1)
+        axe.add_collection(p1)
+        p2 = PatchCollection(self.dot_mpl_patches, facecolor='gray',
+                             edgecolor='none', alpha=0.5, zorder=1)
+        axe.add_collection(p2)
+
+        axe.legend(loc='upper left', fontsize=8)
 
     def plot_mag_hist(self, fig=None, axe=None):
         isSm1 = is_smx(self.pfsDesign, moduleIds=[1])
@@ -618,7 +670,7 @@ class CheckDesign(object):
             fig = plt.figure(figsize=(6, 6))
         if axe is None:
             axe = fig.add_subplot(111)
-        axe.set_title(f'{self.objId}')
+            axe.set_title(f'{self.objId}')
         axe.set_xlabel('Magnitude (AB)')
         axe.set_ylabel('Number ')
         axe.grid(color='gray', linestyle='dotted', linewidth=1)
@@ -637,14 +689,6 @@ class CheckDesign(object):
 
         axe.legend(loc='upper left', fontsize=10)
 
-    def plot_integrated(self):
-        fig = plt.figure(figsize=(8, 4))
-        ax1 = fig.add_subplot(121)
-        ax2 = fig.add_subplot(122)
-        self.check_statistics()
-        self.plot_pfi_fov(fig=fig, axe=ax1)
-        self.plot_mag_hist(fig=fig, axe=ax2)
-
     def plot_prob_f_star(self, fig=None, axe=None):
         ''' get objId of FLUXSTD '''
         isSm1 = is_smx(self.pfsDesign, moduleIds=[1])
@@ -662,13 +706,27 @@ class CheckDesign(object):
             for oid2, prob in zip(objId_all, prob_f_star_all):
                 if int(oid1) == int(oid2):
                     prob_f_star[i] = prob
-        print(len(objId_all))
-        print(len(objId_fluxstd))
-        print(len(prob_f_star))
 
         ''' plot histogram '''
-        fig = plt.figure(figsize=(4, 4))
-        axe = fig.add_subplot()
+        if fig is None:
+            fig = plt.figure(figsize=(4, 4))
+        if axe is None:
+            axe = fig.add_subplot(111)
+            axe.set_title(f'{self.objId}')
         axe.set_xlabel('prob_f_star')
         axe.set_ylabel('number')
+        axe.grid(color='gray', linestyle='dotted', linewidth=1)
         axe.hist(prob_f_star, bins=10)
+
+    def plot_integrated(self):
+        fig = plt.figure(figsize=(8, 8))
+        ax1 = fig.add_subplot(221)
+        ax2 = fig.add_subplot(222)
+        ax3 = fig.add_subplot(223)
+        ax4 = fig.add_subplot(224)
+
+        self.check_statistics()
+        self.plot_pfi_fov(fig=fig, axe=ax1)
+        self.plot_pfi_fov_only_calibs(fig=fig, axe=ax2)
+        self.plot_mag_hist(fig=fig, axe=ax3)
+        self.plot_prob_f_star(fig=fig, axe=ax4)
