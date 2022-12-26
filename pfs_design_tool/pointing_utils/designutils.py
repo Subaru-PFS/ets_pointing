@@ -148,12 +148,21 @@ def generate_pfs_design(
                 )
                 msk = dict_of_flux_lists["psf_flux_error"][i_fiber] <= 0
                 dict_of_flux_lists["psf_flux_error"][i_fiber][msk] = np.nan
-                dict_of_flux_lists["filter_names"][i_fiber] = [
-                    df_targets[f"filter_{band}"][idx_target].values[0]
-                    if df_targets[f"filter_{band}"][idx_target].values[0] is not None
-                    else "none"
-                    for band in filter_band_names
-                ]
+                # FIXME: filter names should be in targetDB
+                if cat_id[i_fiber] >= 5 and cat_id[i_fiber] <= 12:
+                    dict_of_flux_lists["filter_names"][i_fiber] = [
+                        'g_hsc', 'r2_hsc', 'i2_hsc', 'z_hsc', 'y_hsc']
+                else:
+                    dict_of_flux_lists["filter_names"][i_fiber] = [
+                        df_targets[f"filter_{band}"][idx_target].values[0]
+                        if df_targets[f"filter_{band}"][idx_target].values[0] is not None
+                        else "none"
+                        for band in filter_band_names
+                    ]
+                # FIXME: temporal workaround for co_field1
+                if design_name == 'field1_pa+00':
+                    dict_of_flux_lists["psf_flux"][i_fiber] = [np.nan, np.nan, np.nan, np.nan, np.nan]
+                    dict_of_flux_lists["psf_flux_error"][i_fiber] = [np.nan, np.nan, np.nan, np.nan, np.nan]
                 # total_flux[i_fiber] = df_targets["totalFlux"][idx_target][0]
                 # filter_names[i_fiber] = df_targets["filterNames"][idx_target][0].tolist()
             if np.any(idx_fluxstd):
@@ -243,6 +252,13 @@ def generate_pfs_design(
         dict_of_flux_lists["psf_flux_error"][i][
             dict_of_flux_lists["psf_flux_error"][i] == 0.0
         ] = 1.0e-6
+
+    # print(len(dict_of_flux_lists["psf_flux"]))
+    # print(len(dict_of_flux_lists["filter_names"]))
+    # with open('tmp1.dat', 'w') as f:
+    #    for v1, v2, v3, v4 in zip(obj_id, dict_of_flux_lists["psf_flux"],
+    # dict_of_flux_lists["psf_flux_error"], dict_of_flux_lists["filter_names"]):
+    #    f.write(f'{v1}  {v2}  {v3}  {v4}\n')
 
     pfs_design = makePfsDesign(
         pfi_nominal,

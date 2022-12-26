@@ -97,6 +97,7 @@ def generate_fluxstds_from_targetdb(
     mag_filter=None,
     min_prob_f_star=None,
     extra_where=None,
+    write_csv=False,
 ):
 
     db = connect_targetdb(conf)
@@ -170,6 +171,9 @@ def generate_fluxstds_from_targetdb(
     logger.info(f"Fetched target DataFrame: \n{df}")
 
     db.close()
+
+    if write_csv:
+        df.to_csv("fluxstd.csv")
 
     return df
 

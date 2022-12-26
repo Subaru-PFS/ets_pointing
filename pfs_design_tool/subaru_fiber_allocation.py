@@ -325,6 +325,7 @@ def main():
         mag_max=args.fluxstd_mag_max,
         mag_filter=args.fluxstd_mag_filter,
         min_prob_f_star=args.fluxstd_min_prob_f_star,
+        write_csv=True,
     )
 
     if args.n_sky == 0:
