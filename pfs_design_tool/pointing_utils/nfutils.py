@@ -189,6 +189,7 @@ def run_netflow(
     cobraInstrumentRegion=None,
     minSkyTargetsPerInstrumentRegion=None,
     instrumentRegionPenalty=None,
+    dot_penalty=None,
 ):
 
     # print(bench.cobras.status)
@@ -199,6 +200,12 @@ def run_netflow(
     # (see note below).
     def cobra_move_cost(dist):
         return 0.1 * dist
+
+    if dot_penalty is not None:
+        def black_dot_penalty_cost(dist):
+            return dot_penalty * dist
+    else:
+        black_dot_penalty_cost = None
 
     done = False
 
@@ -224,6 +231,7 @@ def run_netflow(
             cobraInstrumentRegion=cobraInstrumentRegion,
             minSkyTargetsPerInstrumentRegion=minSkyTargetsPerInstrumentRegion,
             instrumentRegionPenalty=instrumentRegionPenalty,
+            blackDotPenalty=black_dot_penalty_cost,
         )
 
         print("solving the problem")
@@ -308,6 +316,7 @@ def fiber_allocation(
     cobra_coach_module_version,
     sm,
     dot_margin,
+    dot_penalty,
     df_raster=None,
     force_exptime=None,
 ):
@@ -522,6 +531,7 @@ def fiber_allocation(
         cobraInstrumentRegion=None,
         minSkyTargetsPerInstrumentRegion=None,
         instrumentRegionPenalty=None,
+        dot_penalty=dot_penalty,
     )
 
     return (
