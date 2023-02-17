@@ -270,6 +270,12 @@ def get_arguments():
         help="Margin factor for dot avoidance (default: 1.0)",
     )
     parser.add_argument(
+        "--dot_penalty",
+        type=float,
+        default=None,
+        help="Cost for penalty of the dot proximity (default: None)",
+    )
+    parser.add_argument(
         "--input_catalog",
         nargs="+",
         type=int,
@@ -403,6 +409,7 @@ def main():
         args.cobra_coach_module_version,
         args.sm,
         args.dot_margin,
+        args.dot_penalty,
         df_raster=df_raster,
         force_exptime=args.exptime,
     )
