@@ -149,8 +149,8 @@ def get_arguments():
     parser.add_argument(
         "--target_mag_filter",
         type=str,
-        default="g",
-        help="Photometric band (grizyj of PS1) to apply magnitude cuts (default: g)",
+        default=None,
+        help="Photometric band (grizyj of PS1) to apply magnitude cuts (default: None)",
     )
 
     # flux standards
@@ -221,8 +221,8 @@ def get_arguments():
     )
     parser.add_argument(
         "--raster_propid",
-        default="S22A-EN16",
-        help="Proposal-ID for raster scan stars (default: S22A-EN16)",
+        default="S23A-EN16",
+        help="Proposal-ID for raster scan stars (default: S23A-EN16)",
     )
 
     # sky fibers
@@ -318,7 +318,10 @@ def main():
             pass
 
     df_targets = dbutils.generate_targets_from_targetdb(
-        args.ra, args.dec, conf=conf, arms=args.arms, force_priority=1, input_catalog=args.input_catalog
+        args.ra, args.dec, conf=conf, arms=args.arms, force_priority=1, input_catalog=args.input_catalog,
+        mag_min=args.target_mag_min,
+        mag_max=args.target_mag_max,
+        mag_filter=args.target_mag_filter,
     )
     df_fluxstds = dbutils.generate_fluxstds_from_targetdb(
         args.ra,
@@ -381,8 +384,8 @@ def main():
         df_raster = dbutils.fixcols_gaiadb_to_targetdb(
             df_raster,
             proposal_id=args.raster_propid,
-            target_type_id=1,  # SCIENCE
-            input_catalog_id=2,  # Gaia DR2
+            target_type_id=1,    # SCIENCE
+            input_catalog_id=4,  # Gaia DR3
             exptime=60.0,
             priority=9999,
         )

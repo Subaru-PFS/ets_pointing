@@ -36,6 +36,9 @@ def generate_targets_from_targetdb(
     extra_where=None,
     force_priority=None,
     input_catalog=None,
+    mag_min=None,
+    mag_max=None,
+    mag_filter=None,
 ):
 
     db = connect_targetdb(conf)
@@ -51,6 +54,10 @@ def generate_targets_from_targetdb(
     FROM {tablename}
     WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
     """
+    if mag_filter is not None:
+        extra_where += f"""
+        AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}
+        """
 
     if extra_where is not None:
         query_string += extra_where
