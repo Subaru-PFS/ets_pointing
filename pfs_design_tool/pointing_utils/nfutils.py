@@ -203,7 +203,7 @@ def run_netflow(
 
     if dot_penalty is not None:
         def black_dot_penalty_cost(dist):
-            return dot_penalty * dist
+            return max(0, dot_penalty * (1 - 0.5 * dist))
     else:
         black_dot_penalty_cost = None
 
