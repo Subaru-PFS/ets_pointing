@@ -28,8 +28,6 @@ import pointing_utils.nfutils as nfutils
 iers.conf.auto_download = True
 # iers.conf.iers_degraded_accuracy = "warn"
 
-N_SKY_RANDOM = 30000
-
 
 def get_arguments():
     parser = argparse.ArgumentParser()
@@ -242,6 +240,12 @@ def get_arguments():
         action="store_true",
         help="Reduce the number of sky targets randomly (default: False)",
     )
+    parser.add_argument(
+        "--n_sky_random",
+        type=int,
+        default=30000,
+        help="Number of random (or randomly reduced) SKY fibers to be allocated. (default: 30000)",
+    )
 
     # instrument parameter files
     parser.add_argument(
@@ -343,7 +347,7 @@ def main():
     elif args.sky_random:
         logger.info("Random sky objects will be generated.")
         # n_sky_target = (df_targets.size + df_fluxstds.size) * 2
-        n_sky_target = N_SKY_RANDOM  # this value can be tuned
+        n_sky_target = args.n_sky_random  # this value can be tuned
         df_sky = dbutils.generate_random_skyobjects(
             args.ra,
             args.dec,
@@ -353,7 +357,7 @@ def main():
         logger.info("Sky objects will be generated using targetdb.")
         df_sky = dbutils.generate_skyobjects_from_targetdb(args.ra, args.dec, conf=conf)
         if args.reduce_sky_targets:
-            n_sky_target = N_SKY_RANDOM  # this value can be tuned
+            n_sky_target = args.n_sky_random  # this value can be tuned
             if len(df_sky) > n_sky_target:
                 df_sky = df_sky.sample(n_sky_target,
                                        ignore_index=True,
