@@ -531,7 +531,7 @@ class CheckDesign(object):
 
         ''' plot SCIENCE & FLUXSTD & SKY '''
         if len(isTgt[isTgt]) > 0:
-            axe.scatter(x[isTgt*isSm1], y[isTgt*isSm13],
+            axe.scatter(x[isTgt*isSm13], y[isTgt*isSm13],
                         marker='o', s=100, facecolor='red', edgecolor='k', alpha=0.7,
                         zorder=3,
                         label=f'MAIN targets ({len(x[isTgt*isSm13])})'
