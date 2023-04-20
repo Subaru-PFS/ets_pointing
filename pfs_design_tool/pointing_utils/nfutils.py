@@ -150,14 +150,30 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
                     target_class,
                 )
             )
-
-    elif target_class == "cal" or target_class == "sky":
+    elif target_class == "cal":
+        # cal_penalty = ((-2.5*np.log10(df["psf_flux_g"] * 1e-32)) -
+        #               (-2.5*np.log10(max(df["psf_flux_g"]) * 1e-32))) #* 5.0e+10
+        cal_penalty = 5.0e+10*(1-df["prob_f_star"])
+        print(min(cal_penalty), max(cal_penalty))
         res = [
             nf.CalibTarget(
                 df["obj_id"][i],
                 df["ra"][i],
                 df["dec"][i],
                 target_class,
+                cal_penalty[i],
+                # 0.0,
+            )
+            for i in range(df.index.size)
+        ]
+    elif target_class == "sky":
+        res = [
+            nf.CalibTarget(
+                df["obj_id"][i],
+                df["ra"][i],
+                df["dec"][i],
+                target_class,
+                0.0,
             )
             for i in range(df.index.size)
         ]
