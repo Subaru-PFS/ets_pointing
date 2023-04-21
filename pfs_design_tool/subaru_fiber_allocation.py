@@ -150,6 +150,11 @@ def get_arguments():
         default=None,
         help="Photometric band (grizyj of PS1) to apply magnitude cuts (default: None)",
     )
+    parser.add_argument(
+        "--skip_target",
+        action="store_true",
+        help="Skip science targets (default: False)",
+    )
 
     # flux standards
     parser.add_argument(
@@ -327,6 +332,8 @@ def main():
         mag_max=args.target_mag_max,
         mag_filter=args.target_mag_filter,
     )
+    if args.skip_target:
+        df_targets = df_targets[:0]
     df_fluxstds = dbutils.generate_fluxstds_from_targetdb(
         args.ra,
         args.dec,
