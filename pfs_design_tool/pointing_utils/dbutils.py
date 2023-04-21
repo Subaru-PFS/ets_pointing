@@ -213,7 +213,11 @@ def generate_skyobjects_from_targetdb(
                 first_condition = False
             else:
                 version_condition += " OR "
-            version_condition += f"version = '{sky_version}'"
+            if sky_version == "20220915":
+                # use only HSC sky catalog in the older version
+                version_condition += f"(version = '{sky_version}' AND input_catalog_id=1001)"
+            else:
+                version_condition += f"version = '{sky_version}'"
         version_condition += ")"
 
         where_condition += f" AND {version_condition}"
