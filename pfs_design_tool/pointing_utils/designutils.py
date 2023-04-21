@@ -329,7 +329,7 @@ def generate_guidestars_from_gaiadb(
     fp_fudge_factor=1.5,  # fudge factor for search widths
     search_radius=None,
     # gaiadb_epoch=2015.0,
-    gaiadb_input_catalog_id=2,
+    gaiadb_input_catalog_id=4,
 ):
     # Get ra, dec and position angle from input arguments
     ra_tel_deg, dec_tel_deg, pa_deg = ra, dec, pa
