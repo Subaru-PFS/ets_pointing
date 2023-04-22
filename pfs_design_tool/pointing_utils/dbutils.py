@@ -36,6 +36,7 @@ def generate_targets_from_targetdb(
     extra_where=None,
     force_priority=None,
     input_catalog=None,
+    proposal_id=None,
     mag_min=None,
     mag_max=None,
     mag_filter=None,
@@ -63,7 +64,10 @@ def generate_targets_from_targetdb(
         query_string += extra_where
 
     if input_catalog is not None:
-        query_string += ' AND (' + 'OR'.join([f"input_catalog_id={v}" for v in input_catalog]) + ')'
+        query_string += ' AND (' + 'OR'.join([f" input_catalog_id={v} " for v in input_catalog]) + ')'
+
+    if proposal_id is not None:
+        query_string += ' AND (' + 'OR'.join([f" proposal_id=\'{v}\' " for v in proposal_id]) + ')'
 
     query_string += ";"
 

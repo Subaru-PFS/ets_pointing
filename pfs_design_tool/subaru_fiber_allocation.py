@@ -291,6 +291,13 @@ def get_arguments():
         default=None,
         help="Input catalog IDs for targets (default: None)",
     )
+    parser.add_argument(
+        "--proposal_id",
+        nargs="+",
+        type=str,
+        default=None,
+        help="Input proposal IDs for targets (default: None)",
+    )
 
     args = parser.parse_args()
 
@@ -328,6 +335,7 @@ def main():
 
     df_targets = dbutils.generate_targets_from_targetdb(
         args.ra, args.dec, conf=conf, arms=args.arms, force_priority=1, input_catalog=args.input_catalog,
+        proposal_id=args.proposal_id,
         mag_min=args.target_mag_min,
         mag_max=args.target_mag_max,
         mag_filter=args.target_mag_filter,
