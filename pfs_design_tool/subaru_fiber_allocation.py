@@ -151,6 +151,11 @@ def get_arguments():
         help="Photometric band (grizyj of PS1) to apply magnitude cuts (default: None)",
     )
     parser.add_argument(
+        "--disable_force_priority",
+        action="store_true",
+        help="Disable the force_priority (default: False)",
+    )
+    parser.add_argument(
         "--skip_target",
         action="store_true",
         help="Skip science targets (default: False)",
@@ -333,8 +338,11 @@ def main():
         except BaseException:
             pass
 
+    force_priority = 1
+    if args.disable_force_priority:
+        force_priority = None
     df_targets = dbutils.generate_targets_from_targetdb(
-        args.ra, args.dec, conf=conf, arms=args.arms, force_priority=1, input_catalog=args.input_catalog,
+        args.ra, args.dec, conf=conf, arms=args.arms, force_priority=force_priority, input_catalog=args.input_catalog,
         proposal_id=args.proposal_id,
         mag_min=args.target_mag_min,
         mag_max=args.target_mag_max,
