@@ -342,7 +342,9 @@ def main():
     if args.disable_force_priority:
         force_priority = None
     df_targets = dbutils.generate_targets_from_targetdb(
-        args.ra, args.dec, conf=conf, arms=args.arms, force_priority=force_priority, input_catalog=args.input_catalog,
+        args.ra, args.dec, conf=conf, arms=args.arms,
+        force_priority=force_priority,
+        input_catalog=args.input_catalog,
         proposal_id=args.proposal_id,
         mag_min=args.target_mag_min,
         mag_max=args.target_mag_max,

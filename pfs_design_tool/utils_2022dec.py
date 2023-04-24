@@ -149,9 +149,14 @@ def sky2pfi_array(sky_x, sky_y, pfsDesign, observation_time, epoch=2016.0):
 def get_num_targets_in_patrol_region(bench, pfsDesign, gaia_info, cobra_ids_use):
     ''' get number of targets in the patrol region '''
     ''' get all gaia sources '''
-    gaia_all_id = gaia_info[0]
-    gaia_all_x = gaia_info[1]
-    gaia_all_y = gaia_info[2]
+    if gaia_info is not None:
+        gaia_all_id = gaia_info[0]
+        gaia_all_x = gaia_info[1]
+        gaia_all_y = gaia_info[2]
+    else:
+        gaia_all_id = np.array([])
+        gaia_all_x = np.array([])
+        gaia_all_y = np.array([])
 
     ''' get assigned gaia sources '''
     assigned_id = np.array(pfsDesign.objId, dtype='int64')
@@ -386,7 +391,12 @@ class CheckDesign(object):
             self.dot2_mpl_patches.append(circle2)
 
         ''' getGaiaSources '''
-        self.getGaiaSources()
+        if self.gaiaCsv is not None:
+            self.getGaiaSources()
+        else:
+            self.gaia_info = None
+            self.x_gaia_bright = np.array([])
+            self.y_gaia_bright = np.array([])
 
     def getGaiaSources(self):
         ''' read Gaia sources '''
@@ -698,14 +708,16 @@ class CheckDesign(object):
         objId_fluxstd = self.pfsDesign.objId[isFst * isSm13]
 
         ''' get prob_f_star '''
-        df = pd.read_csv(os.path.join(self.dataDir, self.fluxstdCsv))
-        objId_all = df['obj_id']
-        prob_f_star_all = df['prob_f_star']
-        prob_f_star = np.zeros(len(objId_fluxstd)) + np.nan
-        for i, oid1 in enumerate(objId_fluxstd):
-            for oid2, prob in zip(objId_all, prob_f_star_all):
-                if int(oid1) == int(oid2):
-                    prob_f_star[i] = prob
+        prob_f_star = None
+        if self.fluxstdCsv is not None:
+            df = pd.read_csv(os.path.join(self.dataDir, self.fluxstdCsv))
+            objId_all = df['obj_id']
+            prob_f_star_all = df['prob_f_star']
+            prob_f_star = np.zeros(len(objId_fluxstd)) + np.nan
+            for i, oid1 in enumerate(objId_fluxstd):
+                for oid2, prob in zip(objId_all, prob_f_star_all):
+                    if int(oid1) == int(oid2):
+                        prob_f_star[i] = prob
 
         ''' plot histogram '''
         if fig is None:
@@ -716,7 +728,8 @@ class CheckDesign(object):
         axe.set_xlabel('prob_f_star')
         axe.set_ylabel('number')
         axe.grid(color='gray', linestyle='dotted', linewidth=1)
-        axe.hist(prob_f_star, bins=10)
+        if prob_f_star is not None:
+            axe.hist(prob_f_star, bins=10)
 
     def plot_integrated(self):
         fig = plt.figure(figsize=(8, 8))
