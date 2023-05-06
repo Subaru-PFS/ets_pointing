@@ -151,6 +151,12 @@ def get_arguments():
         help="Photometric band (grizyj of PS1) to apply magnitude cuts (default: None)",
     )
     parser.add_argument(
+        "--target_priority_max",
+        type=float,
+        default=None,
+        help="Maximum priority of the target (default: None)",
+    )
+    parser.add_argument(
         "--disable_force_priority",
         action="store_true",
         help="Disable the force_priority (default: False)",
@@ -349,6 +355,7 @@ def main():
         mag_min=args.target_mag_min,
         mag_max=args.target_mag_max,
         mag_filter=args.target_mag_filter,
+        max_priority=args.target_priority_max,
     )
     if args.skip_target:
         df_targets = df_targets[:0]

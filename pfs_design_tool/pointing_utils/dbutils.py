@@ -40,6 +40,7 @@ def generate_targets_from_targetdb(
     mag_min=None,
     mag_max=None,
     mag_filter=None,
+    max_priority=None,
 ):
 
     db = connect_targetdb(conf)
@@ -68,6 +69,9 @@ def generate_targets_from_targetdb(
 
     if proposal_id is not None:
         query_string += ' AND (' + 'OR'.join([f" proposal_id=\'{v}\' " for v in proposal_id]) + ')'
+
+    if max_priority is not None:
+        query_string += f" AND priority <= {max_priority}"
 
     query_string += ";"
 
