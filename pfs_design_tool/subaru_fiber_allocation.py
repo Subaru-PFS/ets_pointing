@@ -28,8 +28,6 @@ import pointing_utils.nfutils as nfutils
 iers.conf.auto_download = True
 # iers.conf.iers_degraded_accuracy = "warn"
 
-N_SKY_RANDOM = 30000
-
 
 def get_arguments():
     parser = argparse.ArgumentParser()
@@ -152,6 +150,22 @@ def get_arguments():
         default=None,
         help="Photometric band (grizyj of PS1) to apply magnitude cuts (default: None)",
     )
+    parser.add_argument(
+        "--target_priority_max",
+        type=float,
+        default=None,
+        help="Maximum priority of the target (default: None)",
+    )
+    parser.add_argument(
+        "--disable_force_priority",
+        action="store_true",
+        help="Disable the force_priority (default: False)",
+    )
+    parser.add_argument(
+        "--skip_target",
+        action="store_true",
+        help="Skip science targets (default: False)",
+    )
 
     # flux standards
     parser.add_argument(
@@ -242,6 +256,12 @@ def get_arguments():
         action="store_true",
         help="Reduce the number of sky targets randomly (default: False)",
     )
+    parser.add_argument(
+        "--n_sky_random",
+        type=int,
+        default=30000,
+        help="Number of random (or randomly reduced) SKY fibers to be allocated. (default: 30000)",
+    )
 
     # instrument parameter files
     parser.add_argument(
@@ -282,6 +302,13 @@ def get_arguments():
         default=None,
         help="Input catalog IDs for targets (default: None)",
     )
+    parser.add_argument(
+        "--proposal_id",
+        nargs="+",
+        type=str,
+        default=None,
+        help="Input proposal IDs for targets (default: None)",
+    )
 
     args = parser.parse_args()
 
@@ -317,12 +344,21 @@ def main():
         except BaseException:
             pass
 
+    force_priority = 1
+    if args.disable_force_priority:
+        force_priority = None
     df_targets = dbutils.generate_targets_from_targetdb(
-        args.ra, args.dec, conf=conf, arms=args.arms, force_priority=1, input_catalog=args.input_catalog,
+        args.ra, args.dec, conf=conf, arms=args.arms,
+        force_priority=force_priority,
+        input_catalog=args.input_catalog,
+        proposal_id=args.proposal_id,
         mag_min=args.target_mag_min,
         mag_max=args.target_mag_max,
         mag_filter=args.target_mag_filter,
+        max_priority=args.target_priority_max,
     )
+    if args.skip_target:
+        df_targets = df_targets[:0]
     df_fluxstds = dbutils.generate_fluxstds_from_targetdb(
         args.ra,
         args.dec,
@@ -343,7 +379,7 @@ def main():
     elif args.sky_random:
         logger.info("Random sky objects will be generated.")
         # n_sky_target = (df_targets.size + df_fluxstds.size) * 2
-        n_sky_target = N_SKY_RANDOM  # this value can be tuned
+        n_sky_target = args.n_sky_random  # this value can be tuned
         df_sky = dbutils.generate_random_skyobjects(
             args.ra,
             args.dec,
@@ -353,7 +389,7 @@ def main():
         logger.info("Sky objects will be generated using targetdb.")
         df_sky = dbutils.generate_skyobjects_from_targetdb(args.ra, args.dec, conf=conf)
         if args.reduce_sky_targets:
-            n_sky_target = N_SKY_RANDOM  # this value can be tuned
+            n_sky_target = args.n_sky_random  # this value can be tuned
             if len(df_sky) > n_sky_target:
                 df_sky = df_sky.sample(n_sky_target,
                                        ignore_index=True,

@@ -200,7 +200,42 @@ def generate_pfs_design(
             # filter_names[i_fiber] = df_fluxstds["filterNames"][idx_fluxstd][0].tolist()
             if np.any(idx_sky):
                 cat_id[i_fiber] = df_sky["input_catalog_id"][idx_sky].values[0]
-
+                try:
+                    dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
+                        [
+                            10**(-0.4*(df_sky["mag_thresh"][idx_sky].values[0] - 8.9))*1e+09,
+                            np.nan,
+                            np.nan,
+                            np.nan,
+                            np.nan,
+                        ]
+                    )
+                except:
+                    dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
+                        [
+                            np.nan,
+                            np.nan,
+                            np.nan,
+                            np.nan,
+                            np.nan,
+                        ]
+                    )
+                dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
+                    [
+                        np.nan,
+                        np.nan,
+                        np.nan,
+                        np.nan,
+                        np.nan,
+                    ]
+                )
+                dict_of_flux_lists["filter_names"][i_fiber] = [
+                    "g_hsc",
+                    "none",
+                    "none",
+                    "none",
+                    "none",
+                ]
             if is_raster:
                 idx_raster = np.logical_and(
                     df_raster["obj_id"] == np.int64(tgt[tidx].ID),
@@ -305,7 +340,7 @@ def generate_guidestars_from_gaiadb(
     fp_fudge_factor=1.5,  # fudge factor for search widths
     search_radius=None,
     # gaiadb_epoch=2015.0,
-    gaiadb_input_catalog_id=2,
+    gaiadb_input_catalog_id=4,
 ):
     # Get ra, dec and position angle from input arguments
     ra_tel_deg, dec_tel_deg, pa_deg = ra, dec, pa

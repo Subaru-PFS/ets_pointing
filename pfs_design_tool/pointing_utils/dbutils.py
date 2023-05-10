@@ -36,9 +36,11 @@ def generate_targets_from_targetdb(
     extra_where=None,
     force_priority=None,
     input_catalog=None,
+    proposal_id=None,
     mag_min=None,
     mag_max=None,
     mag_filter=None,
+    max_priority=None,
 ):
 
     db = connect_targetdb(conf)
@@ -63,7 +65,13 @@ def generate_targets_from_targetdb(
         query_string += extra_where
 
     if input_catalog is not None:
-        query_string += ' AND (' + 'OR'.join([f"input_catalog_id={v}" for v in input_catalog]) + ')'
+        query_string += ' AND (' + 'OR'.join([f" input_catalog_id={v} " for v in input_catalog]) + ')'
+
+    if proposal_id is not None:
+        query_string += ' AND (' + 'OR'.join([f" proposal_id=\'{v}\' " for v in proposal_id]) + ')'
+
+    if max_priority is not None:
+        query_string += f" AND priority <= {max_priority}"
 
     query_string += ";"
 
@@ -213,7 +221,11 @@ def generate_skyobjects_from_targetdb(
                 first_condition = False
             else:
                 version_condition += " OR "
-            version_condition += f"version = '{sky_version}'"
+            if sky_version == "20220915":
+                # use only HSC sky catalog in the older version
+                version_condition += f"(version = '{sky_version}' AND input_catalog_id=1001)"
+            else:
+                version_condition += f"version = '{sky_version}'"
         version_condition += ")"
 
         where_condition += f" AND {version_condition}"
