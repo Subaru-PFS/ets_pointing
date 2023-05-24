@@ -42,7 +42,7 @@ pip install astropy seaborn colorcet psutil sklearn
     * all the above information would be given by the observatory before CfP
 
 * fiber usage fraction vs. PPC
-	* average fraction: it is not recommended if this value is too low
+    * average fraction: it is not recommended if this value is too low
     * fraction of PPC with the usage fraction less than 30%: it is not recommended if this value is too high
 
 ## Notes
@@ -55,8 +55,8 @@ pip install astropy seaborn colorcet psutil sklearn
 
 * some functions have not been considered:
     * the optimized weighting parameters (conta,b&c) are taken from the simulation / last semester(s), they are not optimized for the input program in this tool
-          * the output total observation time can be longer or shorter than that in the final observation
-          * <span style="color:blue">need to check the discrepancy between the time estimated by the tool and the full PPP</span>
+        * the output total observation time can be longer or shorter than that in the final observation
+        * <span style="color:blue">need to check the discrepancy between the time estimated by the tool and the full PPP</span>
     * collision of fibers is not checked & corrected in this tool, as it will take a lot of time
-          * for very dense sample (criteria? e.g., cluster candidates), should be careful 
-          * <span style="color:blue">need to check its effect quantitatively</span>
+        * for very dense sample (criteria? e.g., cluster candidates), should be careful 
+        * <span style="color:blue">need to check its effect quantitatively</span>
