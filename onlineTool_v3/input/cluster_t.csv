@@ -1,4 +1,4 @@
-obj_id,ra,dec,equinox,priority,exp_time,resolution,comment
+obj_id,ra,dec,equinox,priority,exptime,resolution,comment
 C20a1nW07609_1,146.043346,0.498588,J2000,0,5400,M,
 C20a1nW07609_2,146.024076,0.515949,J2000,0,4500,M,
 C20a1nW07609_3,146.041783,0.521289,J2000,0,8100,M,

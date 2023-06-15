@@ -1,4 +1,4 @@
-obj_id,ra,dec,equinox,priority,exp_time,resolution,comment
+obj_id,ra,dec,equinox,priority,exptime,resolution,comment
 z4qso1_7692688,28.948734,-6.353594,J2000,0,7200,L,
 z4qso2_9289686,30.361012,-6.796681,J2000,0,7200,L,
 z4qso3_3218592,30.217218,-6.698544,J2000,0,5400,L,

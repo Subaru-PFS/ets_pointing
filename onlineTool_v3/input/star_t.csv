@@ -1,4 +1,4 @@
-obj_id,ra,dec,equinox,priority,exp_time,resolution,comment
+obj_id,ra,dec,equinox,priority,exptime,resolution,comment
 star_ishi_0,260.195654,57.76145,J2000,0,5400,M,
 star_ishi_1,260.04048,57.77481,J2000,0,5400,M,
 star_ishi_2,260.071181,57.77798,J2000,0,5400,M,
