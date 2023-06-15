@@ -73,7 +73,8 @@ pip install astropy seaborn colorcet psutil scikit-learn
         * worst: flat and arc would be taken for each fiber configuration
         
 * (Jun/12/23) minor bugs fixed   
-	* prevent blank pointings 
+	* prevent blank pointings
+        * prevent blank cluster of pointings  
 
 * (Jun/13/23) collision of fibers   
 	* KDE part is also enabled to consider the collision of targets 
