@@ -457,8 +457,9 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
     #     args.design_id, indir=args.design_indir, exptime=args.exptime
     # )
 
-    obstime0 = Time("2023-07-01T00:00:00.000")  # UTC
-    d_obstime = 30 * u.min
+    obstime0 = Time("2023-06-15T10:00:00")
+    # obstime0 = Time("2023-07-01T00:00:00.000")  # UTC
+    d_obstime = 20 * u.min
 
     design_filenames = []
     observation_times = []

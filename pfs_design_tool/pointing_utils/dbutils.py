@@ -124,7 +124,6 @@ def generate_fluxstds_from_targetdb(
     extra_where=None,
     write_csv=False,
 ):
-
     try:
         fluxstd_versions = conf["targetdb"]["fluxstd"]["version"]
     except Exception:
@@ -143,24 +142,32 @@ def generate_fluxstds_from_targetdb(
         extra_where = ""
 
     if good_fluxstd:
-        extra_where += f"""
+        extra_where += """
         AND flags_dist IS FALSE
         AND flags_ebv IS FALSE
         AND prob_f_star BETWEEN 0.5 AND 1.0
         """
         if select_by_flux:
-            extra_where += f"""AND psf_flux_{mag_filter} BETWEEN {flux_min} AND {flux_max}"""
+            extra_where += (
+                f"""AND psf_flux_{mag_filter} BETWEEN {flux_min} AND {flux_max}"""
+            )
         else:
-            extra_where += f"""AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}"""
+            extra_where += (
+                f"""AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}"""
+            )
 
     if not good_fluxstd:
         extra_where = f"""
         AND prob_f_star BETWEEN {min_prob_f_star} AND 1.0
         """
         if select_by_flux:
-            extra_where += f"""AND psf_flux_{mag_filter} BETWEEN {flux_min} AND {flux_max}"""
+            extra_where += (
+                f"""AND psf_flux_{mag_filter} BETWEEN {flux_min} AND {flux_max}"""
+            )
         else:
-            extra_where += f"""AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}"""
+            extra_where += (
+                f"""AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}"""
+            )
 
         if flags_dist:
             extra_where += """
@@ -400,7 +407,7 @@ def fixcols_gaiadb_to_targetdb(
 
     df["epoch"] = df["epoch"].apply(lambda x: f"J{x:.1f}")
     df["proposal_id"] = proposal_id
-    df["ob_code"] = df["obj_id"].astype('str')
+    df["ob_code"] = df["obj_id"].astype("str")
     df["target_type_id"] = target_type_id
     df["input_catalog_id"] = input_catalog_id
     df["effective_exptime"] = exptime
