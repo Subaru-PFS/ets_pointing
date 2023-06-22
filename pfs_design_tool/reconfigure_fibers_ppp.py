@@ -13,10 +13,9 @@ import pointing_utils.nfutils as nfutils
 import toml
 from astropy.time import Time
 from astropy.utils import iers
+from IPython.display import clear_output
 from logzero import logger
 from pfs.datamodel import PfsDesign, TargetType
-
-from IPython.display import clear_output
 
 # The following line seems to be needed to avoid IERS errors,
 # though the default config is already `auto_download=True`.
@@ -384,7 +383,7 @@ def load_input_design(design_id, indir=".", exptime=None, bands=["g", "r", "i"])
 
 def load_ppp_results(infile: str):
     df = pd.read_csv(infile)
-    #print(df)
+    # print(df)
 
     pointings = df["pointing"].unique()
     n_pointings = pointings.size
@@ -450,15 +449,16 @@ def load_ppp_results(infile: str):
 
     return pointings, dict_pointings
 
-def reconfigure(conf, workDir='.', infile='ppp+qplan_outout.csv',
-                clearOutput=False
-                ):
 
+def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=False):
     list_pointings, dict_pointings = load_ppp_results(os.path.join(workDir, infile))
 
     # in_design, df_sci, df_std, df_sky = load_input_design(
     #     args.design_id, indir=args.design_indir, exptime=args.exptime
     # )
+
+    obstime0 = Time("2023-07-01T00:00:00.000")  # UTC
+    d_obstime = 30 * u.min
 
     design_filenames = []
     observation_times = []
@@ -479,8 +479,10 @@ def reconfigure(conf, workDir='.', infile='ppp+qplan_outout.csv',
             clear_output()
         # observation_time = Time.now().iso
         observation_time = str(dict_pointings[pointing.lower()]["observation_time"][0])
-        observation_time = observation_time.replace(' ', 'T')+'Z'
-        observation_date_in_hst = str(dict_pointings[pointing.lower()]["observation_date_in_hst"][0])
+        observation_time = observation_time.replace(" ", "T") + "Z"
+        observation_date_in_hst = str(
+            dict_pointings[pointing.lower()]["observation_date_in_hst"][0]
+        )
 
         # get science targets
         df_sci = dict_pointings[pointing.lower()]["sci"]
@@ -533,22 +535,22 @@ def reconfigure(conf, workDir='.', infile='ppp+qplan_outout.csv',
             logger.info(f"Fetched target DataFrame: \n{df_sky}")
 
         # get raster targets (optional)
-        raster = conf['sfa']['raster']
-        if conf['sfa']['raster'] == True:
+        raster = conf["sfa"]["raster"]
+        if conf["sfa"]["raster"] == True:
             df_raster = dbutils.generate_targets_from_gaiadb(
                 dict_pointings[pointing.lower()]["ra_center"],
                 dict_pointings[pointing.lower()]["dec_center"],
                 conf=conf,
                 band_select="phot_g_mean_mag",
-                mag_min=conf['sfa']['raster_mag_min'],
-                mag_max=conf['sfa']['raster_mag_max'],
+                mag_min=conf["sfa"]["raster_mag_min"],
+                mag_max=conf["sfa"]["raster_mag_max"],
                 good_astrometry=False,  # select bright stars which may have large astrometric errors.
                 write_csv=False,
             )
             df_raster = dbutils.fixcols_gaiadb_to_targetdb(
                 df_raster,
-                proposal_id='S23A-EN16',
-                target_type_id=1,    # SCIENCE
+                proposal_id="S23A-EN16",
+                target_type_id=1,  # SCIENCE
                 input_catalog_id=4,  # Gaia DR3
                 exptime=900.0,
                 priority=9999,
@@ -582,7 +584,7 @@ def reconfigure(conf, workDir='.', infile='ppp+qplan_outout.csv',
             conf["sfa"]["dot_margin"],
             None,
             df_raster=df_raster,
-            force_exptime=conf['ppp']['TEXP_NOMINAL'],
+            force_exptime=conf["ppp"]["TEXP_NOMINAL"],
         )
 
         design = designutils.generate_pfs_design(
@@ -663,7 +665,10 @@ def reconfigure(conf, workDir='.', infile='ppp+qplan_outout.csv',
         }
     )
     infile_base = os.path.splitext(os.path.basename(infile))[0]
-    df_summary.to_csv(os.path.join(workDir, f"output/summary_reconfigure_ppp-{infile_base}.csv"), index=False)
+    df_summary.to_csv(
+        os.path.join(workDir, f"output/summary_reconfigure_ppp-{infile_base}.csv"),
+        index=False,
+    )
 
     return list_pointings, dict_pointings, design_ids, observation_dates_in_hst
 
@@ -675,6 +680,7 @@ def main():
     print(conf["netflow"]["use_gurobi"])
 
     reconfigure(conf=conf)
+
 
 if __name__ == "__main__":
     main()
