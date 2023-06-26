@@ -66,7 +66,7 @@ pip install astropy seaborn colorcet psutil scikit-learn
         * mock calibrators in the field
         * need to check the running time/outputs with & without calibrators
         
-### Updates Jun/15/2023
+### Updates since Jun. 2023
 * (Jun/6/23) overheads have been taken into account now, refer to [here](https://colab.research.google.com/drive/17a-hxaKZlGIAdLDKK0tMEHFT5AT-Ql7J?usp=sharing)
     * both the best and worst cases have been considered
     	* best: only one set of flat and arc would be taken for one night
@@ -77,4 +77,11 @@ pip install astropy seaborn colorcet psutil scikit-learn
         * prevent blank cluster of pointings  
 
 * (Jun/13/23) collision of fibers   
-	* KDE part is also enabled to consider the collision of targets 
+	* KDE part is also enabled to consider the collision of targets (but takes much longer time, set to False in default)
+    
+* (Jun/21/23) web tool v1 made with mercury finished
+
+* (Jun/26/23) partly solve the no fiber assignment problem found when running the latest netflow version (refer to [here](https://github.com/Subaru-PFS/ets_fiberalloc))
+	* "otime" parameter now in the correct format
+    * in PPCs only covering a few targets, it is easily to have no fiber assigned; shifting these PPCs by ~0.15-0.2 deg would solve the problem
+    	* add function in netflow_iter to prevent no fiber assignment
