@@ -13,7 +13,7 @@ This tool is designed for users preparing the PFS open-use proposals. It could h
 * Python 3
 * The following packages are required:
 ```
-pip install astropy seaborn colorcet psutil scikit-learn
+pip install astropy seaborn colorcet psutil scikit-learn 
 ```
 * netflow 
     * refer to [here](https://github.com/Subaru-PFS/ets_fiberalloc)
@@ -80,8 +80,11 @@ pip install astropy seaborn colorcet psutil scikit-learn
 	* KDE part is also enabled to consider the collision of targets (but takes much longer time, set to False in default)
     
 * (Jun/21/23) web tool v1 made with mercury finished
+	* (Jun/27/23) slider works for the low- and medium-mode separately
 
 * (Jun/26/23) partly solve the no fiber assignment problem found when running the latest netflow version (refer to [here](https://github.com/Subaru-PFS/ets_fiberalloc))
 	* "otime" parameter now in the correct format
     * in PPCs only covering a few targets, it is easily to have no fiber assigned; shifting these PPCs by ~0.15-0.2 deg would solve the problem
     	* add function in netflow_iter to prevent no fiber assignment
+        
+* (Jun/27/23) revise the format of user sample 
