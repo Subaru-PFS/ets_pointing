@@ -109,6 +109,9 @@ def generate_fluxstds_from_targetdb(
     flags_ebv=False,
     mag_min=None,
     mag_max=None,
+    flux_min=None,
+    flux_max=None,
+    select_by_flux=None,
     mag_filter=None,
     min_prob_f_star=None,
     min_teff=None,
@@ -134,16 +137,23 @@ def generate_fluxstds_from_targetdb(
         AND flags_dist IS FALSE
         AND flags_ebv IS FALSE
         AND prob_f_star BETWEEN 0.5 AND 1.0
-        AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}
         AND teff_brutus BETWEEN {min_teff} AND {max_teff}
         """
+        if select_by_flux:
+            extra_where += f"""AND psf_flux_{mag_filter} BETWEEN {flux_min} AND {flux_max}"""
+        else:
+            extra_where += f"""AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}"""
 
     if not good_fluxstd:
         extra_where = f"""
-        AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}
         AND prob_f_star BETWEEN {min_prob_f_star} AND 1.0
         AND teff_brutus BETWEEN {min_teff} AND {max_teff}
         """
+        if select_by_flux:
+            extra_where += f"""AND psf_flux_{mag_filter} BETWEEN {flux_min} AND {flux_max}"""
+        else:
+            extra_where += f"""AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}"""
+
         if flags_dist:
             extra_where += """
             AND flags_dist IS FALSE
