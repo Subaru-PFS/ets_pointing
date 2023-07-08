@@ -35,12 +35,15 @@ from procedures.moduleTest.cobraCoach import CobraCoach
 # import time
 # from targetdb import targetdb
 
+from logzero import logger
 
 # This was needed for fixing some issues with the XML files.
 # Can probably be simplified. Javier?
 #
 # NOTE: Do we still need the getBench function?
 #
+
+
 def getBench(
     pfs_instdata_dir,
     cobra_coach_dir,
@@ -283,7 +286,8 @@ def run_netflow(
             for i in range(selectedTargets.size):
                 if selectedTargets[i] != NULL_TARGET_POSITION:
                     dist = np.abs(selectedTargets[i] - bench.cobras.centers[i])
-
+                    if dist > bench.cobras.L1[i] + bench.cobras.L2[i]:
+                        logger.warning(f"(CobraId={i}) Distance from the center exceeds L1+L2 ({dist} mm)")
             simulator = CollisionSimulator2(
                 bench, cobra_coach, TargetGroup(selectedTargets, ids)
             )
