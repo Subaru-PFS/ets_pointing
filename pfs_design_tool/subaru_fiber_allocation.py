@@ -199,6 +199,18 @@ def get_arguments():
         help="Minimum acceptable prob_f_star (default: 0.5)",
     )
     parser.add_argument(
+        "--fluxstd_min_teff",
+        type=float,
+        default=3000.0,
+        help="Minimum acceptable teff_brutus in [K] (default: 3000.)",
+    )
+    parser.add_argument(
+        "--fluxstd_max_teff",
+        type=float,
+        default=10000.0,
+        help="Maximum acceptable teff_brutus in [K] (default: 10000.)",
+    )
+    parser.add_argument(
         "--fluxstd_flags_dist",
         action="store_true",
         help="Select fluxstd stars with flags_dist=False (default: False)",
@@ -370,6 +382,8 @@ def main():
         mag_max=args.fluxstd_mag_max,
         mag_filter=args.fluxstd_mag_filter,
         min_prob_f_star=args.fluxstd_min_prob_f_star,
+        min_teff=args.fluxstd_min_teff,
+        max_teff=args.fluxstd_max_teff,
         write_csv=True,
     )
 
