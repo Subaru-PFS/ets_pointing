@@ -168,6 +168,7 @@ def get_arguments():
     )
 
     # flux standards
+
     parser.add_argument(
         "--fluxstd_mag_max",
         type=float,
@@ -187,6 +188,23 @@ def get_arguments():
         help="Photometric band (grizyj of PS1) to apply magnitude cuts (default: g)",
     )
     parser.add_argument(
+        "--fluxstd_flux_max",
+        type=float,
+        default=9120000.0,
+        help="Maximum (brightest) flux for stars in fibers in [nJy] (default: 9120000.)",
+    )
+    parser.add_argument(
+        "--fluxstd_flux_min",
+        type=float,
+        default=91200.0,
+        help="Minimum (faintest) flux for stars in fibers in [nJy] (default: 91200.)",
+    )
+    parser.add_argument(
+        "--fluxstd_select_by_flux",
+        action="store_true",
+        help="Select fluxstd stars by the flux range (default: False)",
+    )
+    parser.add_argument(
         "--good_fluxstd",
         action="store_true",
         help="Select fluxstd stars with prob_f_star>0.5, \
@@ -197,6 +215,18 @@ def get_arguments():
         type=float,
         default=0.5,
         help="Minimum acceptable prob_f_star (default: 0.5)",
+    )
+    parser.add_argument(
+        "--fluxstd_min_teff",
+        type=float,
+        default=3000.0,
+        help="Minimum acceptable teff_brutus in [K] (default: 3000.)",
+    )
+    parser.add_argument(
+        "--fluxstd_max_teff",
+        type=float,
+        default=10000.0,
+        help="Maximum acceptable teff_brutus in [K] (default: 10000.)",
     )
     parser.add_argument(
         "--fluxstd_flags_dist",
@@ -368,8 +398,13 @@ def main():
         flags_ebv=args.fluxstd_flags_ebv,
         mag_min=args.fluxstd_mag_min,
         mag_max=args.fluxstd_mag_max,
+        flux_min=args.fluxstd_flux_min,
+        flux_max=args.fluxstd_flux_max,
+        select_by_flux=args.fluxstd_select_by_flux,
         mag_filter=args.fluxstd_mag_filter,
         min_prob_f_star=args.fluxstd_min_prob_f_star,
+        min_teff=args.fluxstd_min_teff,
+        max_teff=args.fluxstd_max_teff,
         write_csv=True,
     )
 
