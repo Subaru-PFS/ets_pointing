@@ -728,7 +728,7 @@ class CheckDesign(object):
         axe.set_ylabel('number')
         axe.grid(color='gray', linestyle='dotted', linewidth=1)
         if prob_f_star is not None:
-            axe.hist(prob_f_star, bins=10)
+            axe.hist(prob_f_star, bins=10, color='C0')
 
     def plot_teff_star(self, fig=None, axe=None):
         ''' get objId of FLUXSTD '''
@@ -760,7 +760,7 @@ class CheckDesign(object):
         axe.set_ylabel('number')
         axe.grid(color='gray', linestyle='dotted', linewidth=1)
         if teff_star is not None:
-            axe.hist(teff_star, bins=10)
+            axe.hist(teff_star, bins=10, color='C0')
 
     def plot_integrated(self):
         fig = plt.figure(figsize=(8, 8))
@@ -773,5 +773,7 @@ class CheckDesign(object):
         self.plot_pfi_fov(fig=fig, axe=ax1)
         self.plot_pfi_fov_only_calibs(fig=fig, axe=ax2)
         self.plot_mag_hist(fig=fig, axe=ax3)
-        #self.plot_prob_f_star(fig=fig, axe=ax4)
-        self.plot_teff_star(fig=fig, axe=ax4)
+        try:
+            self.plot_teff_star(fig=fig, axe=ax4)
+        except ValueError:
+            self.plot_prob_f_star(fig=fig, axe=ax4)
