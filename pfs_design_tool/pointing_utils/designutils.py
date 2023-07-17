@@ -160,9 +160,10 @@ def generate_pfs_design(
                         for band in filter_band_names
                     ]
                 # FIXME: temporal workaround for co_field1
-                if design_name == 'field1_pa+00':
+                if 'co_wg_targets_' in design_name:
                     dict_of_flux_lists["psf_flux"][i_fiber] = [np.nan, np.nan, np.nan, np.nan, np.nan]
-                    dict_of_flux_lists["psf_flux_error"][i_fiber] = [np.nan, np.nan, np.nan, np.nan, np.nan]
+                    dict_of_flux_lists["psf_flux_error"][i_fiber] = [
+                        np.nan, np.nan, np.nan, np.nan, np.nan]
                 # total_flux[i_fiber] = df_targets["totalFlux"][idx_target][0]
                 # filter_names[i_fiber] = df_targets["filterNames"][idx_target][0].tolist()
             if np.any(idx_fluxstd):

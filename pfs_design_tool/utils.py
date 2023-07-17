@@ -726,6 +726,7 @@ class CheckDesign(object):
             axe.set_title(f'{self.objId}')
         axe.set_xlabel('prob_f_star')
         axe.set_ylabel('number')
+        axe.set_xlim(0.0, 1.0)
         axe.grid(color='gray', linestyle='dotted', linewidth=1)
         if prob_f_star is not None:
             axe.hist(prob_f_star, bins=10, color='C0')
