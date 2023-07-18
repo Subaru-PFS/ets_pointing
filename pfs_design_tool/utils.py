@@ -717,7 +717,6 @@ class CheckDesign(object):
                 for oid2, prob in zip(objId_all, prob_f_star_all):
                     if int(oid1) == int(oid2):
                         prob_f_star[i] = prob
-
         ''' plot histogram '''
         if fig is None:
             fig = plt.figure(figsize=(4, 4))
@@ -729,7 +728,7 @@ class CheckDesign(object):
         axe.set_xlim(0.0, 1.0)
         axe.grid(color='gray', linestyle='dotted', linewidth=1)
         if prob_f_star is not None:
-            axe.hist(prob_f_star, bins=10, color='C0')
+            axe.hist(prob_f_star, bins=10, color='C1')
 
     def plot_teff_star(self, fig=None, axe=None):
         ''' get objId of FLUXSTD '''
@@ -761,7 +760,7 @@ class CheckDesign(object):
         axe.set_ylabel('number')
         axe.grid(color='gray', linestyle='dotted', linewidth=1)
         if teff_star is not None:
-            axe.hist(teff_star, bins=10, color='C0')
+            axe.hist(teff_star, bins=10, color='C1')
 
     def plot_integrated(self):
         fig = plt.figure(figsize=(8, 8))
