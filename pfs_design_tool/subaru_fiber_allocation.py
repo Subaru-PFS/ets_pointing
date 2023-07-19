@@ -394,7 +394,6 @@ def main():
         df_targets.priority[df_targets.priority == 3] = 6
         df_targets.priority[df_targets.priority == 4] = 3
         df_targets.priority[df_targets.priority < 1] = 7
-    print(np.unique(df_targets.priority))
 
     if args.skip_target:
         df_targets = df_targets[:0]
