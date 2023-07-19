@@ -387,6 +387,15 @@ def main():
         mag_filter=args.target_mag_filter,
         max_priority=args.target_priority_max,
     )
+
+    ## FIXME: temporal workaround for GE targets ##
+    if args.input_catalog == [10] and args.proposal_id == ['S23A-QN900', 'S23A-QN901', 'S23A-QN902', 'S23A-QN903']:
+        df_targets.priority[df_targets.priority == 2] = 5
+        df_targets.priority[df_targets.priority == 3] = 6
+        df_targets.priority[df_targets.priority == 4] = 3
+        df_targets.priority[df_targets.priority < 1] = 7
+    print(np.unique(df_targets.priority))
+
     if args.skip_target:
         df_targets = df_targets[:0]
     df_fluxstds = dbutils.generate_fluxstds_from_targetdb(
