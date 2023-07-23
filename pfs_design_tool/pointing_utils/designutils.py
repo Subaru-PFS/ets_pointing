@@ -60,6 +60,11 @@ def generate_pfs_design(
         fiber_status[fidx] = bench.cobras.status[cidx]
     fiber_status[fiber_status > 1] = 2  # filled bad fibers ad BROKENFIBER=2
 
+    epoch = np.full(len(fiber_status), "J2000.0")
+    pmRa = np.zeros_like(fiber_status, dtype=np.float32)
+    pmDec = np.zeros_like(fiber_status, dtype=np.float32)
+    parallax = np.full_like(fiber_status, 1.0e-5, dtype=np.float32)
+
     filter_band_names = ["g", "r", "i", "z", "y"]
     flux_default_values = np.full(len(filter_band_names), np.nan)
     filter_default_values = ["none" for _ in filter_band_names]
@@ -71,7 +76,9 @@ def generate_pfs_design(
         "fiber_flux": [flux_default_values for _ in range(n_fiber)],
         "total_flux": [flux_default_values for _ in range(n_fiber)],
         "psf_flux": [flux_default_values for _ in range(n_fiber)],
+        "fiber_flux_error": [flux_default_values for _ in range(n_fiber)],
         "psf_flux_error": [flux_default_values for _ in range(n_fiber)],
+        "total_flux_error": [flux_default_values for _ in range(n_fiber)],
         "filter_names": [filter_default_values for _ in range(n_fiber)],
     }
     # dict_of_flux_lists = {
@@ -124,6 +131,12 @@ def generate_pfs_design(
             )
 
             if np.any(idx_target):
+
+                epoch[i_fiber] = df_targets["epoch"][idx_target].values[0]
+                pmRa[i_fiber] = df_targets["pmra"][idx_target].values[0]
+                pmDec[i_fiber] = df_targets["pmdec"][idx_target].values[0]
+                parallax[i_fiber] = df_targets["parallax"][idx_target].values[0]
+
                 cat_id[i_fiber] = df_targets["input_catalog_id"][idx_target].values[0]
                 # dict_of_flux_lists["total_flux"][i_fiber] = [
                 #     np.nan for _ in filter_band_names
@@ -167,6 +180,12 @@ def generate_pfs_design(
                 # total_flux[i_fiber] = df_targets["totalFlux"][idx_target][0]
                 # filter_names[i_fiber] = df_targets["filterNames"][idx_target][0].tolist()
             if np.any(idx_fluxstd):
+
+                epoch[i_fiber] = df_fluxstds["epoch"][idx_fluxstd].values[0]
+                pmRa[i_fiber] = df_fluxstds["pmra"][idx_fluxstd].values[0]
+                pmDec[i_fiber] = df_fluxstds["pmdec"][idx_fluxstd].values[0]
+                parallax[i_fiber] = df_fluxstds["parallax"][idx_fluxstd].values[0]
+
                 cat_id[i_fiber] = df_fluxstds["input_catalog_id"][idx_fluxstd].values[0]
                 # dict_of_flux_lists["total_flux"][i_fiber] = [
                 #     np.nan for band in filter_band_names
@@ -244,6 +263,12 @@ def generate_pfs_design(
                     == tgt_class_dict[tgt[tidx].targetclass],
                 )
                 if np.any(idx_raster):
+
+                    epoch[i_fiber] = df_raster["epoch"][idx_raster].values[0]
+                    pmRa[i_fiber] = df_raster["pmra"][idx_raster].values[0]
+                    pmDec[i_fiber] = df_raster["pmdec"][idx_raster].values[0]
+                    parallax[i_fiber] = df_raster["parallax"][idx_raster].values[0]
+
                     cat_id[i_fiber] = df_raster["input_catalog_id"][idx_raster].values[
                         0
                     ]
@@ -310,6 +335,10 @@ def generate_pfs_design(
         objId=obj_id,
         targetType=target_type,
         fiberStatus=fiber_status,
+        epoch=epoch,
+        pmRa=pmRa,
+        pmDec=pmDec,
+        parallax=parallax,
         # fiberFlux=dict_of_flux_lists["fiber_flux"],
         psfFlux=dict_of_flux_lists["psf_flux"],
         # psfFlux=psf_flux,

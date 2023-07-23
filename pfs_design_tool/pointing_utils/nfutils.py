@@ -151,6 +151,10 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
                     exptime,
                     priority,
                     target_class,
+                    pmra=df["pmra"][i],
+                    pmdec=df["pmdec"][i],
+                    parallax=df["parallax"][i],
+                    epoch=2000.0,
                 )
             )
     elif target_class == "cal":
@@ -165,7 +169,10 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
                 df["dec"][i],
                 target_class,
                 cal_penalty[i],
-                # 0.0,
+                pmra=df["pmra"][i],
+                pmdec=df["pmdec"][i],
+                parallax=df["parallax"][i],
+                epoch=2016.0,
             )
             for i in range(df.index.size)
         ]
@@ -177,6 +184,10 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
                 df["dec"][i],
                 target_class,
                 0.0,
+                pmra=0.0,
+                pmdec=0.0,
+                parallax=1.0e-07,
+                epoch=2000.0,
             )
             for i in range(df.index.size)
         ]
