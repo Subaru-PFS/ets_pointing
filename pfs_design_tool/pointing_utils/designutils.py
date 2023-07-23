@@ -321,6 +321,11 @@ def generate_pfs_design(
     # dict_of_flux_lists["psf_flux_error"], dict_of_flux_lists["filter_names"]):
     #    f.write(f'{v1}  {v2}  {v3}  {v4}\n')
 
+    # sanity check for epoch
+    for i, ep in enumerate(epoch):
+        if ep[0] is not 'J':
+            epoch[i] = 'J' + ep
+
     pfs_design = makePfsDesign(
         pfi_nominal,
         ra,
