@@ -391,7 +391,10 @@ class CheckDesign(object):
 
         ''' getGaiaSources '''
         if self.gaiaCsv is not None:
-            self.getGaiaSources()
+            #self.getGaiaSources()
+            self.gaia_info = None
+            self.x_gaia_bright = np.array([])
+            self.y_gaia_bright = np.array([])
         else:
             self.gaia_info = None
             self.x_gaia_bright = np.array([])
