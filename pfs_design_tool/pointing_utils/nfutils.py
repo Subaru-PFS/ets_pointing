@@ -155,6 +155,8 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
                     pmdec=df["pmdec"][i],
                     parallax=df["parallax"][i],
                     epoch=float(df["epoch"][i][1:]),
+                    # proposal_id=df["proposal_id"],
+                    # ob_code=df["ob_code"],
                 )
             )
     elif target_class == "cal":

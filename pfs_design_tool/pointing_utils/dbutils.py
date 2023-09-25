@@ -396,6 +396,7 @@ def fixcols_gaiadb_to_targetdb(
 
     df["epoch"] = df["epoch"].apply(lambda x: f"J{x:.1f}")
     df["proposal_id"] = proposal_id
+    df["ob_code"] = df["obj_id"].astype('str')
     df["target_type_id"] = target_type_id
     df["input_catalog_id"] = input_catalog_id
     df["effective_exptime"] = exptime

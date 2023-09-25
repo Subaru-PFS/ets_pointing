@@ -495,7 +495,7 @@ def main():
         df_raster=df_raster,
         force_exptime=args.exptime,
     )
-    # print(vis, tp, tel, tgt, tgt_classdict)
+    #print(vis, tp, tel, tgt, tgt_classdict)
     # print(vis.items())
 
     # print(is_no_target)

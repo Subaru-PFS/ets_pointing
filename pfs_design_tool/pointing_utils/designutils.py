@@ -60,6 +60,8 @@ def generate_pfs_design(
         fiber_status[fidx] = bench.cobras.status[cidx]
     fiber_status[fiber_status > 1] = 2  # filled bad fibers ad BROKENFIBER=2
 
+    proposal_id = np.full(len(fiber_status), "N/A", dtype='<U32')
+    ob_code = np.full(len(fiber_status), "N/A", dtype='<U64')
     epoch = np.full(len(fiber_status), "J2000.0")
     pmRa = np.zeros_like(fiber_status, dtype=np.float32)
     pmDec = np.zeros_like(fiber_status, dtype=np.float32)
@@ -132,6 +134,8 @@ def generate_pfs_design(
 
             if np.any(idx_target):
 
+                proposal_id[i_fiber] = df_targets["proposal_id"][idx_target].values[0]
+                ob_code[i_fiber] = df_targets["ob_code"][idx_target].values[0]
                 epoch[i_fiber] = df_targets["epoch"][idx_target].values[0]
                 pmRa[i_fiber] = df_targets["pmra"][idx_target].values[0]
                 pmDec[i_fiber] = df_targets["pmdec"][idx_target].values[0]
@@ -326,6 +330,8 @@ def generate_pfs_design(
         if ep[0] is not 'J':
             epoch[i] = 'J' + ep
 
+    print(np.unique(proposal_id))
+    print(np.unique(ob_code))
     pfs_design = makePfsDesign(
         pfi_nominal,
         ra,
@@ -344,6 +350,8 @@ def generate_pfs_design(
         pmRa=pmRa,
         pmDec=pmDec,
         parallax=parallax,
+        proposalId=proposal_id,
+        obCode=ob_code,
         # fiberFlux=dict_of_flux_lists["fiber_flux"],
         psfFlux=dict_of_flux_lists["psf_flux"],
         # psfFlux=psf_flux,
