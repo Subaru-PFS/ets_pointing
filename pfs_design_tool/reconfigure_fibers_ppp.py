@@ -608,7 +608,7 @@ def main():
             "observation_time": observation_times,
         }
     )
-    df_summary.to_csv(f"summary_reconfigure_ppp-{arg.infile}.csv", index=False)
+    df_summary.to_csv(f"summary_reconfigure_ppp-{args.infile}.csv", index=False)
 
 
 if __name__ == "__main__":
