@@ -436,6 +436,7 @@ def load_ppp_results(infile: str):
             "obj_id_original": df_pointing["obj_id"],
             "obj_id_dummy": pseudo_obj_ids,
             # "observation_time": observation_time,
+            "observation_time": df_pointing["obstime"],
         }
 
     # print(dict_pointings)
