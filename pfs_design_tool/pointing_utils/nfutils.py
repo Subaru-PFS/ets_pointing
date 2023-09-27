@@ -510,7 +510,8 @@ def fiber_allocation(
         },
     }
     target_class_dict = {}
-    for i in range(1, 13, 1):
+    # for i in range(1, 13, 1):
+    for i in range(1, 14, 1):
         target_class_dict[f"sci_P{i}"] = 1
     target_class_dict = {**target_class_dict, **dict(sci_P9999=1, sky=2, cal=3)}
     # target_class_dict = {"sci_P1": 1, "sci_P9999": 1, "sky": 2, "cal": 3}

@@ -4,6 +4,7 @@ import argparse
 import functools
 import os
 
+import astropy.units as u
 import numpy as np
 import pandas as pd
 import pointing_utils.dbutils as dbutils
@@ -99,7 +100,7 @@ def get_arguments():
     parser.add_argument(
         "--cobra_coach_dir",
         type=str,
-        default=".",
+        default="./coach",
         help="path for temporary cobraCoach files (default: .)",
     )
     # guide stars
@@ -392,8 +393,6 @@ def load_ppp_results(infile: str):
     dict_pointings = {}
 
     for i, pointing in enumerate(pointings):
-        observation_time = Time.now().iso
-
         df_pointing = df.loc[df["pointing"] == pointing, :].copy().reset_index()
         n_obj = df_pointing.index.size
         pseudo_obj_ids = np.random.randint(
@@ -434,9 +433,9 @@ def load_ppp_results(infile: str):
             "dec_center": df_pointing["dec_center"][0],
             "pa_center": df_pointing["pa_center"][0],
             "sci": df_tmp,
-            "obj_id_origial": df_pointing["obj_id"],
+            "obj_id_original": df_pointing["obj_id"],
             "obj_id_dummy": pseudo_obj_ids,
-            "observation_time": observation_time,
+            # "observation_time": observation_time,
         }
 
     # print(dict_pointings)
@@ -456,10 +455,16 @@ def main():
     #     args.design_id, indir=args.design_indir, exptime=args.exptime
     # )
 
+    obstime0 = Time("2023-07-01T00:00:00.000")  # UTC
+    d_obstime = 30 * u.min
+
     design_filenames = []
     observation_times = []
 
     for i, pointing in enumerate(list_pointings):
+        # observation_time = Time.now().iso
+        observation_time = (obstime0 + i * d_obstime).iso
+
         df_sci = dict_pointing[pointing.lower()]["sci"]
         df_fluxstds = dbutils.generate_fluxstds_from_targetdb(
             dict_pointing[pointing.lower()]["ra_center"],
@@ -518,7 +523,7 @@ def main():
             dict_pointing[pointing.lower()]["pa_center"],
             args.n_fluxstd,
             args.n_sky,
-            dict_pointing[pointing.lower()]["observation_time"],
+            observation_time,
             conf,
             args.pfs_instdata_dir,
             args.cobra_coach_dir,
@@ -550,7 +555,7 @@ def main():
             dict_pointing[pointing.lower()]["ra_center"],
             dict_pointing[pointing.lower()]["dec_center"],
             dict_pointing[pointing.lower()]["pa_center"],
-            dict_pointing[pointing.lower()]["observation_time"],
+            observation_time,
             args.telescope_elevation,
             conf=conf,
             guidestar_mag_min=args.guidestar_mag_min,
@@ -566,10 +571,19 @@ def main():
         design.write(dirName=args.design_dir, fileName=design.filename)
 
         design_filenames.append(design.filename)
-        observation_times.append(dict_pointing[pointing.lower()]["observation_time"])
+        observation_times.append(observation_time)
+
+        df_obj_id = pd.DataFrame(
+            {
+                "obj_id_origial": dict_pointing[pointing.lower()]["obj_id_original"],
+                "obj_id_dummy": dict_pointing[pointing.lower()]["obj_id_dummy"],
+            }
+        ).to_csv(
+            os.path.join(args.design_dir, f"{design.filename}_obj_ids.csv"), index=False
+        )
 
         logger.info(
-            f"pfsDesign file {design.filename} is created in the {args.design_dir} directory."
+            f"pfsDesign file {design.filename} for {pointing} is created in the {args.design_dir} directory."
         )
         logger.info(
             "Number of SCIENCE fibers: {:}".format(
@@ -585,9 +599,7 @@ def main():
             "Number of SKY fibers: {:}".format(len(np.where(design.targetType == 2)[0]))
         )
         logger.info("Number of AG stars: {:}".format(len(guidestars.objId)))
-        logger.info(
-            f"Observation Time: {dict_pointing[pointing.lower()]['observation_time']}"
-        )
+        logger.info(f"Observation Time: {observation_time}")
 
     df_summary = pd.DataFrame(
         {
@@ -596,6 +608,7 @@ def main():
             "observation_time": observation_times,
         }
     )
+    df_summary.to_csv(f"summary_reconfigure_ppp-{arg.infile}.csv", index=False)
 
 
 if __name__ == "__main__":
