@@ -414,6 +414,7 @@ def load_ppp_results(infile: str):
                 "target_type_id": np.full(n_obj, 1),  # SCIENCE
                 "input_catalog_id": np.full(n_obj, 9),  # HSC-SSP PDR3 Wide
                 "ob_code": df_pointing["ob_code"],
+                "proposal_id": df_pointing["proposal_id"],
                 "priority": [
                     int(p.replace("sci_P", "")) for p in df_pointing["target_class"]
                 ],
