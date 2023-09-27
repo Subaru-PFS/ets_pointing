@@ -461,7 +461,7 @@ def generate_guidestars_from_gaiadb(
     AND {coldict['mag']} BETWEEN {0.0} AND {guidestar_neighbor_mag_min}
     ;
     """
-    print(query_string)
+    # print(query_string)
     cur.execute(query_string)
 
     df_res = pd.DataFrame(

@@ -314,7 +314,7 @@ def generate_random_skyobjects(
     df["created_at"] = None
     df["updated_at"] = None
 
-    print(df)
+    # print(df)
     return df
 
 
@@ -381,7 +381,7 @@ def generate_targets_from_gaiadb(
     cur.close()
     conn.close()
 
-    logger.info(df_res)
+    # logger.info(df_res)
     if write_csv:
         df_res.to_csv("gaia.csv")
 

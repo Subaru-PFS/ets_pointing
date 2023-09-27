@@ -16,6 +16,8 @@ from astropy.utils import iers
 from logzero import logger
 from pfs.datamodel import PfsDesign, TargetType
 
+from IPython.display import clear_output
+
 # The following line seems to be needed to avoid IERS errors,
 # though the default config is already `auto_download=True`.
 iers.conf.auto_download = True
@@ -319,7 +321,7 @@ def get_arguments():
             f"Observation time is set to the current UTC {args.observation_time}."
         )
 
-    print(args)
+    # print(args)
 
     return args
 
@@ -382,8 +384,7 @@ def load_input_design(design_id, indir=".", exptime=None, bands=["g", "r", "i"])
 
 def load_ppp_results(infile: str):
     df = pd.read_csv(infile)
-
-    print(df)
+    #print(df)
 
     pointings = df["pointing"].unique()
     n_pointings = pointings.size
@@ -403,6 +404,10 @@ def load_ppp_results(infile: str):
                 "obj_id": pseudo_obj_ids,
                 "ra": df_pointing["ra_target"],
                 "dec": df_pointing["dec_target"],
+                "pmra": df_pointing["pmra_target"],
+                "pmdec": df_pointing["pmdec_target"],
+                "parallax": df_pointing["parallax_target"],
+                "epoch": df_pointing["equinox_target"],
                 "tract": np.full(n_obj, 0),
                 "patch": np.full(n_obj, 0),
                 "catalog_id": np.full(n_obj, 9),  # HSC-SSP PDR3 Wide
@@ -443,71 +448,82 @@ def load_ppp_results(infile: str):
 
     return pointings, dict_pointings
 
+def reconfigure(conf, workDir='.', infile='output/ppp+qplan_outout.csv',
+                clearOutput=False
+                ):
 
-def main():
-    args = get_arguments()
-
-    conf = read_conf(args.conf)
-    print(conf["netflow"]["use_gurobi"])
-
-    list_pointings, dict_pointing = load_ppp_results(args.infile)
+    list_pointings, dict_pointings = load_ppp_results(os.path.join(workDir, infile))
 
     # in_design, df_sci, df_std, df_sky = load_input_design(
     #     args.design_id, indir=args.design_indir, exptime=args.exptime
     # )
 
-    obstime0 = Time("2023-06-15T10:00:00")
-    # obstime0 = Time("2023-07-01T00:00:00.000")  # UTC
-    d_obstime = 20 * u.min
-
     design_filenames = []
     observation_times = []
 
-    for i, pointing in enumerate(list_pointings):
-        # observation_time = Time.now().iso
-        observation_time = (obstime0 + i * d_obstime).iso
+    if conf["sfa"]["cobra_coach_module_version"].lower == "none":
+        cobra_coach_module_version = None
+    else:
+        cobra_coach_module_version = conf["sfa"]["cobra_coach_module_version"]
 
-        df_sci = dict_pointing[pointing.lower()]["sci"]
+    if conf["sfa"]["dot_penalty"].lower == "none":
+        dot_penalty = None
+    else:
+        dot_penalty = conf["sfa"]["dot_penalty"]
+
+    design_ids = {}
+    for i, pointing in enumerate(list_pointings):
+        if clearOutput == True:
+            clear_output()
+        # observation_time = Time.now().iso
+        observation_time = str(dict_pointings[pointing.lower()]["observation_time"][0])
+        observation_time = observation_time.replace(' ', 'T')+'Z'
+        
+        df_sci = dict_pointings[pointing.lower()]["sci"]
         df_fluxstds = dbutils.generate_fluxstds_from_targetdb(
-            dict_pointing[pointing.lower()]["ra_center"],
-            dict_pointing[pointing.lower()]["dec_center"],
+            dict_pointings[pointing.lower()]["ra_center"],
+            dict_pointings[pointing.lower()]["dec_center"],
             conf=conf,
-            good_fluxstd=args.good_fluxstd,
-            flags_dist=args.fluxstd_flags_dist,
-            flags_ebv=args.fluxstd_flags_ebv,
-            mag_min=args.fluxstd_mag_min,
-            mag_max=args.fluxstd_mag_max,
-            mag_filter=args.fluxstd_mag_filter,
-            min_prob_f_star=args.fluxstd_min_prob_f_star,
+            good_fluxstd=conf["sfa"]["good_fluxstd"],
+            flags_dist=conf["sfa"]["fluxstd_flags_dist"],
+            flags_ebv=conf["sfa"]["fluxstd_flags_ebv"],
+            mag_min=conf["sfa"]["fluxstd_mag_min"],
+            mag_max=conf["sfa"]["fluxstd_mag_max"],
+            mag_filter=conf["sfa"]["fluxstd_mag_filter"],
+            min_prob_f_star=conf["sfa"]["fluxstd_min_prob_f_star"],
             write_csv=True,
         )
-        if args.n_sky == 0:
+        if conf["sfa"]["n_sky"] == 0:
             logger.info("No sky object will be sent to netflow")
-            df_sky = pd.DataFrame()
-        elif args.sky_random:
+            df_sky = dbutils.generate_random_skyobjects(
+                dict_pointings[pointing.lower()]["ra_center"],
+                dict_pointings[pointing.lower()]["dec_center"],
+                0,
+            )
+        elif conf["sfa"]["sky_random"]:
             logger.info("Random sky objects will be generated.")
             # n_sky_target = (df_targets.size + df_fluxstds.size) * 2
-            n_sky_target = args.n_sky_random  # this value can be tuned
+            n_sky_target = conf["sfa"]["n_sky_random"]  # this value can be tuned
             df_sky = dbutils.generate_random_skyobjects(
-                dict_pointing[pointing.lower()]["ra_center"],
-                dict_pointing[pointing.lower()]["dec_center"],
+                dict_pointings[pointing.lower()]["ra_center"],
+                dict_pointings[pointing.lower()]["dec_center"],
                 n_sky_target,
             )
         else:
             logger.info("Sky objects will be generated using targetdb.")
             df_sky = dbutils.generate_skyobjects_from_targetdb(
-                dict_pointing[pointing.lower()]["ra_center"],
-                dict_pointing[pointing.lower()]["dec_center"],
+                dict_pointings[pointing.lower()]["ra_center"],
+                dict_pointings[pointing.lower()]["dec_center"],
                 conf=conf,
             )
-            if args.reduce_sky_targets:
-                n_sky_target = args.n_sky_random  # this value can be tuned
+            if conf["sfa"]["reduce_sky_targets"]:
+                n_sky_target = conf["sfa"]["n_sky_random"]  # this value can be tuned
                 if len(df_sky) > n_sky_target:
                     df_sky = df_sky.sample(
                         n_sky_target, ignore_index=True, random_state=1
                     )
             logger.info(f"Fetched target DataFrame: \n{df_sky}")
-
+        
         (
             vis,
             tp,
@@ -520,21 +536,21 @@ def main():
             df_sci,
             df_fluxstds,
             df_sky,
-            dict_pointing[pointing.lower()]["ra_center"],
-            dict_pointing[pointing.lower()]["dec_center"],
-            dict_pointing[pointing.lower()]["pa_center"],
-            args.n_fluxstd,
-            args.n_sky,
+            dict_pointings[pointing.lower()]["ra_center"],
+            dict_pointings[pointing.lower()]["dec_center"],
+            dict_pointings[pointing.lower()]["pa_center"],
+            conf["sfa"]["n_fluxstd"],
+            conf["sfa"]["n_sky"],
             observation_time,
             conf,
-            args.pfs_instdata_dir,
-            args.cobra_coach_dir,
-            args.cobra_coach_module_version,
-            args.sm,
-            args.dot_margin,
-            args.dot_penalty,
+            conf["sfa"]["pfs_instdata_dir"],
+            conf["sfa"]["cobra_coach_dir"],
+            None,
+            conf["sfa"]["sm"],
+            conf["sfa"]["dot_margin"],
+            None,
             df_raster=None,
-            force_exptime=args.exptime,
+            force_exptime=450.,
         )
 
         design = designutils.generate_pfs_design(
@@ -547,45 +563,47 @@ def main():
             tgt,
             tgt_class_dict,
             bench,
-            arms=args.arms,
+            arms=conf["sfa"]["arms"],
             df_raster=None,
             is_no_target=is_no_target,
-            design_name=dict_pointing[pointing.lower()]["pointing_name"],
+            design_name=dict_pointings[pointing.lower()]["pointing_name"],
         )
 
         guidestars = designutils.generate_guidestars_from_gaiadb(
-            dict_pointing[pointing.lower()]["ra_center"],
-            dict_pointing[pointing.lower()]["dec_center"],
-            dict_pointing[pointing.lower()]["pa_center"],
+            dict_pointings[pointing.lower()]["ra_center"],
+            dict_pointings[pointing.lower()]["dec_center"],
+            dict_pointings[pointing.lower()]["pa_center"],
             observation_time,
-            args.telescope_elevation,
+            telescope_elevation=None,
             conf=conf,
-            guidestar_mag_min=args.guidestar_mag_min,
-            guidestar_mag_max=args.guidestar_mag_max,
-            guidestar_neighbor_mag_min=args.guidestar_neighbor_mag_min,
-            guidestar_minsep_deg=args.guidestar_minsep_deg,
+            guidestar_mag_min=conf["sfa"]["guidestar_mag_min"],
+            guidestar_mag_max=conf["sfa"]["guidestar_mag_max"],
+            guidestar_neighbor_mag_min=conf["sfa"]["guidestar_neighbor_mag_min"],
+            guidestar_minsep_deg=conf["sfa"]["guidestar_minsep_deg"],
             # gaiadb_epoch=2015.0,
             # gaiadb_input_catalog_id=2,
         )
 
         design.guideStars = guidestars
-
-        design.write(dirName=args.design_dir, fileName=design.filename)
+        design_dir = conf["ope"]["designPath"]
+        design.write(dirName=design_dir, fileName=design.filename)
 
         design_filenames.append(design.filename)
         observation_times.append(observation_time)
 
+        design_ids[observation_time] = design.pfsDesignId
+
         df_obj_id = pd.DataFrame(
             {
-                "obj_id_origial": dict_pointing[pointing.lower()]["obj_id_original"],
-                "obj_id_dummy": dict_pointing[pointing.lower()]["obj_id_dummy"],
+                "obj_id_origial": dict_pointings[pointing.lower()]["obj_id_original"],
+                "obj_id_dummy": dict_pointings[pointing.lower()]["obj_id_dummy"],
             }
         ).to_csv(
-            os.path.join(args.design_dir, f"{design.filename}_obj_ids.csv"), index=False
+            os.path.join(design_dir, f"{design.filename}_obj_ids.csv"), index=False
         )
 
         logger.info(
-            f"pfsDesign file {design.filename} for {pointing} is created in the {args.design_dir} directory."
+            f"pfsDesign file {design.filename} for {pointing} is created in the {design_dir} directory."
         )
         logger.info(
             "Number of SCIENCE fibers: {:}".format(
@@ -610,9 +628,19 @@ def main():
             "observation_time": observation_times,
         }
     )
-    infile_base = os.path.splitext(os.path.basename(args.infile))[0]
-    df_summary.to_csv(f"summary_reconfigure_ppp-{infile_base}.csv", index=False)
+    infile_base = os.path.splitext(os.path.basename(infile))[0]
+    df_summary.to_csv(os.path.join(workDir, f"output/summary_reconfigure_ppp-{infile_base}.csv"), index=False)
 
+    return list_pointings, dict_pointings, design_ids
+
+
+def main():
+    args = get_arguments()
+
+    conf = read_conf(args.conf)
+    print(conf["netflow"]["use_gurobi"])
+
+    reconfigure(conf=conf)
 
 if __name__ == "__main__":
     main()
