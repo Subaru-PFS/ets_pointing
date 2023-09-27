@@ -7,8 +7,7 @@ import numpy as np
 from ics.cobraCharmer.pfiDesign import PFIDesign
 from ics.cobraOps.Bench import Bench
 from ics.cobraOps.BlackDotsCalibrationProduct import BlackDotsCalibrationProduct
-from ics.cobraOps.cobraConstants import NULL_TARGET_ID
-from ics.cobraOps.cobraConstants import NULL_TARGET_POSITION
+from ics.cobraOps.cobraConstants import NULL_TARGET_ID, NULL_TARGET_POSITION
 from ics.cobraOps.CollisionSimulator2 import CollisionSimulator2
 from ics.cobraOps.TargetGroup import TargetGroup
 from pfs.utils.fiberids import FiberIds
@@ -486,6 +485,11 @@ def fiber_allocation(
         },
         "sci_P12": {
             "nonObservationCost": 10,
+            "partialObservationCost": 1e11,
+            "calib": False,
+        },
+        "sci_P13": {
+            "nonObservationCost": 5,
             "partialObservationCost": 1e11,
             "calib": False,
         },

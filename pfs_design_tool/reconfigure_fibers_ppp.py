@@ -1,0 +1,602 @@
+#!/usr/bin/env python3
+
+import argparse
+import functools
+import os
+
+import numpy as np
+import pandas as pd
+import pointing_utils.dbutils as dbutils
+import pointing_utils.designutils as designutils
+import pointing_utils.nfutils as nfutils
+import toml
+from astropy.time import Time
+from astropy.utils import iers
+from logzero import logger
+from pfs.datamodel import PfsDesign, TargetType
+
+# The following line seems to be needed to avoid IERS errors,
+# though the default config is already `auto_download=True`.
+iers.conf.auto_download = True
+# iers.conf.iers_degraded_accuracy = "warn"
+
+
+def get_arguments():
+    parser = argparse.ArgumentParser()
+
+    # input pfsDesign file
+    parser.add_argument(
+        "infile",
+        # metavar="pfsDesignId",
+        # type=functools.partial(int, base=0),
+        type=str,
+        help="Input file (supposed to be a CVS format) containing results from PPP.",
+    )
+    # parser.add_argument(
+    #     "--design_indir",
+    #     type=str,
+    #     # dest="indir",
+    #     default=".",
+    #     help="Directory where the input pfsDesign file is stored. (default: .)",
+    # )
+
+    # New observation time in UTC
+    parser.add_argument(
+        "--observation_time",
+        type=str,
+        default="2022-05-20T15:00:00Z",
+        help="Planned time of observation in UTC (default: 2022-05-20T15:00:00Z)",
+    )
+    parser.add_argument(
+        "--telescope_elevation",
+        type=float,
+        default=None,
+        help="Telescope elevation in degree \
+        (default: None to set automatically from (ra, dec, observation_time))",
+    )
+    parser.add_argument(
+        "--arms",
+        type=str,
+        default="brn",
+        help="Spectrograph arms to expose, such as 'brn' and 'bmn' (default: 'brn')",
+    )
+    parser.add_argument(
+        "--design_name",
+        type=str,
+        default=None,
+        help="Human-readable design name (default: None)",
+    )
+
+    # Set exposure time
+    parser.add_argument(
+        "--exptime",
+        type=float,
+        default=900.0,
+        help="Override the exptime (seconds) obtained from the database (default: None)",
+    )
+
+    # Database and Gurobi configurations
+    parser.add_argument(
+        "--conf",
+        type=str,
+        default="config.toml",
+        help="Config file for the script to run. Must be a .toml file (default: config.toml)",
+    )
+
+    # output directories
+    # parser.add_argument(
+    #     "--design_outdir",
+    #     type=str,
+    #     default=".",
+    #     help="directory for storing the output pfsDesign file (default: .)",
+    # )
+    parser.add_argument(
+        "--design_dir",
+        type=str,
+        default=".",
+        help="directory for storing pfsDesign files (default: .)",
+    )
+    parser.add_argument(
+        "--cobra_coach_dir",
+        type=str,
+        default=".",
+        help="path for temporary cobraCoach files (default: .)",
+    )
+    # guide stars
+    parser.add_argument(
+        "--guidestar_mag_min",
+        type=float,
+        default=12.0,
+        help="minimum magnitude for guide star candidates (default: 12.)",
+    )
+    parser.add_argument(
+        "--guidestar_mag_max",
+        type=float,
+        default=19.0,
+        help="maximum magnitude for guide star candidates (default: 19.)",
+    )
+    parser.add_argument(
+        "--guidestar_neighbor_mag_min",
+        type=float,
+        default=21.0,
+        help="minimum magnitude for objects in the vicinity of guide star candidates (default: 21.)",
+    )
+    parser.add_argument(
+        "--guidestar_minsep_deg",
+        type=float,
+        default=1.0 / 3600,
+        help="radius of guide star candidate vicinity (default: 1/3600)",
+    )
+
+    # science targets
+    parser.add_argument(
+        "--target_mag_max",
+        type=float,
+        default=19.0,
+        help="Maximum (faintest) magnitude for stars in fibers (default: 19.)",
+    )
+    parser.add_argument(
+        "--target_mag_min",
+        type=float,
+        default=0.0,
+        help="Minimum (brightest) magnitude for stars in fibers (default: 0)",
+    )
+    parser.add_argument(
+        "--target_mag_filter",
+        type=str,
+        default=None,
+        help="Photometric band (grizyj of PS1) to apply magnitude cuts (default: None)",
+    )
+    parser.add_argument(
+        "--target_priority_max",
+        type=float,
+        default=None,
+        help="Maximum priority of the target (default: None)",
+    )
+    parser.add_argument(
+        "--disable_force_priority",
+        action="store_true",
+        help="Disable the force_priority (default: False)",
+    )
+    parser.add_argument(
+        "--skip_target",
+        action="store_true",
+        help="Skip science targets (default: False)",
+    )
+
+    # flux standards
+    parser.add_argument(
+        "--fluxstd_mag_max",
+        type=float,
+        default=19.0,
+        help="Maximum (faintest) magnitude for stars in fibers (default: 19.)",
+    )
+    parser.add_argument(
+        "--fluxstd_mag_min",
+        type=float,
+        default=14.0,
+        help="Minimum (brightest) magnitude for stars in fibers (default: 14.0)",
+    )
+    parser.add_argument(
+        "--fluxstd_mag_filter",
+        type=str,
+        default="g",
+        help="Photometric band (grizyj of PS1) to apply magnitude cuts (default: g)",
+    )
+    parser.add_argument(
+        "--good_fluxstd",
+        action="store_true",
+        help="Select fluxstd stars with prob_f_star>0.5, \
+            flags_dist=False, and flags_ebv=False (default: False)",
+    )
+    parser.add_argument(
+        "--fluxstd_min_prob_f_star",
+        type=float,
+        default=0.5,
+        help="Minimum acceptable prob_f_star (default: 0.5)",
+    )
+    parser.add_argument(
+        "--fluxstd_flags_dist",
+        action="store_true",
+        help="Select fluxstd stars with flags_dist=False (default: False)",
+    )
+    parser.add_argument(
+        "--fluxstd_flags_ebv",
+        action="store_true",
+        help="Select fluxstd stars with flags_ebv=False (default: False)",
+    )
+    parser.add_argument(
+        "--n_fluxstd",
+        type=int,
+        default=50,
+        help="Number of FLUXSTD stars to be allocated. (default: 50)",
+    )
+
+    # raster scan stars from gaiaDB
+    parser.add_argument(
+        "--raster_scan",
+        action="store_true",
+        help="Search stars for raster scan test (default: False)",
+    )
+    parser.add_argument(
+        "--raster_mag_max",
+        type=float,
+        default=20.0,
+        help="maximum magnitude in Gaia G for raster scan stars (default: 20.)",
+    )
+    parser.add_argument(
+        "--raster_mag_min",
+        type=float,
+        default=12.0,
+        help="minimum magnitude in Gaia G for raster scan stars (default: 12)",
+    )
+    parser.add_argument(
+        "--raster_propid",
+        default="S23A-EN16",
+        help="Proposal-ID for raster scan stars (default: S23A-EN16)",
+    )
+
+    # sky fibers
+    parser.add_argument(
+        "--n_sky",
+        type=int,
+        default=0,
+        help="Number of SKY fibers to be allocated. (default: 0)",
+    )
+    parser.add_argument(
+        "--sky_random",
+        action="store_true",
+        help="Assign sky randomly (default: False)",
+    )
+    parser.add_argument(
+        "--reduce_sky_targets",
+        action="store_true",
+        help="Reduce the number of sky targets randomly (default: False)",
+    )
+    parser.add_argument(
+        "--n_sky_random",
+        type=int,
+        default=30000,
+        help="Number of random (or randomly reduced) SKY fibers to be allocated. (default: 30000)",
+    )
+
+    # instrument parameter files
+    parser.add_argument(
+        "--pfs_instdata_dir",
+        type=str,
+        # default="/Users/monodera/Dropbox/NAOJ/PFS/Subaru-PFS/pfs_instdata/",
+        # default="/work/pfs/commissioning/2022sep/fiber_allocation/pfs_instdata/",
+        default="/work/pfs/commissioning/2023jul/fiber_allocation/pfs_instdata/",
+        help="Location of pfs_instdata (default: /work/pfs/commissioning/2023jul/fiber_allocation/pfs_instdata/)",
+    )
+    parser.add_argument(
+        "--cobra_coach_module_version",
+        type=str,
+        default=None,
+        help="version of the bench description file (default: None)",
+    )
+    parser.add_argument(
+        "--sm",
+        nargs="+",
+        type=int,
+        default=[1, 2, 3, 4],
+        help="Spectral Modules(1 to 4) to be used (default: 1 2 3 4)",
+    )
+    parser.add_argument(
+        "--dot_margin",
+        type=float,
+        default=1.0,
+        help="Margin factor for dot avoidance (default: 1.0)",
+    )
+    parser.add_argument(
+        "--dot_penalty",
+        type=float,
+        default=None,
+        help="Cost for penalty of the dot proximity (default: None)",
+    )
+    parser.add_argument(
+        "--input_catalog",
+        nargs="+",
+        type=int,
+        default=None,
+        help="Input catalog IDs for targets (default: None)",
+    )
+    parser.add_argument(
+        "--proposal_id",
+        nargs="+",
+        type=str,
+        default=None,
+        help="Input proposal IDs for targets (default: None)",
+    )
+
+    args = parser.parse_args()
+
+    # NOTE: astropy.time.Time.now() uses datetime.utcnow()
+    if args.observation_time.lower() == "now":
+        args.observation_time = Time.now().iso
+        logger.info(
+            f"Observation time is set to the current UTC {args.observation_time}."
+        )
+
+    print(args)
+
+    return args
+
+
+def read_conf(conf):
+    config = toml.load(conf)
+    return config
+
+
+def load_input_design(design_id, indir=".", exptime=None, bands=["g", "r", "i"]):
+    pfs_design = PfsDesign.read(pfsDesignId=design_id, dirName=indir)
+
+    fib = {
+        "sci": pfs_design.select(targetType=TargetType.SCIENCE),
+        "std": pfs_design.select(targetType=TargetType.FLUXSTD),
+        "sky": pfs_design.select(targetType=TargetType.SKY),
+    }
+
+    dataframes = {}
+
+    for k, v in fib.items():
+        df_tmp = pd.DataFrame(
+            {
+                "obj_id": v.objId,
+                "ra": v.ra,
+                "dec": v.dec,
+                "tract": v.tract,
+                "patch": v.patch,
+                "catalog_id": v.catId,
+                "target_type_id": v.targetType,
+                "input_catalog_id": v.catId,
+            },
+        )
+        dataframes[k] = df_tmp.copy(deep=True)
+
+    dataframes["sci"]["priority"] = np.full(fib["sci"].objId.size, 1, dtype=int)
+    dataframes["sci"]["effective_exptime"] = np.full(
+        fib["sci"].objId.size, exptime, dtype=float
+    )
+
+    for i, band in enumerate(bands):
+        for target_type in ["sci", "std"]:
+            dataframes[target_type][f"filter_{band}"] = [
+                fib[target_type].filterNames[iobj][i]
+                for iobj in range(fib[target_type].objId.size)
+            ]
+
+            dataframes[target_type][f"psf_flux_{band}"] = [
+                fib[target_type].psfFlux[iobj][i]
+                for iobj in range(fib[target_type].objId.size)
+            ]
+
+    # # print(dataframes["sci"]["total_flux"][0])
+    # print(dataframes["sci"][["filter_g", "filter_r", "filter_i"]])
+    # print(dataframes["sci"][["psf_flux_g", "psf_flux_r", "psf_flux_i"]])
+    # exit()
+
+    return pfs_design, dataframes["sci"], dataframes["std"], dataframes["sky"]
+
+
+def load_ppp_results(infile: str):
+    df = pd.read_csv(infile)
+
+    print(df)
+
+    pointings = df["pointing"].unique()
+    n_pointings = pointings.size
+    priorities = df["target_class"].unique()
+    print(pointings, n_pointings, priorities)
+
+    dict_pointings = {}
+
+    for i, pointing in enumerate(pointings):
+        observation_time = Time.now().iso
+
+        df_pointing = df.loc[df["pointing"] == pointing, :].copy().reset_index()
+        n_obj = df_pointing.index.size
+        pseudo_obj_ids = np.random.randint(
+            0, high=np.iinfo(np.int64).max, size=n_obj, dtype=np.int64
+        )
+        df_tmp = pd.DataFrame(
+            {
+                "obj_id": pseudo_obj_ids,
+                "ra": df_pointing["ra_target"],
+                "dec": df_pointing["dec_target"],
+                "tract": np.full(n_obj, 0),
+                "patch": np.full(n_obj, 0),
+                "catalog_id": np.full(n_obj, 9),  # HSC-SSP PDR3 Wide
+                "target_type_id": np.full(n_obj, 1),  # SCIENCE
+                "input_catalog_id": np.full(n_obj, 9),  # HSC-SSP PDR3 Wide
+                "ob_code": df_pointing["ob_code"],
+                "priority": [
+                    int(p.replace("sci_P", "")) for p in df_pointing["target_class"]
+                ],
+                "effective_exptime": 900.0,
+                "psf_flux_g": [None] * n_obj,
+                "psf_flux_r": [None] * n_obj,
+                "psf_flux_i": [None] * n_obj,
+                "psf_flux_z": [None] * n_obj,
+                "psf_flux_y": [None] * n_obj,
+                "psf_flux_error_g": [None] * n_obj,
+                "psf_flux_error_r": [None] * n_obj,
+                "psf_flux_error_i": [None] * n_obj,
+                "psf_flux_error_z": [None] * n_obj,
+                "psf_flux_error_y": [None] * n_obj,
+            },
+        )
+        # print(df_tmp)
+
+        dict_pointings[pointing.lower()] = {
+            "pointing_name": pointing,
+            "ra_center": df_pointing["ra_center"][0],
+            "dec_center": df_pointing["dec_center"][0],
+            "pa_center": df_pointing["pa_center"][0],
+            "sci": df_tmp,
+            "obj_id_origial": df_pointing["obj_id"],
+            "obj_id_dummy": pseudo_obj_ids,
+            "observation_time": observation_time,
+        }
+
+    # print(dict_pointings)
+
+    return pointings, dict_pointings
+
+
+def main():
+    args = get_arguments()
+
+    conf = read_conf(args.conf)
+    print(conf["netflow"]["use_gurobi"])
+
+    list_pointings, dict_pointing = load_ppp_results(args.infile)
+
+    # in_design, df_sci, df_std, df_sky = load_input_design(
+    #     args.design_id, indir=args.design_indir, exptime=args.exptime
+    # )
+
+    design_filenames = []
+    observation_times = []
+
+    for i, pointing in enumerate(list_pointings):
+        df_sci = dict_pointing[pointing.lower()]["sci"]
+        df_fluxstds = dbutils.generate_fluxstds_from_targetdb(
+            dict_pointing[pointing.lower()]["ra_center"],
+            dict_pointing[pointing.lower()]["dec_center"],
+            conf=conf,
+            good_fluxstd=args.good_fluxstd,
+            flags_dist=args.fluxstd_flags_dist,
+            flags_ebv=args.fluxstd_flags_ebv,
+            mag_min=args.fluxstd_mag_min,
+            mag_max=args.fluxstd_mag_max,
+            mag_filter=args.fluxstd_mag_filter,
+            min_prob_f_star=args.fluxstd_min_prob_f_star,
+            write_csv=True,
+        )
+        if args.n_sky == 0:
+            logger.info("No sky object will be sent to netflow")
+            df_sky = pd.DataFrame()
+        elif args.sky_random:
+            logger.info("Random sky objects will be generated.")
+            # n_sky_target = (df_targets.size + df_fluxstds.size) * 2
+            n_sky_target = args.n_sky_random  # this value can be tuned
+            df_sky = dbutils.generate_random_skyobjects(
+                dict_pointing[pointing.lower()]["ra_center"],
+                dict_pointing[pointing.lower()]["dec_center"],
+                n_sky_target,
+            )
+        else:
+            logger.info("Sky objects will be generated using targetdb.")
+            df_sky = dbutils.generate_skyobjects_from_targetdb(
+                dict_pointing[pointing.lower()]["ra_center"],
+                dict_pointing[pointing.lower()]["dec_center"],
+                conf=conf,
+            )
+            if args.reduce_sky_targets:
+                n_sky_target = args.n_sky_random  # this value can be tuned
+                if len(df_sky) > n_sky_target:
+                    df_sky = df_sky.sample(
+                        n_sky_target, ignore_index=True, random_state=1
+                    )
+            logger.info(f"Fetched target DataFrame: \n{df_sky}")
+
+        (
+            vis,
+            tp,
+            tel,
+            tgt,
+            tgt_class_dict,
+            is_no_target,
+            bench,
+        ) = nfutils.fiber_allocation(
+            df_sci,
+            df_fluxstds,
+            df_sky,
+            dict_pointing[pointing.lower()]["ra_center"],
+            dict_pointing[pointing.lower()]["dec_center"],
+            dict_pointing[pointing.lower()]["pa_center"],
+            args.n_fluxstd,
+            args.n_sky,
+            dict_pointing[pointing.lower()]["observation_time"],
+            conf,
+            args.pfs_instdata_dir,
+            args.cobra_coach_dir,
+            args.cobra_coach_module_version,
+            args.sm,
+            args.dot_margin,
+            args.dot_penalty,
+            df_raster=None,
+            force_exptime=args.exptime,
+        )
+
+        design = designutils.generate_pfs_design(
+            df_sci,
+            df_fluxstds,
+            df_sky,
+            vis,
+            tp,
+            tel,
+            tgt,
+            tgt_class_dict,
+            bench,
+            arms=args.arms,
+            df_raster=None,
+            is_no_target=is_no_target,
+            design_name=dict_pointing[pointing.lower()]["pointing_name"],
+        )
+
+        guidestars = designutils.generate_guidestars_from_gaiadb(
+            dict_pointing[pointing.lower()]["ra_center"],
+            dict_pointing[pointing.lower()]["dec_center"],
+            dict_pointing[pointing.lower()]["pa_center"],
+            dict_pointing[pointing.lower()]["observation_time"],
+            args.telescope_elevation,
+            conf=conf,
+            guidestar_mag_min=args.guidestar_mag_min,
+            guidestar_mag_max=args.guidestar_mag_max,
+            guidestar_neighbor_mag_min=args.guidestar_neighbor_mag_min,
+            guidestar_minsep_deg=args.guidestar_minsep_deg,
+            # gaiadb_epoch=2015.0,
+            # gaiadb_input_catalog_id=2,
+        )
+
+        design.guideStars = guidestars
+
+        design.write(dirName=args.design_dir, fileName=design.filename)
+
+        design_filenames.append(design.filename)
+        observation_times.append(dict_pointing[pointing.lower()]["observation_time"])
+
+        logger.info(
+            f"pfsDesign file {design.filename} is created in the {args.design_dir} directory."
+        )
+        logger.info(
+            "Number of SCIENCE fibers: {:}".format(
+                len(np.where(design.targetType == 1)[0])
+            )
+        )
+        logger.info(
+            "Number of FLUXSTD fibers: {:}".format(
+                len(np.where(design.targetType == 3)[0])
+            )
+        )
+        logger.info(
+            "Number of SKY fibers: {:}".format(len(np.where(design.targetType == 2)[0]))
+        )
+        logger.info("Number of AG stars: {:}".format(len(guidestars.objId)))
+        logger.info(
+            f"Observation Time: {dict_pointing[pointing.lower()]['observation_time']}"
+        )
+
+    df_summary = pd.DataFrame(
+        {
+            "pointing": list_pointings,
+            "design_filename": design_filenames,
+            "observation_time": observation_times,
+        }
+    )
+
+
+if __name__ == "__main__":
+    main()
