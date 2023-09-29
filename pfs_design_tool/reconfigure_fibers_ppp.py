@@ -449,7 +449,7 @@ def load_ppp_results(infile: str):
 
     return pointings, dict_pointings
 
-def reconfigure(conf, workDir='.', infile='output/ppp+qplan_outout.csv',
+def reconfigure(conf, workDir='.', infile='ppp+qplan_outout.csv',
                 clearOutput=False
                 ):
 
