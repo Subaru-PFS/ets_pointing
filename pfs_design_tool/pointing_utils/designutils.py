@@ -346,8 +346,6 @@ def generate_pfs_design(
         if ep[0] is not 'J':
             epoch[i] = 'J' + ep
 
-    print(np.unique(proposal_id))
-    print(np.unique(ob_code))
     pfs_design = makePfsDesign(
         pfi_nominal,
         ra,
