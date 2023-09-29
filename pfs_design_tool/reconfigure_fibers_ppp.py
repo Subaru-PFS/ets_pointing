@@ -586,7 +586,7 @@ def reconfigure(conf, workDir='.', infile='ppp+qplan_outout.csv',
         )
 
         design.guideStars = guidestars
-        design_dir = conf["ope"]["designPath"]
+        design_dir = os.path.join(workDir, conf["ope"]["designPath"])
         design.write(dirName=design_dir, fileName=design.filename)
 
         design_filenames.append(design.filename)
