@@ -443,6 +443,7 @@ def load_ppp_results(infile: str):
             "obj_id_dummy": pseudo_obj_ids,
             # "observation_time": observation_time,
             "observation_time": df_pointing["obstime"],
+            "observation_date_in_hst": df_pointing["obsdate_in_hst"],
         }
 
     # print(dict_pointings)
@@ -461,7 +462,7 @@ def reconfigure(conf, workDir='.', infile='ppp+qplan_outout.csv',
 
     design_filenames = []
     observation_times = []
-
+    observation_dates_in_hst = []
     if conf["sfa"]["cobra_coach_module_version"].lower == "none":
         cobra_coach_module_version = None
     else:
@@ -479,7 +480,8 @@ def reconfigure(conf, workDir='.', infile='ppp+qplan_outout.csv',
         # observation_time = Time.now().iso
         observation_time = str(dict_pointings[pointing.lower()]["observation_time"][0])
         observation_time = observation_time.replace(' ', 'T')+'Z'
-        
+        observation_date_in_hst = str(dict_pointings[pointing.lower()]["observation_date_in_hst"][0])
+
         df_sci = dict_pointings[pointing.lower()]["sci"]
         df_fluxstds = dbutils.generate_fluxstds_from_targetdb(
             dict_pointings[pointing.lower()]["ra_center"],
@@ -591,6 +593,7 @@ def reconfigure(conf, workDir='.', infile='ppp+qplan_outout.csv',
 
         design_filenames.append(design.filename)
         observation_times.append(observation_time)
+        observation_dates_in_hst.append(observation_date_in_hst)
 
         design_ids[observation_time] = design.pfsDesignId
 
@@ -627,12 +630,13 @@ def reconfigure(conf, workDir='.', infile='ppp+qplan_outout.csv',
             "pointing": list_pointings,
             "design_filename": design_filenames,
             "observation_time": observation_times,
+            "observation_date_in_hst": observation_dates_in_hst,
         }
     )
     infile_base = os.path.splitext(os.path.basename(infile))[0]
     df_summary.to_csv(os.path.join(workDir, f"output/summary_reconfigure_ppp-{infile_base}.csv"), index=False)
 
-    return list_pointings, dict_pointings, design_ids
+    return list_pointings, dict_pointings, design_ids, observation_dates_in_hst
 
 
 def main():
