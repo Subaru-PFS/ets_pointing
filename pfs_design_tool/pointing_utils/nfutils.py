@@ -429,6 +429,11 @@ def fiber_allocation(
     # scientific targets with priority 1.
     class_dict = {
         # Priorities correspond to the magnitudes of bright stars (in most case for the 2022 June Engineering)
+        "sci_P0": {
+            "nonObservationCost": 5e10,
+            "partialObservationCost": 1e11,
+            "calib": False,
+        },
         "sci_P1": {
             "nonObservationCost": 4e10,
             "partialObservationCost": 1e11,
@@ -512,7 +517,7 @@ def fiber_allocation(
     }
     target_class_dict = {}
     # for i in range(1, 13, 1):
-    for i in range(1, 14, 1):
+    for i in range(0, 14, 1):
         target_class_dict[f"sci_P{i}"] = 1
     target_class_dict = {**target_class_dict, **dict(sci_P9999=1, sky=2, cal=3)}
     # target_class_dict = {"sci_P1": 1, "sci_P9999": 1, "sky": 2, "cal": 3}
