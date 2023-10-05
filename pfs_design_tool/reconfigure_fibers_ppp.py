@@ -482,7 +482,10 @@ def reconfigure(conf, workDir='.', infile='ppp+qplan_outout.csv',
         observation_time = observation_time.replace(' ', 'T')+'Z'
         observation_date_in_hst = str(dict_pointings[pointing.lower()]["observation_date_in_hst"][0])
 
+        # get science targets
         df_sci = dict_pointings[pointing.lower()]["sci"]
+
+        # get flux standards
         df_fluxstds = dbutils.generate_fluxstds_from_targetdb(
             dict_pointings[pointing.lower()]["ra_center"],
             dict_pointings[pointing.lower()]["dec_center"],
@@ -494,8 +497,10 @@ def reconfigure(conf, workDir='.', infile='ppp+qplan_outout.csv',
             mag_max=conf["sfa"]["fluxstd_mag_max"],
             mag_filter=conf["sfa"]["fluxstd_mag_filter"],
             min_prob_f_star=conf["sfa"]["fluxstd_min_prob_f_star"],
-            write_csv=True,
+            write_csv=False,
         )
+
+        # get sky targets
         if conf["sfa"]["n_sky"] == 0:
             logger.info("No sky object will be sent to netflow")
             df_sky = dbutils.generate_random_skyobjects(
@@ -526,7 +531,31 @@ def reconfigure(conf, workDir='.', infile='ppp+qplan_outout.csv',
                         n_sky_target, ignore_index=True, random_state=1
                     )
             logger.info(f"Fetched target DataFrame: \n{df_sky}")
-        
+
+        # get raster targets (optional)
+        raster = conf['sfa']['raster']
+        if conf['sfa']['raster'] == True:
+            df_raster = dbutils.generate_targets_from_gaiadb(
+                dict_pointings[pointing.lower()]["ra_center"],
+                dict_pointings[pointing.lower()]["dec_center"],
+                conf=conf,
+                band_select="phot_g_mean_mag",
+                mag_min=conf['sfa']['raster_mag_min'],
+                mag_max=conf['sfa']['raster_mag_max'],
+                good_astrometry=False,  # select bright stars which may have large astrometric errors.
+                write_csv=False,
+            )
+            df_raster = dbutils.fixcols_gaiadb_to_targetdb(
+                df_raster,
+                proposal_id='S23A-EN16',
+                target_type_id=1,    # SCIENCE
+                input_catalog_id=4,  # Gaia DR3
+                exptime=900.0,
+                priority=9999,
+            )
+        else:
+            df_raster = None
+
         (
             vis,
             tp,
@@ -552,8 +581,8 @@ def reconfigure(conf, workDir='.', infile='ppp+qplan_outout.csv',
             conf["sfa"]["sm"],
             conf["sfa"]["dot_margin"],
             None,
-            df_raster=None,
-            force_exptime=450.,
+            df_raster=df_raster,
+            force_exptime=conf['ppp']['TEXP_NOMINAL'],
         )
 
         design = designutils.generate_pfs_design(
@@ -567,7 +596,7 @@ def reconfigure(conf, workDir='.', infile='ppp+qplan_outout.csv',
             tgt_class_dict,
             bench,
             arms=conf["sfa"]["arms"],
-            df_raster=None,
+            df_raster=df_raster,
             is_no_target=is_no_target,
             design_name=dict_pointings[pointing.lower()]["pointing_name"],
         )
