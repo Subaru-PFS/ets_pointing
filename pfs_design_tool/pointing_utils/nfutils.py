@@ -220,6 +220,8 @@ def run_netflow(
     minSkyTargetsPerInstrumentRegion=None,
     instrumentRegionPenalty=None,
     dot_penalty=None,
+    numReservedFibers=0,
+    fiberNonAllocationCost=0.,
 ):
 
     # print(bench.cobras.status)
@@ -262,6 +264,8 @@ def run_netflow(
             minSkyTargetsPerInstrumentRegion=minSkyTargetsPerInstrumentRegion,
             instrumentRegionPenalty=instrumentRegionPenalty,
             blackDotPenalty=black_dot_penalty_cost,
+            numReservedFibers=numReservedFibers,
+            fiberNonAllocationCost=fiberNonAllocationCost,
         )
 
         print("solving the problem")
@@ -506,12 +510,12 @@ def fiber_allocation(
         },
         "cal": {
             "numRequired": n_fluxstd,
-            "nonObservationCost": 1e12,
+            "nonObservationCost": 1e2,
             "calib": True,
         },
         "sky": {
             "numRequired": n_sky,
-            "nonObservationCost": 1e12,
+            "nonObservationCost": 1e2,
             "calib": True,
         },
     }
@@ -574,6 +578,8 @@ def fiber_allocation(
         minSkyTargetsPerInstrumentRegion=None,
         instrumentRegionPenalty=None,
         dot_penalty=dot_penalty,
+        numReservedFibers=0,
+        fiberNonAllocationCost=0.0,
     )
 
     return (
