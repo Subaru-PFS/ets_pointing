@@ -35,8 +35,44 @@ plt.rcParams["ytick.labelsize"] = 12
 plt.rcParams["axes.labelsize"] = 12
 plt.rcParams["figure.facecolor"] = "white"
 
+
+def get_pfs_utils_path():
+    try:
+        import eups
+
+        print(
+            "eups was found. "
+            "No attempt to find a pfs_utils directory is made. "
+            "Please set an appropriate PFS_UTILS_DIR"
+        )
+
+        return None
+
+    except ModuleNotFoundError:
+        try:
+            from pathlib import Path
+
+            import pfs.utils
+
+            p = Path(pfs.utils.__path__[0])
+            p_fiberdata = p.parent.parent.parent / "data" / "fiberids"
+            if p_fiberdata.exists():
+                print(
+                    f"pfs.utils's fiber data directory {p_fiberdata} was found and will be used."
+                )
+                return p_fiberdata
+            else:
+                raise FileNotFoundError
+        except ModuleNotFoundError:
+            print("{e}")
+            return None
+        except FileNotFoundError:
+            print("pfs_utils/data/fiberids cannot be found automatically")
+            return None
+
+
 sm = [1, 3]
-gfm = FiberIds()
+gfm = FiberIds(get_pfs_utils_path())
 
 
 def is_smx(pfsDesign, moduleIds=[1, 3]):
@@ -991,38 +1027,3 @@ class CheckDesign(object):
             self.plot_teff_star(fig=fig, axe=ax4)
         except ValueError:
             self.plot_prob_f_star(fig=fig, axe=ax4)
-
-
-def get_pfs_utils_path():
-    try:
-        import eups
-
-        print(
-            "eups was found. "
-            "No attempt to find a pfs_utils directory is made. "
-            "Please set an appropriate PFS_UTILS_DIR"
-        )
-
-        return None
-
-    except ModuleNotFoundError:
-        try:
-            from pathlib import Path
-
-            import pfs.utils
-
-            p = Path(pfs.utils.__path__[0])
-            p_fiberdata = p.parent.parent.parent / "data" / "fiberids"
-            if p_fiberdata.exists():
-                print(
-                    f"pfs.utils's fiber data directory {p_fiberdata} was found and will be used."
-                )
-                return p_fiberdata
-            else:
-                raise FileNotFoundError
-        except ModuleNotFoundError:
-            print("{e}")
-            return None
-        except FileNotFoundError:
-            print("pfs_utils/data/fiberids cannot be found automatically")
-            return None
