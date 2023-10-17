@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+from ast import Module
 
 import ets_fiber_assigner.netflow as nf
 import numpy as np
@@ -40,6 +41,36 @@ from procedures.moduleTest.cobraCoach import CobraCoach
 #
 # NOTE: Do we still need the getBench function?
 #
+
+
+def get_pfs_utils_path():
+    try:
+        import eups
+
+        print("eups was found, so no attempt to find a pfs_utils directory is made.")
+
+        return None
+
+    except ModuleNotFoundError:
+        try:
+            from pathlib import Path
+
+            import pfs.utils
+
+            p = Path(pfs.utils.__path__[0])
+            p_fiberdata = p.parent.parent.parent / "data" / "fiberids"
+            if p_fiberdata.exists():
+                print(
+                    f"pfs.utils's fiber data directory {p_fiberdata} was found and will be used."
+                )
+                return p_fiberdata
+            else:
+                raise FileNotFoundError
+        except ModuleNotFoundError:
+            return None
+        except FileNotFoundError:
+            print("pfs_utils/data/fiberids cannot be found automatically")
+            return None
 
 
 def getBench(
@@ -91,8 +122,11 @@ def getBench(
     )
     print("Cobras with too long link lengths: %i" % np.sum(tooLongLinkLengths))
 
+    # set pfs_utils data path
+    pfs_utils_path = get_pfs_utils_path()
+
     # Limit spectral modules
-    gfm = FiberIds()  # 2604
+    gfm = FiberIds(path=pfs_utils_path)  # 2604
     cobra_ids_use = np.array([], dtype=np.uint16)
     for sm_use in sm:
         cobra_ids_use = np.append(cobra_ids_use, gfm.cobrasForSpectrograph(sm_use))
