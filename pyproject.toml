@@ -41,7 +41,7 @@ include-package-data = true
 dev = [
     "-e git+https://github.com/Subaru-PFS/ics_cobraCharmer.git#egg=ics-cobraCharmer@1af21d85a0af309cc57c939b78d625e884ece404",
     "-e git+https://github.com/Subaru-PFS/ets_pointing.git#egg=ets-pointing@u/monodera/reconfigure-20230620",
-    "-e git+https://github.com/Subaru-PFS/pfs_utils.git#egg=pfs-utils",
+    "-e git+https://github.com/Subaru-PFS/pfs_utils.git@u/monodera/add_path_gfm#egg=pfs-utils",
 ]
 
 

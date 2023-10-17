@@ -373,7 +373,7 @@ def generate_pfs_design(
         # filterNames=filter_names,
         # guideStars=None,
         designName=design_name,
-    )
+        fiberidsPath=get_pfs_utils_path(),
 
     return pfs_design
 
