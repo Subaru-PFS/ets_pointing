@@ -63,8 +63,8 @@ def get_pfs_utils_path():
                 return p_fiberdata
             else:
                 raise FileNotFoundError
-        except ModuleNotFoundError:
-            print("{e}")
+        except ModuleNotFoundError as e:
+            print(f"{e}")
             return None
         except FileNotFoundError:
             print("pfs_utils/data/fiberids cannot be found automatically")
