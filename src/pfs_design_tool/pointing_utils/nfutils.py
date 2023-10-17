@@ -47,7 +47,11 @@ def get_pfs_utils_path():
     try:
         import eups
 
-        print("eups was found, so no attempt to find a pfs_utils directory is made.")
+        print(
+            "eups was found. "
+            "No attempt to find a pfs_utils directory is made. "
+            "Please set an appropriate PFS_UTILS_DIR"
+        )
 
         return None
 
@@ -67,6 +71,7 @@ def get_pfs_utils_path():
             else:
                 raise FileNotFoundError
         except ModuleNotFoundError:
+            print("{e}")
             return None
         except FileNotFoundError:
             print("pfs_utils/data/fiberids cannot be found automatically")
