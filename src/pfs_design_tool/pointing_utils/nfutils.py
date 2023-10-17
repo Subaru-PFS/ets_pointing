@@ -41,41 +41,7 @@ from procedures.moduleTest.cobraCoach import CobraCoach
 #
 # NOTE: Do we still need the getBench function?
 #
-
-
-def get_pfs_utils_path():
-    try:
-        import eups
-
-        print(
-            "eups was found. "
-            "No attempt to find a pfs_utils directory is made. "
-            "Please set an appropriate PFS_UTILS_DIR"
-        )
-
-        return None
-
-    except ModuleNotFoundError:
-        try:
-            from pathlib import Path
-
-            import pfs.utils
-
-            p = Path(pfs.utils.__path__[0])
-            p_fiberdata = p.parent.parent.parent / "data" / "fiberids"
-            if p_fiberdata.exists():
-                print(
-                    f"pfs.utils's fiber data directory {p_fiberdata} was found and will be used."
-                )
-                return p_fiberdata
-            else:
-                raise FileNotFoundError
-        except ModuleNotFoundError:
-            print("{e}")
-            return None
-        except FileNotFoundError:
-            print("pfs_utils/data/fiberids cannot be found automatically")
-            return None
+from ..utils import get_pfs_utils_path
 
 
 def getBench(

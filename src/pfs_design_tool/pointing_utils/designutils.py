@@ -11,6 +11,7 @@ from pfs.utils.coordinates.CoordTransp import ag_pfimm_to_pixel
 from pfs.utils.fiberids import FiberIds
 from pfs.utils.pfsDesignUtils import makePfsDesign
 
+from ..utils import get_pfs_utils_path
 from .dbutils import connect_subaru_gaiadb
 
 
@@ -30,7 +31,7 @@ def generate_pfs_design(
     is_no_target=False,
     design_name=None,
 ):
-    gfm = FiberIds()  # 2604
+    gfm = FiberIds(path=get_pfs_utils_path())  # 2604
     cobra_ids = gfm.cobraId
     scifiber_ids = gfm.scienceFiberId
 
