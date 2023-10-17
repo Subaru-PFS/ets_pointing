@@ -1,6 +1,6 @@
 [project]
 license = { text = "GPLv2" }
-name = "pointing_utils"
+name = "pfs_design_tool"
 version = "0.1.0"
 description = ""
 authors = [
@@ -32,7 +32,7 @@ build-backend = "setuptools.build_meta"
 
 
 [tool.setuptools]
-package-dir = { "" = "pfs_design_tool" }
+package-dir = { "" = "src" }
 include-package-data = true
 
 
