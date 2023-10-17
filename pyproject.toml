@@ -10,14 +10,14 @@ authors = [
     { name = "Masato Onodera", email = "monodera@naoj.org" },
 ]
 dependencies = [
-    "numpy>=1.25.2",
+    "numpy<1.24.0",                                                                    # np.complex in cobracharmer
     "pandas>=2.1.0",
     "pyscopg2>=66.0.2",
     "astropy>=5.3.4",
     "logzero>=1.7.0",
     "matplotlib>=3.8.0",
     "astroplan>=0.9.1",
-    "pyyaml==5.3.1",
+    "pyyaml==5.3.1",                                                                   # cobracharmer
     "ets-fiber-assigner @ git+https://github.com/Subaru-PFS/ets_fiberalloc.git",
     "ics-cobraOps @ git+https://github.com/Subaru-PFS/ics_cobraOps.git",
     "pfs-target-database @ git+https://github.com/Subaru-PFS/ets_target_database.git",
