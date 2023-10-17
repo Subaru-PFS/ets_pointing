@@ -7,15 +7,16 @@ import os
 import astropy.units as u
 import numpy as np
 import pandas as pd
-import pointing_utils.dbutils as dbutils
-import pointing_utils.designutils as designutils
-import pointing_utils.nfutils as nfutils
 import toml
 from astropy.time import Time
 from astropy.utils import iers
 from IPython.display import clear_output
 from logzero import logger
 from pfs.datamodel import PfsDesign, TargetType
+
+import .pointing_utils.dbutils as dbutils
+import .pointing_utils.designutils as designutils
+import .pointing_utils.nfutils as nfutils
 
 # The following line seems to be needed to avoid IERS errors,
 # though the default config is already `auto_download=True`.
