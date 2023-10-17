@@ -1,0 +1,49 @@
+[project]
+license = { text = "GPLv2" }
+name = "pointing_utils"
+version = "0.1.0"
+description = ""
+authors = [
+    { name = "Wanqiu He" },
+    { name = "Kiyoto Yabe" },
+    { name = "Eric Jeschke" },
+    { name = "Masato Onodera", email = "monodera@naoj.org" },
+]
+dependencies = [
+    "numpy>=1.25.2",
+    "pandas>=2.1.0",
+    "pyscopg2>=66.0.2",
+    "astropy>=5.3.4",
+    "logzero>=1.7.0",
+    "matplotlib>=3.8.0",
+    "astroplan>=0.9.1",
+    "ets-fiber-assigner @ git+https://github.com/Subaru-PFS/ets_fiberalloc.git",
+    "ics-cobraOps @ git+https://github.com/Subaru-PFS/ics_cobraOps.git",
+    "pfs-target-database @ git+https://github.com/Subaru-PFS/ets_target_database.git",
+    "pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git",
+    "ets-shuffle @ git+https://github.com/Subaru-PFS/ets_shuffle.git",
+]
+requires-python = ">=3.9"
+readme = "README.md"
+
+[build-system]
+requires = ["setuptools", "wheel", "pybind11"]
+build-backend = "setuptools.build_meta"
+
+
+[tool.setuptools]
+package-dir = { "" = "pfs_design_tool" }
+include-package-data = true
+
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "-e git+https://github.com/Subaru-PFS/ics_cobraCharmer.git#egg=ics-cobraCharmer@1af21d85a0af309cc57c939b78d625e884ece404",
+    "-e git+https://github.com/Subaru-PFS/ets_pointing.git#egg=ets-pointing@u/monodera/reconfigure-20230620",
+    "-e git+https://github.com/Subaru-PFS/pfs_utils.git#egg=pfs-utils",
+]
+
+
+[tool.pdm.options]
+add = ["--no-isolation"]
+install = ["--no-isolation"]
