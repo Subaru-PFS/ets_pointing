@@ -450,7 +450,12 @@ def load_ppp_results(infile: str):
 
 
 def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=False):
-    list_pointings, dict_pointings = load_ppp_results(os.path.join(workDir, infile))
+    try:
+        list_pointings, dict_pointings = load_ppp_results(os.path.join(workDir, infile))
+    except FileNotFoundError:
+        list_pointings, dict_pointings = load_ppp_results(
+            os.path.join(workDir, conf["ppp"]["outputDir"], infile)
+        )
 
     # in_design, df_sci, df_std, df_sky = load_input_design(
     #     args.design_id, indir=args.design_indir, exptime=args.exptime
