@@ -449,7 +449,9 @@ def load_ppp_results(infile: str):
     return pointings, dict_pointings
 
 
-def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=False):
+def reconfigure(
+    conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=False, logger=logger
+):
     try:
         list_pointings, dict_pointings = load_ppp_results(os.path.join(workDir, infile))
     except FileNotFoundError:
