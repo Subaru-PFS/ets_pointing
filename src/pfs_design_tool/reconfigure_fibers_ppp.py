@@ -14,7 +14,11 @@ from IPython.display import clear_output
 from logzero import logger
 from pfs.datamodel import PfsDesign, TargetType
 
+logger.info("pre-import")
+
 from .pointing_utils import dbutils, designutils, nfutils
+
+logger.info("post-import")
 
 # The following line seems to be needed to avoid IERS errors,
 # though the default config is already `auto_download=True`.
