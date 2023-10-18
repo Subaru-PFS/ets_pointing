@@ -642,6 +642,8 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
             os.path.join(design_dir, f"{design.filename}_obj_ids.csv"), index=False
         )
 
+        print("### design saved ###")
+
         logger.info(
             f"pfsDesign file {design.filename} for {pointing} is created in the {design_dir} directory."
         )
