@@ -1,4 +1,4 @@
-import logging
+# import logging
 import os
 import sys
 
@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from astropy.utils import iers
+from logzero import logger
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Circle
 from pfs.datamodel import PfsDesign, TargetType
@@ -13,7 +14,7 @@ from pfs.utils.coordinates.CoordTransp import CoordinateTransform as ctrans
 from pfs.utils.fiberids import FiberIds
 
 iers.conf.auto_download = True
-logging.disable()
+# logging.disable()
 
 plt.rcParams["font.size"] = 12
 plt.rcParams["xtick.direction"] = "in"
@@ -40,7 +41,7 @@ def get_pfs_utils_path():
     try:
         import eups
 
-        print(
+        logger.info(
             "eups was found. "
             "No attempt to find a pfs_utils directory is made. "
             "Please set an appropriate PFS_UTILS_DIR"
@@ -57,17 +58,18 @@ def get_pfs_utils_path():
             p = Path(pfs.utils.__path__[0])
             p_fiberdata = p.parent.parent.parent / "data" / "fiberids"
             if p_fiberdata.exists():
-                print(
+                logger.info(
                     f"pfs.utils's fiber data directory {p_fiberdata} was found and will be used."
                 )
                 return p_fiberdata
             else:
                 raise FileNotFoundError
         except ModuleNotFoundError as e:
-            print(f"{e}")
+            logger.exception(e)
             return None
-        except FileNotFoundError:
-            print("pfs_utils/data/fiberids cannot be found automatically")
+        except FileNotFoundError as e:
+            logger.exception(e)
+            # print("pfs_utils/data/fiberids cannot be found automatically")
             return None
 
 
