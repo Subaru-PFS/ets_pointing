@@ -2,18 +2,16 @@ import matplotlib.path as mppath
 import numpy as np
 import pandas as pd
 import pfs.datamodel
-from astroplan import FixedTarget
-from astroplan import Observer
+from astroplan import FixedTarget, Observer
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-from ets_shuffle.convenience import flag_close_pairs
-from ets_shuffle.convenience import guidecam_geometry
+from ets_shuffle.convenience import flag_close_pairs, guidecam_geometry
 from pfs.utils.coordinates.CoordTransp import CoordinateTransform as ctrans
 from pfs.utils.coordinates.CoordTransp import ag_pfimm_to_pixel
 from pfs.utils.fiberids import FiberIds
 from pfs.utils.pfsDesignUtils import makePfsDesign
 
-from pointing_utils.dbutils import connect_subaru_gaiadb
+from .dbutils import connect_subaru_gaiadb
 
 
 def generate_pfs_design(
@@ -32,7 +30,6 @@ def generate_pfs_design(
     is_no_target=False,
     design_name=None,
 ):
-
     gfm = FiberIds()  # 2604
     cobra_ids = gfm.cobraId
     scifiber_ids = gfm.scienceFiberId
@@ -60,8 +57,8 @@ def generate_pfs_design(
         fiber_status[fidx] = bench.cobras.status[cidx]
     fiber_status[fiber_status > 1] = 2  # filled bad fibers ad BROKENFIBER=2
 
-    proposal_id = np.full(len(fiber_status), "N/A", dtype='<U32')
-    ob_code = np.full(len(fiber_status), "N/A", dtype='<U64')
+    proposal_id = np.full(len(fiber_status), "N/A", dtype="<U32")
+    ob_code = np.full(len(fiber_status), "N/A", dtype="<U64")
     epoch = np.full(len(fiber_status), "J2000.0")
     pmRa = np.zeros_like(fiber_status, dtype=np.float32)
     pmDec = np.zeros_like(fiber_status, dtype=np.float32)
@@ -100,9 +97,7 @@ def generate_pfs_design(
     # filter_names = [["none", "none", "none"]] * n_fiber
 
     if not is_no_target:
-
         for tidx, cidx in vis.items():
-
             # print(cidx)
 
             idx_fiber = (
@@ -133,7 +128,6 @@ def generate_pfs_design(
             )
 
             if np.any(idx_target):
-
                 proposal_id[i_fiber] = df_targets["proposal_id"][idx_target].values[0]
                 ob_code[i_fiber] = df_targets["ob_code"][idx_target].values[0]
                 epoch[i_fiber] = df_targets["epoch"][idx_target].values[0]
@@ -168,23 +162,39 @@ def generate_pfs_design(
                 # FIXME: filter names should be in targetDB
                 if cat_id[i_fiber] >= 5 and cat_id[i_fiber] <= 12:
                     dict_of_flux_lists["filter_names"][i_fiber] = [
-                        'g_hsc', 'r2_hsc', 'i2_hsc', 'z_hsc', 'y_hsc']
+                        "g_hsc",
+                        "r2_hsc",
+                        "i2_hsc",
+                        "z_hsc",
+                        "y_hsc",
+                    ]
                 else:
                     dict_of_flux_lists["filter_names"][i_fiber] = [
                         df_targets[f"filter_{band}"][idx_target].values[0]
-                        if df_targets[f"filter_{band}"][idx_target].values[0] is not None
+                        if df_targets[f"filter_{band}"][idx_target].values[0]
+                        is not None
                         else "none"
                         for band in filter_band_names
                     ]
                 # FIXME: temporal workaround for co_field1
-                if 'co_wg_targets_' in design_name:
-                    dict_of_flux_lists["psf_flux"][i_fiber] = [np.nan, np.nan, np.nan, np.nan, np.nan]
+                if design_name == "field1_pa+00":
+                    dict_of_flux_lists["psf_flux"][i_fiber] = [
+                        np.nan,
+                        np.nan,
+                        np.nan,
+                        np.nan,
+                        np.nan,
+                    ]
                     dict_of_flux_lists["psf_flux_error"][i_fiber] = [
-                        np.nan, np.nan, np.nan, np.nan, np.nan]
+                        np.nan,
+                        np.nan,
+                        np.nan,
+                        np.nan,
+                        np.nan,
+                    ]
                 # total_flux[i_fiber] = df_targets["totalFlux"][idx_target][0]
                 # filter_names[i_fiber] = df_targets["filterNames"][idx_target][0].tolist()
             if np.any(idx_fluxstd):
-
                 epoch[i_fiber] = df_fluxstds["epoch"][idx_fluxstd].values[0]
                 pmRa[i_fiber] = df_fluxstds["pmra"][idx_fluxstd].values[0]
                 pmDec[i_fiber] = df_fluxstds["pmdec"][idx_fluxstd].values[0]
@@ -227,7 +237,9 @@ def generate_pfs_design(
                 try:
                     dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
                         [
-                            10**(-0.4*(df_sky["mag_thresh"][idx_sky].values[0] - 8.9))*1e+09,
+                            10
+                            ** (-0.4 * (df_sky["mag_thresh"][idx_sky].values[0] - 8.9))
+                            * 1e09,
                             np.nan,
                             np.nan,
                             np.nan,
@@ -267,7 +279,6 @@ def generate_pfs_design(
                     == tgt_class_dict[tgt[tidx].targetclass],
                 )
                 if np.any(idx_raster):
-
                     epoch[i_fiber] = df_raster["epoch"][idx_raster].values[0]
                     pmRa[i_fiber] = df_raster["pmra"][idx_raster].values[0]
                     pmDec[i_fiber] = df_raster["pmdec"][idx_raster].values[0]
@@ -327,11 +338,9 @@ def generate_pfs_design(
 
     # sanity check for epoch
     for i, ep in enumerate(epoch):
-        if ep[0] is not 'J':
-            epoch[i] = 'J' + ep
+        if ep[0] != "J":
+            epoch[i] = "J" + ep
 
-    print(np.unique(proposal_id))
-    print(np.unique(ob_code))
     pfs_design = makePfsDesign(
         pfi_nominal,
         ra,
@@ -445,7 +454,7 @@ def generate_guidestars_from_gaiadb(
     AND {coldict['mag']} BETWEEN {0.0} AND {guidestar_neighbor_mag_min}
     ;
     """
-    print(query_string)
+    # print(query_string)
     cur.execute(query_string)
 
     df_res = pd.DataFrame(
@@ -514,7 +523,6 @@ def generate_guidestars_from_gaiadb(
     tgtcam = []
 
     for i in range(agcoord.shape[0]):
-
         p = mppath.Path(agcoord[i])
 
         # find all targets in the slighty enlarged FOV

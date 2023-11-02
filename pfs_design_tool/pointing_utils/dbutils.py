@@ -42,7 +42,6 @@ def generate_targets_from_targetdb(
     mag_filter=None,
     max_priority=None,
 ):
-
     db = connect_targetdb(conf)
 
     search_radius = fp_radius_degree * fp_fudge_factor
@@ -65,10 +64,16 @@ def generate_targets_from_targetdb(
         query_string += extra_where
 
     if input_catalog is not None:
-        query_string += ' AND (' + 'OR'.join([f" input_catalog_id={v} " for v in input_catalog]) + ')'
+        query_string += (
+            " AND ("
+            + "OR".join([f" input_catalog_id={v} " for v in input_catalog])
+            + ")"
+        )
 
     if proposal_id is not None:
-        query_string += ' AND (' + 'OR'.join([f" proposal_id=\'{v}\' " for v in proposal_id]) + ')'
+        query_string += (
+            " AND (" + "OR".join([f" proposal_id='{v}' " for v in proposal_id]) + ")"
+        )
 
     if max_priority is not None:
         query_string += f" AND priority <= {max_priority}"
@@ -119,7 +124,6 @@ def generate_fluxstds_from_targetdb(
     extra_where=None,
     write_csv=False,
 ):
-
     try:
         fluxstd_versions = conf["targetdb"]["fluxstd"]["version"]
     except Exception:
@@ -138,24 +142,32 @@ def generate_fluxstds_from_targetdb(
         extra_where = ""
 
     if good_fluxstd:
-        extra_where += f"""
+        extra_where += """
         AND flags_dist IS FALSE
         AND flags_ebv IS FALSE
         AND prob_f_star BETWEEN 0.5 AND 1.0
         """
         if select_by_flux:
-            extra_where += f"""AND psf_flux_{mag_filter} BETWEEN {flux_min} AND {flux_max}"""
+            extra_where += (
+                f"""AND psf_flux_{mag_filter} BETWEEN {flux_min} AND {flux_max}"""
+            )
         else:
-            extra_where += f"""AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}"""
+            extra_where += (
+                f"""AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}"""
+            )
 
     if not good_fluxstd:
         extra_where = f"""
         AND prob_f_star BETWEEN {min_prob_f_star} AND 1.0
         """
         if select_by_flux:
-            extra_where += f"""AND psf_flux_{mag_filter} BETWEEN {flux_min} AND {flux_max}"""
+            extra_where += (
+                f"""AND psf_flux_{mag_filter} BETWEEN {flux_min} AND {flux_max}"""
+            )
         else:
-            extra_where += f"""AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}"""
+            extra_where += (
+                f"""AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}"""
+            )
 
         if flags_dist:
             extra_where += """
@@ -242,7 +254,9 @@ def generate_skyobjects_from_targetdb(
                 version_condition += " OR "
             if sky_version == "20220915":
                 # use only HSC sky catalog in the older version
-                version_condition += f"(version = '{sky_version}' AND input_catalog_id=1001)"
+                version_condition += (
+                    f"(version = '{sky_version}' AND input_catalog_id=1001)"
+                )
             else:
                 version_condition += f"version = '{sky_version}'"
         version_condition += ")"
@@ -289,7 +303,6 @@ def generate_random_skyobjects(
     dec,
     n_sky_target,
 ):
-
     dw = 0.75
     cos_term = 1.0 / np.cos(dec * u.deg)
     dw_ra = dw * cos_term
@@ -308,7 +321,7 @@ def generate_random_skyobjects(
     df["created_at"] = None
     df["updated_at"] = None
 
-    print(df)
+    # print(df)
     return df
 
 
@@ -325,7 +338,6 @@ def generate_targets_from_gaiadb(
     good_astrometry=False,
     write_csv=False,
 ):
-
     conn = connect_subaru_gaiadb(conf)
     cur = conn.cursor()
 
@@ -350,7 +362,7 @@ def generate_targets_from_gaiadb(
 
     query_string += ";"
 
-    print(query_string)
+    logger.info(query_string)
 
     cur.execute(query_string)
 
@@ -376,7 +388,7 @@ def generate_targets_from_gaiadb(
     cur.close()
     conn.close()
 
-    print(df_res)
+    # logger.info(df_res)
     if write_csv:
         df_res.to_csv("gaia.csv")
 
@@ -391,12 +403,11 @@ def fixcols_gaiadb_to_targetdb(
     exptime=900.0,
     priority=1,
 ):
-
     df.rename(columns={"source_id": "obj_id", "ref_epoch": "epoch"}, inplace=True)
 
     df["epoch"] = df["epoch"].apply(lambda x: f"J{x:.1f}")
     df["proposal_id"] = proposal_id
-    df["ob_code"] = df["obj_id"].astype('str')
+    df["ob_code"] = df["obj_id"].astype("str")
     df["target_type_id"] = target_type_id
     df["input_catalog_id"] = input_catalog_id
     df["effective_exptime"] = exptime

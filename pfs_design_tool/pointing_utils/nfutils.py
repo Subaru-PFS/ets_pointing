@@ -7,12 +7,9 @@ import numpy as np
 from ics.cobraCharmer.pfiDesign import PFIDesign
 from ics.cobraOps.Bench import Bench
 from ics.cobraOps.BlackDotsCalibrationProduct import BlackDotsCalibrationProduct
-from ics.cobraOps.cobraConstants import NULL_TARGET_ID
-from ics.cobraOps.cobraConstants import NULL_TARGET_POSITION
+from ics.cobraOps.cobraConstants import NULL_TARGET_ID, NULL_TARGET_POSITION
 from ics.cobraOps.CollisionSimulator2 import CollisionSimulator2
 from ics.cobraOps.TargetGroup import TargetGroup
-from pfs.utils.fiberids import FiberIds
-from procedures.moduleTest.cobraCoach import CobraCoach
 
 # import argparse
 # import configparser
@@ -34,8 +31,9 @@ from procedures.moduleTest.cobraCoach import CobraCoach
 # import tempfile
 # import time
 # from targetdb import targetdb
-
 from logzero import logger
+from pfs.utils.fiberids import FiberIds
+from procedures.moduleTest.cobraCoach import CobraCoach
 
 # This was needed for fixing some issues with the XML files.
 # Can probably be simplified. Javier?
@@ -51,7 +49,6 @@ def getBench(
     sm,
     black_dot_radius_margin,
 ):
-
     os.environ["PFS_INSTDATA_DIR"] = pfs_instdata_dir
     cobraCoach = CobraCoach(
         "fpga", loadModel=False, trajectoryMode=True, rootDir=cobra_coach_dir
@@ -126,13 +123,10 @@ def getBench(
 
 
 def register_objects(df, target_class=None, force_priority=None, force_exptime=None):
-
     if target_class == "sci":
-
         res = []
 
         for i in range(df.index.size):
-
             if force_priority is not None:
                 priority = force_priority
             else:
@@ -160,8 +154,8 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
     elif target_class == "cal":
         # cal_penalty = ((-2.5*np.log10(df["psf_flux_g"] * 1e-32)) -
         #               (-2.5*np.log10(max(df["psf_flux_g"]) * 1e-32))) #* 5.0e+10
-        cal_penalty = 5.0e+10*(1-df["prob_f_star"])
-        print(min(cal_penalty), max(cal_penalty))
+        cal_penalty = 5.0e10 * (1 - df["prob_f_star"])
+        # print(min(cal_penalty), max(cal_penalty))
         res = [
             nf.CalibTarget(
                 df["obj_id"][i],
@@ -220,8 +214,9 @@ def run_netflow(
     minSkyTargetsPerInstrumentRegion=None,
     instrumentRegionPenalty=None,
     dot_penalty=None,
+    numReservedFibers=0,
+    fiberNonAllocationCost=0.0,
 ):
-
     # print(bench.cobras.status)
     # exit()
 
@@ -232,8 +227,10 @@ def run_netflow(
         return 0.1 * dist
 
     if dot_penalty is not None:
+
         def black_dot_penalty_cost(dist):
             return max(0, dot_penalty * (1 - 0.5 * dist))
+
     else:
         black_dot_penalty_cost = None
 
@@ -262,6 +259,8 @@ def run_netflow(
             minSkyTargetsPerInstrumentRegion=minSkyTargetsPerInstrumentRegion,
             instrumentRegionPenalty=instrumentRegionPenalty,
             blackDotPenalty=black_dot_penalty_cost,
+            numReservedFibers=numReservedFibers,
+            fiberNonAllocationCost=fiberNonAllocationCost,
         )
 
         print("solving the problem")
@@ -298,7 +297,9 @@ def run_netflow(
                 if selectedTargets[i] != NULL_TARGET_POSITION:
                     dist = np.abs(selectedTargets[i] - bench.cobras.centers[i])
                     if dist > bench.cobras.L1[i] + bench.cobras.L2[i]:
-                        logger.warning(f"(CobraId={i}) Distance from the center exceeds L1+L2 ({dist} mm)")
+                        logger.warning(
+                            f"(CobraId={i}) Distance from the center exceeds L1+L2 ({dist} mm)"
+                        )
             simulator = CollisionSimulator2(
                 bench, cobra_coach, TargetGroup(selectedTargets, ids)
             )
@@ -351,7 +352,6 @@ def fiber_allocation(
     df_raster=None,
     force_exptime=None,
 ):
-
     targets = []
 
     min_exptime, max_exptime_targets, max_exptime_raster = 10.0, 0.0, 0.0
@@ -380,8 +380,13 @@ def fiber_allocation(
 
     # exit()
 
-    cobra_coach, bench = getBench(pfs_instdata_dir, cobra_coach_dir,
-                                  cobra_coach_module_version, sm, black_dot_radius_margin=dot_margin)
+    cobra_coach, bench = getBench(
+        pfs_instdata_dir,
+        cobra_coach_dir,
+        cobra_coach_module_version,
+        sm,
+        black_dot_radius_margin=dot_margin,
+    )
 
     # os.environ["PFS_INSTDATA_DIR"] = pfs_instdata_dir
     # cobra_coach = CobraCoach(
@@ -429,6 +434,11 @@ def fiber_allocation(
     # scientific targets with priority 1.
     class_dict = {
         # Priorities correspond to the magnitudes of bright stars (in most case for the 2022 June Engineering)
+        "sci_P0": {
+            "nonObservationCost": 5e10,
+            "partialObservationCost": 1e11,
+            "calib": False,
+        },
         "sci_P1": {
             "nonObservationCost": 4e10,
             "partialObservationCost": 1e11,
@@ -489,6 +499,11 @@ def fiber_allocation(
             "partialObservationCost": 1e11,
             "calib": False,
         },
+        "sci_P13": {
+            "nonObservationCost": 5,
+            "partialObservationCost": 1e11,
+            "calib": False,
+        },
         "sci_P9999": {  # raster scan
             "nonObservationCost": 1,
             "partialObservationCost": 1e11,
@@ -496,17 +511,18 @@ def fiber_allocation(
         },
         "cal": {
             "numRequired": n_fluxstd,
-            "nonObservationCost": 1e12,
+            "nonObservationCost": 1e2,
             "calib": True,
         },
         "sky": {
             "numRequired": n_sky,
-            "nonObservationCost": 1e12,
+            "nonObservationCost": 1e2,
             "calib": True,
         },
     }
     target_class_dict = {}
-    for i in range(1, 13, 1):
+    # for i in range(1, 13, 1):
+    for i in range(0, 14, 1):
         target_class_dict[f"sci_P{i}"] = 1
     target_class_dict = {**target_class_dict, **dict(sci_P9999=1, sky=2, cal=3)}
     # target_class_dict = {"sci_P1": 1, "sci_P9999": 1, "sky": 2, "cal": 3}
@@ -563,6 +579,8 @@ def fiber_allocation(
         minSkyTargetsPerInstrumentRegion=None,
         instrumentRegionPenalty=None,
         dot_penalty=dot_penalty,
+        numReservedFibers=0,
+        fiberNonAllocationCost=0.0,
     )
 
     return (
@@ -572,5 +590,5 @@ def fiber_allocation(
         targets,
         target_class_dict,
         is_no_target,
-        bench
+        bench,
     )
