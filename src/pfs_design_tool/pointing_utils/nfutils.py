@@ -516,12 +516,12 @@ def fiber_allocation(
         },
         "cal": {
             "numRequired": n_fluxstd,
-            "nonObservationCost": 1e2,
+            "nonObservationCost": 1e12,
             "calib": True,
         },
         "sky": {
             "numRequired": n_sky,
-            "nonObservationCost": 1e2,
+            "nonObservationCost": 1e12,
             "calib": True,
         },
     }
