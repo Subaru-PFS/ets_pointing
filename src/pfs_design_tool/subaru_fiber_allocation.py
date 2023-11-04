@@ -27,6 +27,13 @@ from logzero import logger
 iers.conf.auto_download = True
 # iers.conf.iers_degraded_accuracy = "warn"
 
+# netflow configuration (FIXME)
+cobra_location_group = None
+min_sky_targets_per_location = None
+location_group_penalty = None
+cobra_instrument_region = None
+min_sky_targets_per_instrument_region = None
+instrument_region_penalty = None
 
 def get_arguments():
     parser = argparse.ArgumentParser()
@@ -484,13 +491,22 @@ def main():
         args.n_fluxstd,
         args.n_sky,
         args.observation_time,
-        conf,
+        conf["netflow"]["use_gurobi"],
+        dict(conf["gurobi"]) if conf["netflow"]["use_gurobi"] else None,
         args.pfs_instdata_dir,
         args.cobra_coach_dir,
         args.cobra_coach_module_version,
         args.sm,
         args.dot_margin,
         args.dot_penalty,
+        cobra_location_group=cobra_location_group,
+        min_sky_targets_per_location=min_sky_targets_per_location,
+        location_group_penalty=location_group_penalty,
+        cobra_instrument_region=cobra_instrument_region,
+        min_sky_targets_per_instrument_region=min_sky_targets_per_instrument_region,
+        instrument_region_penalty=instrument_region_penalty,
+        num_reserved_fibers=0,
+        fiber_non_allocation_cost=0.0,
         df_raster=df_raster,
         force_exptime=args.exptime,
     )

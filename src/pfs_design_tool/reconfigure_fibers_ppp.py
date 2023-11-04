@@ -21,6 +21,13 @@ from .pointing_utils import dbutils, designutils, nfutils
 iers.conf.auto_download = True
 # iers.conf.iers_degraded_accuracy = "warn"
 
+# netflow configuration (FIXME)
+cobra_location_group = None
+min_sky_targets_per_location = None
+location_group_penalty = None
+cobra_instrument_region = None
+min_sky_targets_per_instrument_region = None
+instrument_region_penalty = None
 
 def get_arguments():
     parser = argparse.ArgumentParser()
@@ -480,15 +487,16 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
     design_filenames = []
     observation_times = []
     observation_dates_in_hst = []
-    if conf["sfa"]["cobra_coach_module_version"].lower == "none":
+
+    # convert toml "None" to None
+    if conf["sfa"]["cobra_coach_module_version"].lower() == "none":
         cobra_coach_module_version = None
     else:
         cobra_coach_module_version = conf["sfa"]["cobra_coach_module_version"]
-
-    if conf["sfa"]["dot_penalty"].lower == "none":
+    if conf["sfa"]["dot_penalty"].lower() == "none":
         dot_penalty = None
     else:
-        dot_penalty = conf["sfa"]["dot_penalty"]
+        dot_penalty = float(conf["sfa"]["dot_penalty"])
 
     design_ids = {}
     for i, pointing in enumerate(list_pointings):
@@ -595,13 +603,22 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
             conf["sfa"]["n_fluxstd"],
             conf["sfa"]["n_sky"],
             observation_time,
-            conf,
+            conf["netflow"]["use_gurobi"],
+            dict(conf["gurobi"]) if conf["netflow"]["use_gurobi"] else None,
             conf["sfa"]["pfs_instdata_dir"],
             conf["sfa"]["cobra_coach_dir"],
             None,
             conf["sfa"]["sm"],
             conf["sfa"]["dot_margin"],
             None,
+            cobra_location_group=cobra_location_group,
+            min_sky_targets_per_location=min_sky_targets_per_location,
+            location_group_penalty=location_group_penalty,
+            cobra_instrument_region=cobra_instrument_region,
+            min_sky_targets_per_instrument_region=min_sky_targets_per_instrument_region,
+            instrument_region_penalty=instrument_region_penalty,
+            num_reserved_fibers=0,
+            fiber_non_allocation_cost=0.0,
             df_raster=df_raster,
             force_exptime=conf["ppp"]["TEXP_NOMINAL"],
         )
