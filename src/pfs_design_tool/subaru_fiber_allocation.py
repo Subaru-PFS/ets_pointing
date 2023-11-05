@@ -251,28 +251,28 @@ def get_arguments():
         help="Number of FLUXSTD stars to be allocated. (default: 50)",
     )
 
-    # raster scan stars from gaiaDB
+    # filler targets from gaiaDB
     parser.add_argument(
-        "--raster_scan",
+        "--filler",
         action="store_true",
-        help="Search stars for raster scan test (default: False)",
+        help="Search stars for fillers (default: False)",
     )
     parser.add_argument(
-        "--raster_mag_max",
+        "--filler_mag_max",
         type=float,
         default=20.0,
-        help="maximum magnitude in Gaia G for raster scan stars (default: 20.)",
+        help="maximum magnitude in Gaia G for filler targets (default: 20.)",
     )
     parser.add_argument(
-        "--raster_mag_min",
+        "--filler_mag_min",
         type=float,
         default=12.0,
-        help="minimum magnitude in Gaia G for raster scan stars (default: 12)",
+        help="minimum magnitude in Gaia G for filler targets (default: 12)",
     )
     parser.add_argument(
-        "--raster_propid",
+        "--filler_propid",
         default="S23A-EN16",
-        help="Proposal-ID for raster scan stars (default: S23A-EN16)",
+        help="Proposal-ID for filler targets (default: S23A-EN16)",
     )
 
     # sky fibers
@@ -455,29 +455,29 @@ def main():
     # print(df_sky)
     # exit()
 
-    if args.raster_scan:
-        df_raster = dbutils.generate_targets_from_gaiadb(
+    if args.filler:
+        df_filler = dbutils.generate_targets_from_gaiadb(
             args.ra,
             args.dec,
             conf=conf,
             band_select="phot_g_mean_mag",
-            mag_min=args.raster_mag_min,
-            mag_max=args.raster_mag_max,
+            mag_min=args.filler_mag_min,
+            mag_max=args.filler_mag_max,
             good_astrometry=False,  # select bright stars which may have large astrometric errors.
             write_csv=True,
         )
-        df_raster = dbutils.fixcols_gaiadb_to_targetdb(
-            df_raster,
-            proposal_id=args.raster_propid,
+        df_filler = dbutils.fixcols_gaiadb_to_targetdb(
+            df_filler,
+            proposal_id=args.filler_propid,
             target_type_id=1,    # SCIENCE
             input_catalog_id=4,  # Gaia DR3
             exptime=60.0,
             priority=9999,
         )
     else:
-        df_raster = None
+        df_filler = None
 
-    # print(df_raster)
+    # print(df_filler)
 
     # exit()
 
@@ -507,7 +507,7 @@ def main():
         instrument_region_penalty=instrument_region_penalty,
         num_reserved_fibers=0,
         fiber_non_allocation_cost=0.0,
-        df_raster=df_raster,
+        df_filler=df_filler,
         force_exptime=args.exptime,
     )
     # print(vis, tp, tel, tgt, tgt_classdict)
@@ -526,7 +526,7 @@ def main():
         tgt_class_dict,
         bench,
         arms=args.arms,
-        df_raster=df_raster,
+        df_filler=df_filler,
         is_no_target=is_no_target,
         design_name=args.design_name,
     )

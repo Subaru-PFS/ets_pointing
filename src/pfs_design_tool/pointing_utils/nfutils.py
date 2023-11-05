@@ -363,12 +363,12 @@ def fiber_allocation(
     instrument_region_penalty=None,
     num_reserved_fibers=0,
     fiber_non_allocation_cost=0.0,
-    df_raster=None,
+    df_filler=None,
     force_exptime=None,
 ):
     targets = []
 
-    min_exptime, max_exptime_targets, max_exptime_raster = 10.0, 0.0, 0.0
+    min_exptime, max_exptime_targets, max_exptime_filler = 10.0, 0.0, 0.0
 
     if not df_targets.empty:
         targets += register_objects(
@@ -378,12 +378,12 @@ def fiber_allocation(
 
     # print(len(targets))
 
-    if df_raster is not None:
-        print("Registering stars for raster scan test.")
+    if df_filler is not None:
+        print("Registering stars for fillers.")
         targets += register_objects(
-            df_raster, target_class="sci", force_exptime=force_exptime
+            df_filler, target_class="sci", force_exptime=force_exptime
         )
-        max_exptime_raster = df_raster["effective_exptime"].max()
+        max_exptime_filler = df_filler["effective_exptime"].max()
 
     # print(len(targets))
 
@@ -518,7 +518,7 @@ def fiber_allocation(
             "partialObservationCost": 1e11,
             "calib": False,
         },
-        "sci_P9999": {  # raster scan
+        "sci_P9999": {  # fillers
             "nonObservationCost": 1,
             "partialObservationCost": 1e11,
             "calib": False,
@@ -544,7 +544,7 @@ def fiber_allocation(
     if force_exptime is not None:
         exptime = force_exptime
     else:
-        exptime = max([min_exptime, max_exptime_targets, max_exptime_raster])
+        exptime = max([min_exptime, max_exptime_targets, max_exptime_filler])
 
     # print(exptime)
     # exit()

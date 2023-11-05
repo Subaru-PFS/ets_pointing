@@ -232,28 +232,28 @@ def get_arguments():
         help="Number of FLUXSTD stars to be allocated. (default: 50)",
     )
 
-    # raster scan stars from gaiaDB
+    # fillers from gaiaDB
     parser.add_argument(
-        "--raster_scan",
+        "--filler",
         action="store_true",
-        help="Search stars for raster scan test (default: False)",
+        help="Search stars for filler targets (default: False)",
     )
     parser.add_argument(
-        "--raster_mag_max",
+        "--filler_mag_max",
         type=float,
         default=20.0,
-        help="maximum magnitude in Gaia G for raster scan stars (default: 20.)",
+        help="maximum magnitude in Gaia G for filler targets (default: 20.)",
     )
     parser.add_argument(
-        "--raster_mag_min",
+        "--filler_mag_min",
         type=float,
         default=12.0,
-        help="minimum magnitude in Gaia G for raster scan stars (default: 12)",
+        help="minimum magnitude in Gaia G for filler targets (default: 12)",
     )
     parser.add_argument(
-        "--raster_propid",
+        "--filler_propid",
         default="S23A-EN16",
-        help="Proposal-ID for raster scan stars (default: S23A-EN16)",
+        help="Proposal-ID for filler targets (default: S23A-EN16)",
     )
 
     # sky fibers
@@ -561,21 +561,21 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
                     )
             logger.info(f"Fetched target DataFrame: \n{df_sky}")
 
-        # get raster targets (optional)
-        raster = conf["sfa"]["raster"]
-        if conf["sfa"]["raster"] == True:
-            df_raster = dbutils.generate_targets_from_gaiadb(
+        # get filler targets (optional)
+        filler = conf["sfa"]["filler"]
+        if conf["sfa"]["filler"] == True:
+            df_filler = dbutils.generate_targets_from_gaiadb(
                 dict_pointings[pointing.lower()]["ra_center"],
                 dict_pointings[pointing.lower()]["dec_center"],
                 conf=conf,
                 band_select="phot_g_mean_mag",
-                mag_min=conf["sfa"]["raster_mag_min"],
-                mag_max=conf["sfa"]["raster_mag_max"],
+                mag_min=conf["sfa"]["filler_mag_min"],
+                mag_max=conf["sfa"]["filler_mag_max"],
                 good_astrometry=False,  # select bright stars which may have large astrometric errors.
                 write_csv=False,
             )
-            df_raster = dbutils.fixcols_gaiadb_to_targetdb(
-                df_raster,
+            df_filler = dbutils.fixcols_gaiadb_to_targetdb(
+                df_filler,
                 proposal_id="S23A-EN16",
                 target_type_id=1,  # SCIENCE
                 input_catalog_id=4,  # Gaia DR3
@@ -583,7 +583,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
                 priority=9999,
             )
         else:
-            df_raster = None
+            df_filler = None
 
         (
             vis,
@@ -619,7 +619,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
             instrument_region_penalty=instrument_region_penalty,
             num_reserved_fibers=0,
             fiber_non_allocation_cost=0.0,
-            df_raster=df_raster,
+            df_filler=df_filler,
             force_exptime=conf["ppp"]["TEXP_NOMINAL"],
         )
 
@@ -634,7 +634,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
             tgt_class_dict,
             bench,
             arms=conf["sfa"]["arms"],
-            df_raster=df_raster,
+            df_filler=df_filler,
             is_no_target=is_no_target,
             design_name=dict_pointings[pointing.lower()]["pointing_name"],
         )
