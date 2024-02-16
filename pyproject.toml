@@ -12,7 +12,7 @@ authors = [
 dependencies = [
     "numpy<1.24.0",                                                                    # np.complex in cobracharmer
     "pandas>=2.1.0",
-    "pyscopg2>=66.0.2",
+    "pyscopg2>=2.9.8",
     "astropy>=5.3",
     "logzero>=1.7.0",
     "matplotlib>=3.8.0",
@@ -20,7 +20,7 @@ dependencies = [
     "pyyaml==5.3.1",
     "ets-fiber-assigner @ git+https://github.com/Subaru-PFS/ets_fiberalloc.git",
     "ics-cobraOps @ git+https://github.com/Subaru-PFS/ics_cobraOps.git",
-    "pfs-target-database @ git+https://github.com/Subaru-PFS/ets_target_database.git",
+    "targetdb @ git+https://github.com/Subaru-PFS/ets_target_database.git",
     "pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git",
     # "ets-shuffle @ git+https://github.com/Subaru-PFS/ets_shuffle.git",
 ]
