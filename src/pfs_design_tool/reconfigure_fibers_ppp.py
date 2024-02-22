@@ -418,7 +418,7 @@ def load_ppp_results(infile: str):
         )
         df_tmp = pd.DataFrame(
             {
-                "obj_id": pseudo_obj_ids,
+                "obj_id": df_pointing["obj_id"],
                 "ra": df_pointing["ra_target"],
                 "dec": df_pointing["dec_target"],
                 "pmra": df_pointing["pmra_target"],
@@ -456,7 +456,7 @@ def load_ppp_results(infile: str):
             "dec_center": df_pointing["dec_center"][0],
             "pa_center": df_pointing["pa_center"][0],
             "sci": df_tmp,
-            "obj_id_original": df_pointing["obj_id"],
+            "obj_id": df_pointing["obj_id"],
             "obj_id_dummy": pseudo_obj_ids,
             # "observation_time": observation_time,
             "observation_time": df_pointing["obstime"],
@@ -666,7 +666,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
 
         df_obj_id = pd.DataFrame(
             {
-                "obj_id_origial": dict_pointings[pointing.lower()]["obj_id_original"],
+                "obj_id": dict_pointings[pointing.lower()]["obj_id"],
                 "obj_id_dummy": dict_pointings[pointing.lower()]["obj_id_dummy"],
             }
         ).to_csv(

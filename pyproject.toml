@@ -18,7 +18,7 @@ dependencies = [
     "matplotlib>=3.8.0",
     "astroplan>=0.9.1",
     "pyyaml==5.3.1",
-    "ets-fiber-assigner @ git+https://github.com/Subaru-PFS/ets_fiberalloc.git",
+    # "ets-fiber-assigner @ git+https://github.com/Subaru-PFS/ets_fiberalloc.git",
     "ics-cobraOps @ git+https://github.com/Subaru-PFS/ics_cobraOps.git",
     "targetdb @ git+https://github.com/Subaru-PFS/ets_target_database.git",
     "pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git",
