@@ -27,7 +27,7 @@ def generate_pfs_design(
     bench,
     arms="br",
     n_fiber=2394,
-    df_raster=None,
+    df_filler=None,
     is_no_target=False,
     design_name=None,
 ):
@@ -35,7 +35,7 @@ def generate_pfs_design(
     cobra_ids = gfm.cobraId
     scifiber_ids = gfm.scienceFiberId
 
-    is_raster = df_raster is not None
+    is_filler = df_filler is not None
 
     # n_fiber = len(FiberIds().scienceFiberId)
     # NOTE: fiberID starts with 1 (apparently; TBC).
@@ -273,44 +273,44 @@ def generate_pfs_design(
                     "none",
                     "none",
                 ]
-            if is_raster:
-                idx_raster = np.logical_and(
-                    df_raster["obj_id"] == np.int64(tgt[tidx].ID),
-                    df_raster["target_type_id"]
+            if is_filler:
+                idx_filler = np.logical_and(
+                    df_filler["obj_id"] == np.int64(tgt[tidx].ID),
+                    df_filler["target_type_id"]
                     == tgt_class_dict[tgt[tidx].targetclass],
                 )
-                if np.any(idx_raster):
-                    epoch[i_fiber] = df_raster["epoch"][idx_raster].values[0]
-                    pmRa[i_fiber] = df_raster["pmra"][idx_raster].values[0]
-                    pmDec[i_fiber] = df_raster["pmdec"][idx_raster].values[0]
-                    parallax[i_fiber] = df_raster["parallax"][idx_raster].values[0]
+                if np.any(idx_filler):
+                    epoch[i_fiber] = df_filler["epoch"][idx_filler].values[0]
+                    pmRa[i_fiber] = df_filler["pmra"][idx_filler].values[0]
+                    pmDec[i_fiber] = df_filler["pmdec"][idx_filler].values[0]
+                    parallax[i_fiber] = df_filler["parallax"][idx_filler].values[0]
 
-                    cat_id[i_fiber] = df_raster["input_catalog_id"][idx_raster].values[
+                    cat_id[i_fiber] = df_filler["input_catalog_id"][idx_filler].values[
                         0
                     ]
                     dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
                         [
-                            df_raster["g_flux_njy"][idx_raster].values[0],
-                            df_raster["bp_flux_njy"][idx_raster].values[0],
-                            df_raster["rp_flux_njy"][idx_raster].values[0],
+                            df_filler["g_flux_njy"][idx_filler].values[0],
+                            df_filler["bp_flux_njy"][idx_filler].values[0],
+                            df_filler["rp_flux_njy"][idx_filler].values[0],
                             np.nan,
                             np.nan,
                         ]
                     )
                     dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
                         [
-                            df_raster["g_flux_err_njy"][idx_raster].values[0],
-                            df_raster["bp_flux_err_njy"][idx_raster].values[0],
-                            df_raster["rp_flux_err_njy"][idx_raster].values[0],
+                            df_filler["g_flux_err_njy"][idx_filler].values[0],
+                            df_filler["bp_flux_err_njy"][idx_filler].values[0],
+                            df_filler["rp_flux_err_njy"][idx_filler].values[0],
                             np.nan,
                             np.nan,
                         ]
                     )
                     dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
                         [
-                            df_raster["g_flux_err_njy"][idx_raster].values[0],
-                            df_raster["bp_flux_err_njy"][idx_raster].values[0],
-                            df_raster["rp_flux_err_njy"][idx_raster].values[0],
+                            df_filler["g_flux_err_njy"][idx_filler].values[0],
+                            df_filler["bp_flux_err_njy"][idx_filler].values[0],
+                            df_filler["rp_flux_err_njy"][idx_filler].values[0],
                             np.nan,
                             np.nan,
                         ]

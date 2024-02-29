@@ -344,7 +344,7 @@ def generate_targets_from_gaiadb(
     if search_radius is None:
         search_radius = fp_radius_degree * fp_fudge_factor
 
-    # Query for raster scan stars:
+    # Query for fillers:
     # astrometric_excess_noise_sig (D) < 2
     # 12 <= phot_g_mean_mag <=20
 

@@ -347,19 +347,28 @@ def fiber_allocation(
     n_fluxstd,
     n_sky,
     observation_time,
-    conf,
+    gurobi,
+    gurobi_options,
     pfs_instdata_dir,
     cobra_coach_dir,
     cobra_coach_module_version,
     sm,
     dot_margin,
     dot_penalty,
-    df_raster=None,
+    cobra_location_group=None,
+    min_sky_targets_per_location=None,
+    location_group_penalty=None,
+    cobra_instrument_region=None,
+    min_sky_targets_per_instrument_region=None,
+    instrument_region_penalty=None,
+    num_reserved_fibers=0,
+    fiber_non_allocation_cost=0.0,
+    df_filler=None,
     force_exptime=None,
 ):
     targets = []
 
-    min_exptime, max_exptime_targets, max_exptime_raster = 10.0, 0.0, 0.0
+    min_exptime, max_exptime_targets, max_exptime_filler = 10.0, 0.0, 0.0
 
     if not df_targets.empty:
         targets += register_objects(
@@ -369,12 +378,12 @@ def fiber_allocation(
 
     # print(len(targets))
 
-    if df_raster is not None:
-        print("Registering stars for raster scan test.")
+    if df_filler is not None:
+        print("Registering stars for fillers.")
         targets += register_objects(
-            df_raster, target_class="sci", force_exptime=force_exptime
+            df_filler, target_class="sci", force_exptime=force_exptime
         )
-        max_exptime_raster = df_raster["effective_exptime"].max()
+        max_exptime_filler = df_filler["effective_exptime"].max()
 
     # print(len(targets))
 
@@ -509,19 +518,19 @@ def fiber_allocation(
             "partialObservationCost": 1e11,
             "calib": False,
         },
-        "sci_P9999": {  # raster scan
+        "sci_P9999": {  # fillers
             "nonObservationCost": 1,
             "partialObservationCost": 1e11,
             "calib": False,
         },
         "cal": {
             "numRequired": n_fluxstd,
-            "nonObservationCost": 1e2,
+            "nonObservationCost": 1e12,
             "calib": True,
         },
         "sky": {
             "numRequired": n_sky,
-            "nonObservationCost": 1e2,
+            "nonObservationCost": 1e12,
             "calib": True,
         },
     }
@@ -535,7 +544,7 @@ def fiber_allocation(
     if force_exptime is not None:
         exptime = force_exptime
     else:
-        exptime = max([min_exptime, max_exptime_targets, max_exptime_raster])
+        exptime = max([min_exptime, max_exptime_targets, max_exptime_filler])
 
     # print(exptime)
     # exit()
@@ -573,16 +582,16 @@ def fiber_allocation(
         cobraMoveCost=None,
         collision_distance=2.0,
         elbow_collisions=True,
-        gurobi=conf["netflow"]["use_gurobi"],
-        gurobiOptions=dict(conf["gurobi"]) if conf["netflow"]["use_gurobi"] else None,
+        gurobi=gurobi,
+        gurobiOptions=gurobi_options,
         alreadyObserved=already_observed,
         forbiddenPairs=forbidden_pairs,
-        cobraLocationGroup=None,
-        minSkyTargetsPerLocation=None,
-        locationGroupPenalty=None,
-        cobraInstrumentRegion=None,
-        minSkyTargetsPerInstrumentRegion=None,
-        instrumentRegionPenalty=None,
+        cobraLocationGroup=cobra_location_group,
+        minSkyTargetsPerLocation=min_sky_targets_per_location,
+        locationGroupPenalty=location_group_penalty,
+        cobraInstrumentRegion=cobra_instrument_region,
+        minSkyTargetsPerInstrumentRegion=min_sky_targets_per_instrument_region,
+        instrumentRegionPenalty=instrument_region_penalty,
         dot_penalty=dot_penalty,
         numReservedFibers=0,
         fiberNonAllocationCost=0.0,

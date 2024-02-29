@@ -21,6 +21,13 @@ from .pointing_utils import dbutils, designutils, nfutils
 iers.conf.auto_download = True
 # iers.conf.iers_degraded_accuracy = "warn"
 
+# netflow configuration (FIXME)
+cobra_location_group = None
+min_sky_targets_per_location = None
+location_group_penalty = None
+cobra_instrument_region = None
+min_sky_targets_per_instrument_region = None
+instrument_region_penalty = None
 
 def get_arguments():
     parser = argparse.ArgumentParser()
@@ -197,6 +204,18 @@ def get_arguments():
         help="Minimum acceptable prob_f_star (default: 0.5)",
     )
     parser.add_argument(
+        "--fluxstd_min_teff",
+        type=float,
+        default=3000.0,
+        help="Minimum acceptable teff_brutus in [K] (default: 3000.)",
+    )
+    parser.add_argument(
+        "--fluxstd_max_teff",
+        type=float,
+        default=10000.0,
+        help="Maximum acceptable teff_brutus in [K] (default: 10000.)",
+    )
+    parser.add_argument(
         "--fluxstd_flags_dist",
         action="store_true",
         help="Select fluxstd stars with flags_dist=False (default: False)",
@@ -213,28 +232,28 @@ def get_arguments():
         help="Number of FLUXSTD stars to be allocated. (default: 50)",
     )
 
-    # raster scan stars from gaiaDB
+    # fillers from gaiaDB
     parser.add_argument(
-        "--raster_scan",
+        "--filler",
         action="store_true",
-        help="Search stars for raster scan test (default: False)",
+        help="Search stars for filler targets (default: False)",
     )
     parser.add_argument(
-        "--raster_mag_max",
+        "--filler_mag_max",
         type=float,
         default=20.0,
-        help="maximum magnitude in Gaia G for raster scan stars (default: 20.)",
+        help="maximum magnitude in Gaia G for filler targets (default: 20.)",
     )
     parser.add_argument(
-        "--raster_mag_min",
+        "--filler_mag_min",
         type=float,
         default=12.0,
-        help="minimum magnitude in Gaia G for raster scan stars (default: 12)",
+        help="minimum magnitude in Gaia G for filler targets (default: 12)",
     )
     parser.add_argument(
-        "--raster_propid",
+        "--filler_propid",
         default="S23A-EN16",
-        help="Proposal-ID for raster scan stars (default: S23A-EN16)",
+        help="Proposal-ID for filler targets (default: S23A-EN16)",
     )
 
     # sky fibers
@@ -399,7 +418,7 @@ def load_ppp_results(infile: str):
         )
         df_tmp = pd.DataFrame(
             {
-                "obj_id": pseudo_obj_ids,
+                "obj_id": df_pointing["obj_id"],
                 "ra": df_pointing["ra_target"],
                 "dec": df_pointing["dec_target"],
                 "pmra": df_pointing["pmra_target"],
@@ -437,7 +456,7 @@ def load_ppp_results(infile: str):
             "dec_center": df_pointing["dec_center"][0],
             "pa_center": df_pointing["pa_center"][0],
             "sci": df_tmp,
-            "obj_id_original": df_pointing["obj_id"],
+            "obj_id": df_pointing["obj_id"],
             "obj_id_dummy": pseudo_obj_ids,
             # "observation_time": observation_time,
             "observation_time": df_pointing["obstime"],
@@ -468,15 +487,16 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
     design_filenames = []
     observation_times = []
     observation_dates_in_hst = []
-    if conf["sfa"]["cobra_coach_module_version"].lower == "none":
+
+    # convert toml "None" to None
+    if conf["sfa"]["cobra_coach_module_version"].lower() == "none":
         cobra_coach_module_version = None
     else:
         cobra_coach_module_version = conf["sfa"]["cobra_coach_module_version"]
-
-    if conf["sfa"]["dot_penalty"].lower == "none":
+    if conf["sfa"]["dot_penalty"].lower() == "none":
         dot_penalty = None
     else:
-        dot_penalty = conf["sfa"]["dot_penalty"]
+        dot_penalty = float(conf["sfa"]["dot_penalty"])
 
     design_ids = {}
     for i, pointing in enumerate(list_pointings):
@@ -504,6 +524,8 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
             mag_max=conf["sfa"]["fluxstd_mag_max"],
             mag_filter=conf["sfa"]["fluxstd_mag_filter"],
             min_prob_f_star=conf["sfa"]["fluxstd_min_prob_f_star"],
+            min_teff=conf["sfa"]["fluxstd_min_teff"],
+            max_teff=conf["sfa"]["fluxstd_max_teff"],
             write_csv=False,
         )
 
@@ -539,21 +561,21 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
                     )
             logger.info(f"Fetched target DataFrame: \n{df_sky}")
 
-        # get raster targets (optional)
-        raster = conf["sfa"]["raster"]
-        if conf["sfa"]["raster"] == True:
-            df_raster = dbutils.generate_targets_from_gaiadb(
+        # get filler targets (optional)
+        filler = conf["sfa"]["filler"]
+        if conf["sfa"]["filler"] == True:
+            df_filler = dbutils.generate_targets_from_gaiadb(
                 dict_pointings[pointing.lower()]["ra_center"],
                 dict_pointings[pointing.lower()]["dec_center"],
                 conf=conf,
                 band_select="phot_g_mean_mag",
-                mag_min=conf["sfa"]["raster_mag_min"],
-                mag_max=conf["sfa"]["raster_mag_max"],
+                mag_min=conf["sfa"]["filler_mag_min"],
+                mag_max=conf["sfa"]["filler_mag_max"],
                 good_astrometry=False,  # select bright stars which may have large astrometric errors.
                 write_csv=False,
             )
-            df_raster = dbutils.fixcols_gaiadb_to_targetdb(
-                df_raster,
+            df_filler = dbutils.fixcols_gaiadb_to_targetdb(
+                df_filler,
                 proposal_id="S23A-EN16",
                 target_type_id=1,  # SCIENCE
                 input_catalog_id=4,  # Gaia DR3
@@ -561,7 +583,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
                 priority=9999,
             )
         else:
-            df_raster = None
+            df_filler = None
 
         (
             vis,
@@ -581,14 +603,23 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
             conf["sfa"]["n_fluxstd"],
             conf["sfa"]["n_sky"],
             observation_time,
-            conf,
+            conf["netflow"]["use_gurobi"],
+            dict(conf["gurobi"]) if conf["netflow"]["use_gurobi"] else None,
             conf["sfa"]["pfs_instdata_dir"],
             conf["sfa"]["cobra_coach_dir"],
             None,
             conf["sfa"]["sm"],
             conf["sfa"]["dot_margin"],
             None,
-            df_raster=df_raster,
+            cobra_location_group=cobra_location_group,
+            min_sky_targets_per_location=min_sky_targets_per_location,
+            location_group_penalty=location_group_penalty,
+            cobra_instrument_region=cobra_instrument_region,
+            min_sky_targets_per_instrument_region=min_sky_targets_per_instrument_region,
+            instrument_region_penalty=instrument_region_penalty,
+            num_reserved_fibers=0,
+            fiber_non_allocation_cost=0.0,
+            df_filler=df_filler,
             force_exptime=conf["ppp"]["TEXP_NOMINAL"],
         )
 
@@ -603,7 +634,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
             tgt_class_dict,
             bench,
             arms=conf["sfa"]["arms"],
-            df_raster=df_raster,
+            df_filler=df_filler,
             is_no_target=is_no_target,
             design_name=dict_pointings[pointing.lower()]["pointing_name"],
         )
@@ -635,7 +666,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
 
         df_obj_id = pd.DataFrame(
             {
-                "obj_id_origial": dict_pointings[pointing.lower()]["obj_id_original"],
+                "obj_id": dict_pointings[pointing.lower()]["obj_id"],
                 "obj_id_dummy": dict_pointings[pointing.lower()]["obj_id_dummy"],
             }
         ).to_csv(
@@ -666,6 +697,8 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
     df_summary = pd.DataFrame(
         {
             "pointing": list_pointings,
+            "ra_center": [dict_pointings[p.lower()]["ra_center"] for p in list_pointings],
+            "dec_center": [dict_pointings[p.lower()]["dec_center"] for p in list_pointings],
             "design_filename": design_filenames,
             "observation_time": observation_times,
             "observation_date_in_hst": observation_dates_in_hst,
