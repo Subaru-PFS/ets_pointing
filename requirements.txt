@@ -3,17 +3,15 @@
 
 astroplan>=0.9.1
 astropy>=5.3
-ets-fiber-assigner @ git+https://github.com/Subaru-PFS/ets_fiberalloc.git
 -e git+https://github.com/Subaru-PFS/ets_pointing.git#egg=ets-pointing
 -e git+https://github.com/Subaru-PFS/ics_cobraCharmer.git#egg=ics-cobraCharmer-1af21d85a0af309cc57c939b78d625e884ece404
 ics-cobraOps @ git+https://github.com/Subaru-PFS/ics_cobraOps.git
--e git+https://github.com/Subaru-PFS/ics_fpsActor.git@u/monodera/tweak_sdss3tools_dep#egg=ics-fpsActor
 logzero>=1.7.0
 matplotlib>=3.8.0
 numpy<1.24.0
 pandas>=2.1.0
 pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git
-targetdb @ git+https://github.com/Subaru-PFS/ets_target_database.git
 -e git+https://github.com/Subaru-PFS/pfs_utils.git#egg=pfs-utils
-psycopg2>=2.9.8
+psycopg2-binary>=2.9.8
 pyyaml==5.3.1
+targetdb @ git+https://github.com/Subaru-PFS/ets_target_database.git

@@ -10,9 +10,9 @@ authors = [
     { name = "Masato Onodera", email = "monodera@naoj.org" },
 ]
 dependencies = [
-    "numpy<1.24.0",                                                                    # np.complex in cobracharmer
+    "numpy<1.24.0",           # np.complex in cobracharmer
     "pandas>=2.1.0",
-    "pyscopg2>=2.9.8",
+    "psycopg2-binary>=2.9.8",
     "astropy>=5.3",
     "logzero>=1.7.0",
     "matplotlib>=3.8.0",
