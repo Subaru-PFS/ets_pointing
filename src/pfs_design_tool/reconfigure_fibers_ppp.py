@@ -427,9 +427,9 @@ def load_ppp_results(infile: str):
                 "epoch": df_pointing["equinox_target"],
                 "tract": np.full(n_obj, 0),
                 "patch": np.full(n_obj, 0),
-                "catalog_id": np.full(n_obj, 9),  # HSC-SSP PDR3 Wide
+                "catalog_id": df_pointing["cat_id"],
                 "target_type_id": np.full(n_obj, 1),  # SCIENCE
-                "input_catalog_id": np.full(n_obj, 9),  # HSC-SSP PDR3 Wide
+                "input_catalog_id": df_pointing["cat_id"],
                 "ob_code": df_pointing["ob_code"],
                 "proposal_id": df_pointing["proposal_id"],
                 "priority": [
@@ -448,7 +448,6 @@ def load_ppp_results(infile: str):
                 "psf_flux_error_y": [None] * n_obj,
             },
         )
-        # print(df_tmp)
 
         dict_pointings[pointing.lower()] = {
             "pointing_name": pointing,
@@ -576,7 +575,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
             )
             df_filler = dbutils.fixcols_gaiadb_to_targetdb(
                 df_filler,
-                proposal_id="S23A-EN16",
+                proposal_id="S24A-EN16",
                 target_type_id=1,  # SCIENCE
                 input_catalog_id=4,  # Gaia DR3
                 exptime=900.0,
