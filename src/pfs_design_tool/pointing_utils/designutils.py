@@ -307,7 +307,10 @@ def generate_pfs_design(
                 ]
             if is_filler:
                 idx_filler = np.logical_and(
-                    df_filler["obj_id"] == np.int64(tgt[tidx].ID),
+                    df_filler["obj_id"].map(str)
+                    + "_"
+                    + df_filler["input_catalog_id"].map(str)
+                    == tgt[tidx].ID,
                     df_filler["target_type_id"]
                     == tgt_class_dict[tgt[tidx].targetclass],
                 )
