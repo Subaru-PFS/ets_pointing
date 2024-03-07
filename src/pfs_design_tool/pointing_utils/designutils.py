@@ -111,20 +111,31 @@ def generate_pfs_design(
             ra[idx_fiber] = tgt[tidx].ra
             dec[idx_fiber] = tgt[tidx].dec
             # netflow's Target class convert object IDs to string.
-            obj_id[idx_fiber] = np.int64(tgt[tidx].ID)
+            # obj_id[idx_fiber] = np.int64(tgt[tidx].ID)
+            obj_id[idx_fiber] = np.int64(tgt[tidx].ID.split("_")[0])
             pfi_nominal[idx_fiber] = [tp[tidx].real, tp[tidx].imag]
             target_type[idx_fiber] = tgt_class_dict[tgt[tidx].targetclass]
 
             idx_target = np.logical_and(
-                df_targets["obj_id"] == np.int64(tgt[tidx].ID),
+                # df_targets["obj_id"] == np.int64(tgt[tidx].ID),
+                df_targets["obj_id"].map(str)
+                + "_"
+                + df_targets["input_catalog_id"].map(str)
+                == tgt[tidx].ID,
                 df_targets["target_type_id"] == tgt_class_dict[tgt[tidx].targetclass],
             )
             idx_fluxstd = np.logical_and(
-                df_fluxstds["obj_id"] == np.int64(tgt[tidx].ID),
+                # df_fluxstds["obj_id"] == np.int64(tgt[tidx].ID),
+                df_fluxstds["obj_id"].map(str)
+                + "_"
+                + df_fluxstds["input_catalog_id"].map(str)
+                == tgt[tidx].ID,
                 df_fluxstds["target_type_id"] == tgt_class_dict[tgt[tidx].targetclass],
             )
             idx_sky = np.logical_and(
-                df_sky["obj_id"] == np.int64(tgt[tidx].ID),
+                # df_sky["obj_id"] == np.int64(tgt[tidx].ID),
+                df_sky["obj_id"].map(str) + "_" + df_sky["input_catalog_id"].map(str)
+                == tgt[tidx].ID,
                 df_sky["target_type_id"] == tgt_class_dict[tgt[tidx].targetclass],
             )
 
