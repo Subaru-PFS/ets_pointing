@@ -140,21 +140,42 @@ def generate_pfs_design(
                 # dict_of_flux_lists["total_flux"][i_fiber] = [
                 #     np.nan for _ in filter_band_names
                 # ]
+
                 dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
                     [
-                        df_targets[f"psf_flux_{band}"][idx_target].values[0]
-                        if df_targets[f"psf_flux_{band}"][idx_target].values[0]
-                        is not None
-                        else np.nan
+                        (
+                            df_targets[f"psf_flux_{band}"][idx_target].values[0]
+                            if (
+                                df_targets[f"psf_flux_{band}"][idx_target].values[0]
+                                is not None
+                            )
+                            and (
+                                df_targets[f"psf_flux_{band}"][idx_target].values[0]
+                                > 0.0
+                            )
+                            else np.nan
+                        )
                         for band in filter_band_names
                     ]
                 )
                 dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
                     [
-                        df_targets[f"psf_flux_error_{band}"][idx_target].values[0]
-                        if df_targets[f"psf_flux_error_{band}"][idx_target].values[0]
-                        is not None
-                        else np.nan
+                        (
+                            df_targets[f"psf_flux_error_{band}"][idx_target].values[0]
+                            if (
+                                df_targets[f"psf_flux_error_{band}"][idx_target].values[
+                                    0
+                                ]
+                                is not None
+                            )
+                            and (
+                                df_targets[f"psf_flux_error_{band}"][idx_target].values[
+                                    0
+                                ]
+                                > 0.0
+                            )
+                            else np.nan
+                        )
                         for band in filter_band_names
                     ]
                 )
