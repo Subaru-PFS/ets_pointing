@@ -279,6 +279,23 @@ def get_arguments():
         default=30000,
         help="Number of random (or randomly reduced) SKY fibers to be allocated. (default: 30000)",
     )
+    parser.add_argument(
+        "--filler_random",
+        action="store_true",
+        help="Assign fillers randomly (default: False)",
+    )
+    parser.add_argument(
+        "--reduce_fillers",
+        action="store_true",
+        help="Reduce the number of fillers randomly (default: False)",
+    )
+    parser.add_argument(
+        "--n_fillers_random",
+        type=int,
+        default=30000,
+        help="Number of random (or randomly reduced) fillers to be allocated. (default: 30000)",
+    )
+
 
     # instrument parameter files
     parser.add_argument(
@@ -563,7 +580,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
                     df_sky = df_sky.sample(
                         n_sky_target, ignore_index=True, random_state=1
                     )
-            logger.info(f"Fetched target DataFrame: \n{df_sky}")
+            logger.info(f"Fetched sky target DataFrame: \n{df_sky}")
 
         # get filler targets (optional)
         filler = conf["sfa"]["filler"]
@@ -586,6 +603,13 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
                 exptime=900.0,
                 priority=9999,
             )
+            if conf["sfa"]["reduce_fillers"]:
+                n_fillers = conf["sfa"]["n_fillers_random"]  # this value can be tuned
+                if len(df_filler) > n_fillers:
+                    df_filler = df_filler.sample(
+                        n_fillers, ignore_index=True, random_state=1
+                    )
+            logger.info(f"Fetched filler target DataFrame: \n{df_filler}")
         else:
             df_filler = None
 

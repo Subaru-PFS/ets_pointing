@@ -296,6 +296,22 @@ def get_arguments():
         default=30000,
         help="Number of random (or randomly reduced) SKY fibers to be allocated. (default: 30000)",
     )
+    parser.add_argument(
+        "--filler_random",
+        action="store_true",
+        help="Assign fillers randomly (default: False)",
+    )
+    parser.add_argument(
+        "--reduce_fillers",
+        action="store_true",
+        help="Reduce the number of fillers randomly (default: False)",
+    )
+    parser.add_argument(
+        "--n_fillers_random",
+        type=int,
+        default=30000,
+        help="Number of random (or randomly reduced) fillers to be allocated. (default: 30000)",
+    )
 
     # instrument parameter files
     parser.add_argument(
@@ -442,7 +458,7 @@ def main():
                                        ignore_index=True,
                                        random_state=1
                                        )
-        logger.info(f"Fetched target DataFrame: \n{df_sky}")
+        logger.info(f"Fetched sky target DataFrame: \n{df_sky}")
         # df_sky = dbutils.generate_skyobjects_from_targetdb(
         #    args.ra,
         #    args.dec,
@@ -472,13 +488,17 @@ def main():
             exptime=60.0,
             priority=9999,
         )
+        if args.reduce_fillers:
+            n_fillers = args.n_fillers_random 
+            if len(df_filler) > n_fillers:
+                df_filler = df_filler.sample(n_fillers,
+                                       ignore_index=True,
+                                       random_state=1
+                                       )
+        logger.info(f"Fetched fillers DataFrame: \n{df_filler}")
     else:
         df_filler = None
-
-    # print(df_filler)
-
-    # exit()
-
+       
     vis, tp, tel, tgt, tgt_class_dict, is_no_target, bench = nfutils.fiber_allocation(
         df_targets,
         df_fluxstds,
