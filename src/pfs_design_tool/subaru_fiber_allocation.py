@@ -166,6 +166,18 @@ def get_arguments():
         help="Disable the force_priority (default: False)",
     )
     parser.add_argument(
+        "--degrade_priority",
+        type=int,
+        default=0,
+        help="Degrade priority of all science targets (default: 0)",
+    )
+    parser.add_argument(
+        "--degrade_priority_proposal",
+        type=str,
+        default=None,
+        help="ProposalId for the priority degradation. If not specified, all proposals are degraded (default: None)",
+    )
+    parser.add_argument(
         "--skip_target",
         action="store_true",
         help="Skip science targets (default: False)",
@@ -414,6 +426,17 @@ def main():
         df_targets.priority[df_targets.priority == 3] = 6
         df_targets.priority[df_targets.priority == 4] = 3
         df_targets.priority[df_targets.priority < 1] = 7
+
+    ## FIXME: temporal workaround for S24B-QT907 targets ##
+    msk = (df_targets.proposal_id == 'S24B-QT907') * (df_targets.psf_flux_g > 1150)
+    df_targets = df_targets[~msk].reset_index()
+
+    # degrade priority of science targets (default: no degradation)
+    if args.degrade_priority_proposal == None:
+        df_targets.priority += args.degrade_priority
+    else:
+        df_targets.priority[df_targets.proposal_id == args.degrade_priority_proposal] += args.degrade_priority
+
 
     if args.skip_target:
         df_targets = df_targets[:0]
