@@ -77,8 +77,8 @@ sm = [1, 3]
 gfm = FiberIds(get_pfs_utils_path())
 
 
-def is_smx(pfsDesign, moduleIds=[1, 3]):
-    """isSmX"""
+def is_smx(pfsDesign, moduleIds=[1, 2, 3, 4]):
+    # isSmX
     isSmX = np.full(len(pfsDesign.fiberId), False)
     for x in moduleIds:
         cobrasForSmX = gfm.cobrasForSpectrograph(x)  # cobra index
@@ -90,7 +90,7 @@ def is_smx(pfsDesign, moduleIds=[1, 3]):
 
 
 def pfi2sky(pfsDesign, observation_time, epoch=2016.0):
-    """coordinate transformation utils"""
+    # coordinate transformation utils
     pmra = np.array([0.0 for _ in range(len(pfsDesign.ra))])
     pmdec = np.array([0.0 for _ in range(len(pfsDesign.ra))])
     parallax = np.array([1.0e-07 for _ in range(len(pfsDesign.ra))])
@@ -183,8 +183,8 @@ def sky2pfi_array(sky_x, sky_y, pfsDesign, observation_time, epoch=2016.0):
 
 
 def get_num_targets_in_patrol_region(bench, pfsDesign, gaia_info, cobra_ids_use):
-    """get number of targets in the patrol region"""
-    """ get all gaia sources """
+    # get number of targets in the patrol region
+    # get all gaia sources
     if gaia_info is not None:
         gaia_all_id = gaia_info[0]
         gaia_all_x = gaia_info[1]
@@ -194,7 +194,7 @@ def get_num_targets_in_patrol_region(bench, pfsDesign, gaia_info, cobra_ids_use)
         gaia_all_x = np.array([])
         gaia_all_y = np.array([])
 
-    """ get assigned gaia sources """
+    # get assigned gaia sources
     assigned_id = np.array(pfsDesign.objId, dtype="int64")
     assigned_x = np.array(pfsDesign.pfiNominal[:, 0])
     assigned_y = np.array(pfsDesign.pfiNominal[:, 1])
@@ -212,7 +212,7 @@ def get_num_targets_in_patrol_region(bench, pfsDesign, gaia_info, cobra_ids_use)
     gaia_assigned_in_fov_x = np.array(gaia_assigned_in_fov_x)
     gaia_assigned_in_fov_y = np.array(gaia_assigned_in_fov_y)
 
-    """ get assigned gaia sources in patrol area of interested SMs """
+    # get assigned gaia sources in patrol area of interested SMs
     flg = is_smx(pfsDesign, moduleIds=sm)
     assigned_id = assigned_id[flg]
     assigned_x = assigned_x[flg]
@@ -231,7 +231,7 @@ def get_num_targets_in_patrol_region(bench, pfsDesign, gaia_info, cobra_ids_use)
     gaia_assigned_in_sms_x = np.array(gaia_assigned_in_sms_x)
     gaia_assigned_in_sms_y = np.array(gaia_assigned_in_sms_y)
 
-    """ get all gaia sources in FoV """
+    # get all gaia sources in FoV
     gaia_all_in_fov_id = []
     gaia_all_in_fov_x = []
     gaia_all_in_fov_y = []
@@ -246,7 +246,7 @@ def get_num_targets_in_patrol_region(bench, pfsDesign, gaia_info, cobra_ids_use)
     gaia_all_in_fov_x = np.unique(np.array(gaia_all_in_fov_x))
     gaia_all_in_fov_y = np.unique(np.array(gaia_all_in_fov_y))
 
-    """ get all gaia sources in patrol area of interested SMs """
+    # get all gaia sources in patrol area of interested SMs 
     gaia_all_in_sms_id = []
     gaia_all_in_sms_x = []
     gaia_all_in_sms_y = []
@@ -325,7 +325,7 @@ class CheckDesign(object):
         return self.pfsDesign
 
     def configGeometry(self):
-        """get cobra+dots geometry"""
+        # get cobra+dots geometry
         sys.path.append(os.path.join(self.repoDir, "ics_fpsActor/python"))
         sys.path.append(os.path.join(self.repoDir, "spt_operational_database/python"))
         sys.path.append(os.path.join(self.repoDir, "ics_cobraCharmer/python"))
@@ -419,7 +419,7 @@ class CheckDesign(object):
 
             return cobraCoach, bench
 
-        """ load bench information """
+        # load bench information
         pfs_instdata_dir = os.path.join(self.repoDir, "pfs_instdata")
         cobra_coach_dir = "cobracoach"
         cobra_coach_module_version = None
@@ -431,7 +431,7 @@ class CheckDesign(object):
             sm,
             black_dot_radius_margin,
         )
-        """ get cobra+dots geometry """
+        # get cobra+dots geometry
         self.cobra_mpl_patches = []
         self.cobra_mpl_id = []
         for i, center in enumerate(self.bench.cobras.centers):
@@ -448,7 +448,7 @@ class CheckDesign(object):
             circle2 = Circle((center.real, center.imag), radius * self.dotMargin)
             self.dot2_mpl_patches.append(circle2)
 
-        """ getGaiaSources """
+        # getGaiaSources
         if self.gaiaCsv is not None:
             # self.getGaiaSources()
             self.gaia_info = None
@@ -460,7 +460,7 @@ class CheckDesign(object):
             self.y_gaia_bright = np.array([])
 
     def getGaiaSources(self):
-        """read Gaia sources"""
+        # read Gaia sources
         df = pd.read_csv(os.path.join(self.dataDir, self.gaiaCsv))
         gmag = np.array(df["phot_g_mean_mag"])
         msk = (gmag < self.gaia_gmag_max) * (gmag > self.gaia_gmag_min)
@@ -474,12 +474,13 @@ class CheckDesign(object):
         self.gaia_info = (id_gaia_bright, self.x_gaia_bright, self.y_gaia_bright)
 
     def check_statistics(self):
-        """check pfsDesign statistics"""
+        # check pfsDesign statistics
 
-        """ check target types """
+        # check target types 
         isSm1 = is_smx(self.pfsDesign, moduleIds=[1])
+        isSm2 = is_smx(self.pfsDesign, moduleIds=[2])
         isSm3 = is_smx(self.pfsDesign, moduleIds=[3])
-        # isSm13 = isSm1 + isSm3
+        isSm4 = is_smx(self.pfsDesign, moduleIds=[4])
         isSci = self.pfsDesign.targetType == TargetType.SCIENCE
         isFst = self.pfsDesign.targetType == TargetType.FLUXSTD
         isSky = self.pfsDesign.targetType == TargetType.SKY
@@ -516,6 +517,28 @@ class CheckDesign(object):
         print("=====================================")
         if len(isTgt[isTgt]) > 0:
             print(
+                "The number of MAIN       (SM2) : %4d"
+                % (len(self.pfsDesign[isTgt * isSm2]))
+            )
+        print(
+            "The number of SCIENCE    (SM2) : %4d"
+            % (len(self.pfsDesign[isSci * isSm2]))
+        )
+        print(
+            "The number of FLUXSTD    (SM2) : %4d"
+            % (len(self.pfsDesign[isFst * isSm2]))
+        )
+        print(
+            "The number of SKY        (SM2) : %4d"
+            % (len(self.pfsDesign[isSky * isSm2]))
+        )
+        print(
+            "The number of UNASSIGNED (SM2) : %4d"
+            % (len(self.pfsDesign[isUna * isSm2]))
+        )
+        print("=====================================")
+        if len(isTgt[isTgt]) > 0:
+            print(
                 "The number of MAIN       (SM3) : %4d"
                 % (len(self.pfsDesign[isTgt * isSm3]))
             )
@@ -537,7 +560,31 @@ class CheckDesign(object):
         )
         print("=====================================")
 
-        """ check number of guide stars """
+        if len(isTgt[isTgt]) > 0:
+            print(
+                "The number of MAIN       (SM4) : %4d"
+                % (len(self.pfsDesign[isTgt * isSm4]))
+            )
+        print(
+            "The number of SCIENCE    (SM4) : %4d"
+            % (len(self.pfsDesign[isSci * isSm4]))
+        )
+        print(
+            "The number of FLUXSTD    (SM4) : %4d"
+            % (len(self.pfsDesign[isFst * isSm4]))
+        )
+        print(
+            "The number of SKY        (SM4) : %4d"
+            % (len(self.pfsDesign[isSky * isSm4]))
+        )
+        print(
+            "The number of UNASSIGNED (SM4) : %4d"
+            % (len(self.pfsDesign[isUna * isSm4]))
+        )
+        print("=====================================")
+
+
+        # check number of guide stars
         num_gs = []
         for i in range(6):
             msk = self.gs.agId == i
@@ -545,7 +592,7 @@ class CheckDesign(object):
         print("The number of GuideStars : %s" % ("/".join(num_gs)))
         print("=====================================")
 
-        """ check bright targets (SM1) """
+        # check bright targets (SM1)
         flg = (isSci + isFst) * isSm1
         f = np.array(self.pfsDesign[flg].psfFlux)
         if len(f) > 0:
@@ -569,7 +616,31 @@ class CheckDesign(object):
         print("Y:", bright_center_pfi_y)
         print("=====================================")
 
-        """ check bright targets (SM3) """
+        # check bright targets (SM2)
+        flg = (isSci + isFst) * isSm2
+        f = np.array(self.pfsDesign[flg].psfFlux)
+        if len(f) > 0:
+            gmag = (
+                -2.5 * np.log10(f[:, 0] * 1e-09) + 8.9
+            )  # conversion from nJy to ABmag
+        else:
+            gmag = np.array([])
+        fid = self.pfsDesign[flg].fiberId
+        pos = self.pfsDesign[flg].pfiNominal
+        msk = (gmag < self.gaia_gmag_max) * (gmag > self.gaia_gmag_min)
+        bright_center_pfi_x = pos[msk].T[0]
+        bright_center_pfi_y = pos[msk].T[1]
+        print(
+            "The number of bright objects (%.1f<g<%.1f) (SM2): %d"
+            % (self.gaia_gmag_min, self.gaia_gmag_max, len(fid[msk]))
+        )
+        print("fiberId:", fid[msk])
+        print("gmag:", gmag[msk])
+        print("X:", bright_center_pfi_x)
+        print("Y:", bright_center_pfi_y)
+        print("=====================================")
+
+        # check bright targets (SM3)
         flg = (isSci + isFst) * isSm3
         f = np.array(self.pfsDesign[flg].psfFlux)
         if len(f) > 0:
@@ -585,6 +656,30 @@ class CheckDesign(object):
         bright_center_pfi_y = pos[msk].T[1]
         print(
             "The number of bright objects (%.1f<g<%.1f) (SM3): %d"
+            % (self.gaia_gmag_min, self.gaia_gmag_max, len(fid[msk]))
+        )
+        print("fiberId:", fid[msk])
+        print("gmag:", gmag[msk])
+        print("X:", bright_center_pfi_x)
+        print("Y:", bright_center_pfi_y)
+        print("=====================================")
+
+        # check bright targets (SM4)
+        flg = (isSci + isFst) * isSm4
+        f = np.array(self.pfsDesign[flg].psfFlux)
+        if len(f) > 0:
+            gmag = (
+                -2.5 * np.log10(f[:, 0] * 1e-09) + 8.9
+            )  # conversion from nJy to ABmag
+        else:
+            gmag = np.array([])
+        fid = self.pfsDesign[flg].fiberId
+        pos = self.pfsDesign[flg].pfiNominal
+        msk = (gmag < self.gaia_gmag_max) * (gmag > self.gaia_gmag_min)
+        bright_center_pfi_x = pos[msk].T[0]
+        bright_center_pfi_y = pos[msk].T[1]
+        print(
+            "The number of bright objects (%.1f<g<%.1f) (SM4): %d"
             % (self.gaia_gmag_min, self.gaia_gmag_max, len(fid[msk]))
         )
         print("fiberId:", fid[msk])
@@ -617,10 +712,11 @@ class CheckDesign(object):
         print("Bright Gaia source coverage: %.2f" % (gaia_completeness_in_sms_new))
         return gaia_completeness_in_fov_new, gaia_completeness_in_sms_new
 
-    def plot_pfi_fov(self, fig=None, axe=None):
+    def plot_pfi_fov_science(self, fig=None, axe=None):
         isSm1 = is_smx(self.pfsDesign, moduleIds=[1])
+        isSm2 = is_smx(self.pfsDesign, moduleIds=[2])
         isSm3 = is_smx(self.pfsDesign, moduleIds=[3])
-        isSm13 = isSm1 + isSm3
+        isSm4 = is_smx(self.pfsDesign, moduleIds=[4])
         isSci = self.pfsDesign.targetType == TargetType.SCIENCE
         isFst = self.pfsDesign.targetType == TargetType.FLUXSTD
         isSky = self.pfsDesign.targetType == TargetType.SKY
@@ -645,87 +741,65 @@ class CheckDesign(object):
         x = self.pfsDesign.pfiNominal[:, 0]
         y = self.pfsDesign.pfiNominal[:, 1]
 
-        """ plot SCIENCE & FLUXSTD & SKY """
+        # plot SCIENCE targets
         if len(isTgt[isTgt]) > 0:
             axe.scatter(
-                x[isTgt * isSm13],
-                y[isTgt * isSm13],
+                x[isTgt],
+                y[isTgt],
                 marker="o",
                 s=100,
                 facecolor="red",
                 edgecolor="k",
                 alpha=0.7,
                 zorder=3,
-                label=f"MAIN targets ({len(x[isTgt*isSm13])})",
+                label=f"MAIN targets ({len(x[isTgt])})",
             )
         axe.scatter(
             x[isSci * isSm1],
             y[isSci * isSm1],
             marker="o",
-            s=50,
+            s=30,
             facecolor="C0",
             edgecolor="k",
             alpha=0.7,
             zorder=2,
-            label=f"SCIENCE targets (SM1) ({len(x[isSci*isSm1])})",
+            label=f"SCIENCE (SM1) ({len(x[isSci*isSm1])})",
+        )
+        axe.scatter(
+            x[isSci * isSm2],
+            y[isSci * isSm2],
+            marker="s",
+            s=30,
+            facecolor="C0",
+            edgecolor="k",
+            alpha=0.7,
+            zorder=2,
+            label=f"SCIENCE (SM2) ({len(x[isSci*isSm2])})",
         )
         axe.scatter(
             x[isSci * isSm3],
             y[isSci * isSm3],
             marker="^",
+            s=30,
+            facecolor="C0",
+            edgecolor="k",
+            alpha=0.7,
+            zorder=2,
+            label=f"SCIENCE (SM3) ({len(x[isSci*isSm3])})",
+        )
+        axe.scatter(
+            x[isSci * isSm4],
+            y[isSci * isSm4],
+            marker="*",
             s=50,
             facecolor="C0",
             edgecolor="k",
             alpha=0.7,
             zorder=2,
-            label=f"SCIENCE targets (SM3) ({len(x[isSci*isSm3])})",
-        )
-        axe.scatter(
-            x[isFst * isSm1],
-            y[isFst * isSm1],
-            marker="o",
-            s=50,
-            facecolor="C1",
-            edgecolor="k",
-            alpha=0.7,
-            zorder=2,
-            label=f"FLXSTD targets ({len(x[isFst*isSm1])})",
-        )
-        axe.scatter(
-            x[isFst * isSm3],
-            y[isFst * isSm3],
-            marker="^",
-            s=50,
-            facecolor="C1",
-            edgecolor="k",
-            alpha=0.7,
-            zorder=2,
-            label=f"FLXSTD targets ({len(x[isFst*isSm3])})",
-        )
-        axe.scatter(
-            x[isSky * isSm1],
-            y[isSky * isSm1],
-            marker="o",
-            s=50,
-            facecolor="C2",
-            edgecolor="k",
-            alpha=0.7,
-            zorder=2,
-            label=f"SKY targets ({len(x[isSky*isSm1])})",
-        )
-        axe.scatter(
-            x[isSky * isSm3],
-            y[isSky * isSm3],
-            marker="^",
-            s=50,
-            facecolor="C2",
-            edgecolor="k",
-            alpha=0.7,
-            zorder=2,
-            label=f"SKY targets ({len(x[isSky*isSm3])})",
+            label=f"SCIENCE (SM4) ({len(x[isSci*isSm4])})",
         )
 
-        """ plot bright Gaia sources """
+        # plot bright Gaia sources
         axe.scatter(
             self.x_gaia_bright,
             self.y_gaia_bright,
@@ -739,7 +813,7 @@ class CheckDesign(object):
             label=f"All Gaia sources ({self.gaia_gmag_min}<g<{self.gaia_gmag_max} mag)",
         )
 
-        """ plot cobra patrol regions and dots """
+        # plot cobra patrol regions and dots
         p1 = PatchCollection(
             self.cobra_mpl_patches,
             facecolor="none",
@@ -767,14 +841,16 @@ class CheckDesign(object):
                 zorder=1,
             )
 
-        axe.legend(loc="upper left", fontsize=8)
+        axe.legend(loc="upper left", fontsize=6)
 
         # plt.savefig(f'./figures/test_{self.objId}_pfi.pdf', dpi=150, bbox_inches='tight')
         # plt.savefig(f'./figures/test_{self.objId}_pfi.png', dpi=150, bbox_inches='tight')
 
-    def plot_pfi_fov_only_calibs(self, fig=None, axe=None):
+    def plot_pfi_fov_calibs(self, fig=None, axe=None):
         isSm1 = is_smx(self.pfsDesign, moduleIds=[1])
+        isSm2 = is_smx(self.pfsDesign, moduleIds=[2])
         isSm3 = is_smx(self.pfsDesign, moduleIds=[3])
+        isSm4 = is_smx(self.pfsDesign, moduleIds=[4])
         isFst = self.pfsDesign.targetType == TargetType.FLUXSTD
         isSky = self.pfsDesign.targetType == TargetType.SKY
 
@@ -792,53 +868,97 @@ class CheckDesign(object):
         x = self.pfsDesign.pfiNominal[:, 0]
         y = self.pfsDesign.pfiNominal[:, 1]
 
-        """ plot FLUXSTD & SKY """
+        # plot FLUXSTD & SKY
         axe.scatter(
             x[isFst * isSm1],
             y[isFst * isSm1],
             marker="o",
-            s=50,
+            s=30,
             facecolor="C1",
             edgecolor="k",
             alpha=0.7,
             zorder=2,
-            label=f"FLXSTD targets ({len(x[isFst*isSm1])})",
+            label=f"FLXSTD (SM1) ({len(x[isFst*isSm1])})",
+        )
+        axe.scatter(
+            x[isFst * isSm2],
+            y[isFst * isSm2],
+            marker="s",
+            s=30,
+            facecolor="C1",
+            edgecolor="k",
+            alpha=0.7,
+            zorder=2,
+            label=f"FLXSTD (SM2) ({len(x[isFst*isSm2])})",
         )
         axe.scatter(
             x[isFst * isSm3],
             y[isFst * isSm3],
             marker="^",
+            s=30,
+            facecolor="C1",
+            edgecolor="k",
+            alpha=0.7,
+            zorder=2,
+            label=f"FLXSTD (SM3) ({len(x[isFst*isSm3])})",
+        )
+        axe.scatter(
+            x[isFst * isSm4],
+            y[isFst * isSm4],
+            marker="*",
             s=50,
             facecolor="C1",
             edgecolor="k",
             alpha=0.7,
             zorder=2,
-            label=f"FLXSTD targets ({len(x[isFst*isSm3])})",
+            label=f"FLXSTD (SM4) ({len(x[isFst*isSm4])})",
         )
         axe.scatter(
             x[isSky * isSm1],
             y[isSky * isSm1],
             marker="o",
-            s=50,
+            s=30,
             facecolor="C2",
             edgecolor="k",
             alpha=0.7,
             zorder=2,
-            label=f"SKY targets ({len(x[isSky*isSm1])})",
+            label=f"SKY (SM1) ({len(x[isSky*isSm1])})",
+        )
+        axe.scatter(
+            x[isSky * isSm2],
+            y[isSky * isSm2],
+            marker="s",
+            s=30,
+            facecolor="C2",
+            edgecolor="k",
+            alpha=0.7,
+            zorder=2,
+            label=f"SKY (SM2) ({len(x[isSky*isSm2])})",
         )
         axe.scatter(
             x[isSky * isSm3],
             y[isSky * isSm3],
             marker="^",
+            s=30,
+            facecolor="C2",
+            edgecolor="k",
+            alpha=0.7,
+            zorder=2,
+            label=f"SKY (SM3) ({len(x[isSky*isSm3])})",
+        )
+        axe.scatter(
+            x[isSky * isSm4],
+            y[isSky * isSm4],
+            marker="*",
             s=50,
             facecolor="C2",
             edgecolor="k",
             alpha=0.7,
             zorder=2,
-            label=f"SKY targets ({len(x[isSky*isSm3])})",
+            label=f"SKY (SM4) ({len(x[isSky*isSm4])})",
         )
 
-        """ plot cobra patrol regions and dots """
+        # plot cobra patrol regions and dots
         p1 = PatchCollection(
             self.cobra_mpl_patches,
             facecolor="none",
@@ -856,12 +976,13 @@ class CheckDesign(object):
         )
         axe.add_collection(p2)
 
-        axe.legend(loc="upper left", fontsize=8)
+        axe.legend(loc="upper left", ncol=2, fontsize=6)
 
     def plot_mag_hist(self, fig=None, axe=None):
         isSm1 = is_smx(self.pfsDesign, moduleIds=[1])
+        isSm2 = is_smx(self.pfsDesign, moduleIds=[2])
         isSm3 = is_smx(self.pfsDesign, moduleIds=[3])
-        isSm13 = isSm1 + isSm3
+        isSm4 = is_smx(self.pfsDesign, moduleIds=[4])
         isSci = self.pfsDesign.targetType == TargetType.SCIENCE
         isFst = self.pfsDesign.targetType == TargetType.FLUXSTD
         try:
@@ -880,8 +1001,8 @@ class CheckDesign(object):
             magnitude[i] = m
             # mag=np.append(mag, m)
 
-        xmin = 11.0
-        xmax = 18.0
+        xmin = 12.5
+        xmax = 20.0
         if fig is None:
             fig = plt.figure(figsize=(6, 6))
         if axe is None:
@@ -890,10 +1011,11 @@ class CheckDesign(object):
         axe.set_xlabel("Magnitude (AB)")
         axe.set_ylabel("Number ")
         axe.grid(color="gray", linestyle="dotted", linewidth=1)
-        """ plot SCIENCE & FLUXSTD & SKY """
+
+        # plot SCIENCE & FLUXSTD & SKY
         if len(isTgt[isTgt]) > 0:
             axe.hist(
-                magnitude[isTgt * isSm13],
+                magnitude[isTgt],
                 histtype="step",
                 bins=20,
                 range=(xmin, xmax),
@@ -901,7 +1023,7 @@ class CheckDesign(object):
                 ls="solid",
                 lw=2,
                 zorder=1,
-                label="MAIN (SM1/SM3)",
+                label="MAIN",
             )
         axe.hist(
             magnitude[isSci * isSm1],
@@ -915,29 +1037,51 @@ class CheckDesign(object):
             label="SCIENCE (SM1)",
         )
         axe.hist(
-            magnitude[isSci * isSm3],
-            histtype="step",
-            bins=20,
-            range=(xmin, xmax),
-            color="C0",
-            ls="dashed",
-            lw=2,
-            zorder=2,
-            label="SCIENCE (SM3)",
-        )
-        axe.hist(
-            magnitude[isFst * isSm1],
+            magnitude[isSci * isSm2],
             histtype="step",
             bins=20,
             range=(xmin, xmax),
             color="C1",
             ls="solid",
             lw=2,
+            zorder=2,
+            label="SCIENCE (SM2)",
+        )
+        axe.hist(
+            magnitude[isSci * isSm3],
+            histtype="step",
+            bins=20,
+            range=(xmin, xmax),
+            color="C2",
+            ls="solid",
+            lw=2,
+            zorder=2,
+            label="SCIENCE (SM3)",
+        )
+        axe.hist(
+            magnitude[isSci * isSm4],
+            histtype="step",
+            bins=20,
+            range=(xmin, xmax),
+            color="C3",
+            ls="solid",
+            lw=2,
+            zorder=2,
+            label="SCIENCE (SM4)",
+        )
+        axe.hist(
+            magnitude[isFst * isSm1],
+            histtype="step",
+            bins=20,
+            range=(xmin, xmax),
+            color="C0",
+            ls="dashed",
+            lw=2,
             zorder=3,
             label="FLUXSTD (SM1)",
         )
         axe.hist(
-            magnitude[isFst * isSm3],
+            magnitude[isFst * isSm2],
             histtype="step",
             bins=20,
             range=(xmin, xmax),
@@ -945,20 +1089,43 @@ class CheckDesign(object):
             ls="dashed",
             lw=2,
             zorder=3,
+            label="FLUXSTD (SM2)",
+        )
+        axe.hist(
+            magnitude[isFst * isSm3],
+            histtype="step",
+            bins=20,
+            range=(xmin, xmax),
+            color="C2",
+            ls="dashed",
+            lw=2,
+            zorder=3,
             label="FLUXSTD (SM3)",
         )
+        axe.hist(
+            magnitude[isFst * isSm4],
+            histtype="step",
+            bins=20,
+            range=(xmin, xmax),
+            color="C3",
+            ls="dashed",
+            lw=2,
+            zorder=3,
+            label="FLUXSTD (SM4)",
+        )
 
-        axe.legend(loc="upper left", fontsize=10)
+        axe.legend(loc="upper left", ncol=2, fontsize=8)
 
     def plot_prob_f_star(self, fig=None, axe=None):
-        """get objId of FLUXSTD"""
+        # get objId of FLUXSTD
         isSm1 = is_smx(self.pfsDesign, moduleIds=[1])
+        isSm2 = is_smx(self.pfsDesign, moduleIds=[2])
         isSm3 = is_smx(self.pfsDesign, moduleIds=[3])
-        isSm13 = isSm1 + isSm3
+        isSm4 = is_smx(self.pfsDesign, moduleIds=[4])
         isFst = self.pfsDesign.targetType == TargetType.FLUXSTD
-        objId_fluxstd = self.pfsDesign.objId[isFst * isSm13]
+        objId_fluxstd = self.pfsDesign.objId[isFst]
 
-        """ get prob_f_star """
+        # get prob_f_star
         prob_f_star = None
         if self.fluxstdCsv is not None:
             df = pd.read_csv(os.path.join(self.dataDir, self.fluxstdCsv))
@@ -969,7 +1136,7 @@ class CheckDesign(object):
                 for oid2, prob in zip(objId_all, prob_f_star_all):
                     if int(oid1) == int(oid2):
                         prob_f_star[i] = prob
-        """ plot histogram """
+        # plot histogram
         if fig is None:
             fig = plt.figure(figsize=(4, 4))
         if axe is None:
@@ -983,14 +1150,15 @@ class CheckDesign(object):
             axe.hist(prob_f_star, bins=10, color="C1")
 
     def plot_teff_star(self, fig=None, axe=None):
-        """get objId of FLUXSTD"""
+        # get objId of FLUXSTD
         isSm1 = is_smx(self.pfsDesign, moduleIds=[1])
+        isSm2 = is_smx(self.pfsDesign, moduleIds=[2])
         isSm3 = is_smx(self.pfsDesign, moduleIds=[3])
-        isSm13 = isSm1 + isSm3
+        isSm4 = is_smx(self.pfsDesign, moduleIds=[4])
         isFst = self.pfsDesign.targetType == TargetType.FLUXSTD
-        objId_fluxstd = self.pfsDesign.objId[isFst * isSm13]
+        objId_fluxstd = self.pfsDesign.objId[isFst]
 
-        """ get Teff """
+        # get Teff
         teff_star = None
         if self.fluxstdCsv is not None:
             df = pd.read_csv(os.path.join(self.dataDir, self.fluxstdCsv))
@@ -1002,7 +1170,7 @@ class CheckDesign(object):
                     if int(oid1) == int(oid2):
                         teff_star[i] = teff
 
-        """ plot histogram """
+        # plot histogram
         if fig is None:
             fig = plt.figure(figsize=(4, 4))
         if axe is None:
@@ -1022,8 +1190,8 @@ class CheckDesign(object):
         ax4 = fig.add_subplot(224)
 
         self.check_statistics()
-        self.plot_pfi_fov(fig=fig, axe=ax1)
-        self.plot_pfi_fov_only_calibs(fig=fig, axe=ax2)
+        self.plot_pfi_fov_science(fig=fig, axe=ax1)
+        self.plot_pfi_fov_calibs(fig=fig, axe=ax2)
         self.plot_mag_hist(fig=fig, axe=ax3)
         try:
             self.plot_teff_star(fig=fig, axe=ax4)
