@@ -727,6 +727,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
             "pointing": list_pointings,
             "ra_center": [dict_pointings[p.lower()]["ra_center"] for p in list_pointings],
             "dec_center": [dict_pointings[p.lower()]["dec_center"] for p in list_pointings],
+            "pa_center": [dict_pointings[p.lower()]["pa_center"] for p in list_pointings],
             "design_filename": design_filenames,
             "observation_time": observation_times,
             "observation_date_in_hst": observation_dates_in_hst,
