@@ -837,7 +837,7 @@ class CheckDesign(object):
                 center[1],
                 f"{self.cobra_mpl_id[i]}",
                 color="gray",
-                fontsize=5,
+                fontsize=7,
                 zorder=1,
             )
 
