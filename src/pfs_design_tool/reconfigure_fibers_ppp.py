@@ -29,6 +29,7 @@ cobra_instrument_region = None
 min_sky_targets_per_instrument_region = None
 instrument_region_penalty = None
 
+
 def get_arguments():
     parser = argparse.ArgumentParser()
 
@@ -295,7 +296,6 @@ def get_arguments():
         default=30000,
         help="Number of random (or randomly reduced) fillers to be allocated. (default: 30000)",
     )
-
 
     # instrument parameter files
     parser.add_argument(
@@ -650,6 +650,12 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
             df_filler=df_filler,
             force_exptime=conf["ppp"]["TEXP_NOMINAL"],
         )
+        ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
+        if "PPC_L" in ppc_code:
+            arms_ = "brn"
+        elif "PPC_M" in ppc_code:
+            arms_ = "bmn"
+        logger.info(f"PPC_code = {ppc_code}; the arms in use are {arms_}.")
 
         design = designutils.generate_pfs_design(
             df_sci,
@@ -725,9 +731,15 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
     df_summary = pd.DataFrame(
         {
             "pointing": list_pointings,
-            "ra_center": [dict_pointings[p.lower()]["ra_center"] for p in list_pointings],
-            "dec_center": [dict_pointings[p.lower()]["dec_center"] for p in list_pointings],
-            "pa_center": [dict_pointings[p.lower()]["pa_center"] for p in list_pointings],
+            "ra_center": [
+                dict_pointings[p.lower()]["ra_center"] for p in list_pointings
+            ],
+            "dec_center": [
+                dict_pointings[p.lower()]["dec_center"] for p in list_pointings
+            ],
+            "pa_center": [
+                dict_pointings[p.lower()]["pa_center"] for p in list_pointings
+            ],
             "design_filename": design_filenames,
             "observation_time": observation_times,
             "observation_date_in_hst": observation_dates_in_hst,
