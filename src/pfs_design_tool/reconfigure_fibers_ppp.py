@@ -13,6 +13,9 @@ from astropy.utils import iers
 from IPython.display import clear_output
 from logzero import logger
 from pfs.datamodel import PfsDesign, TargetType
+from multiprocessing import Pool
+from functools import partial
+from itertools import chain
 
 from .pointing_utils import dbutils, designutils, nfutils
 
@@ -489,18 +492,9 @@ def load_ppp_results(infile: str):
     return pointings, dict_pointings
 
 
-def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=False):
-    try:
-        list_pointings, dict_pointings = load_ppp_results(os.path.join(workDir, infile))
-    except FileNotFoundError:
-        list_pointings, dict_pointings = load_ppp_results(
-            os.path.join(workDir, conf["ppp"]["outputDir"], infile)
-        )
-
-    # in_design, df_sci, df_std, df_sky = load_input_design(
-    #     args.design_id, indir=args.design_indir, exptime=args.exptime
-    # )
-
+def reconfigure_multiprocessing(
+    list_pointings, dict_pointings, conf, workDir=".", clearOutput=False
+):
     obstime0 = Time("2023-06-15T10:00:00")
     # obstime0 = Time("2023-07-01T00:00:00.000")  # UTC
     d_obstime = 20 * u.min
@@ -650,6 +644,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
             df_filler=df_filler,
             force_exptime=conf["ppp"]["TEXP_NOMINAL"],
         )
+
         ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
         if "PPC_L" in ppc_code:
             arms_ = "brn"
@@ -667,7 +662,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
             tgt,
             tgt_class_dict,
             bench,
-            arms=conf["sfa"]["arms"],
+            arms=arms_,
             df_filler=df_filler,
             is_no_target=is_no_target,
             design_name=dict_pointings[pointing.lower()]["pointing_name"],
@@ -727,6 +722,92 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
         )
         logger.info("Number of AG stars: {:}".format(len(guidestars.objId)))
         logger.info(f"Observation Time: {observation_time}")
+    return (
+        list_pointings,
+        design_filenames,
+        design_ids,
+        observation_times,
+        observation_dates_in_hst,
+    )
+
+
+def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=False):
+    try:
+        list_pointings, dict_pointings = load_ppp_results(os.path.join(workDir, infile))
+    except FileNotFoundError:
+        list_pointings, dict_pointings = load_ppp_results(
+            os.path.join(workDir, conf["ppp"]["outputDir"], infile)
+        )
+
+    # in_design, df_sci, df_std, df_sky = load_input_design(
+    #     args.design_id, indir=args.design_indir, exptime=args.exptime
+    # )
+    multiPro = conf["sfa"]["multiprocessing"]
+
+    if multiPro:
+        logger.info("[SFA] Multiprocessing is turned on.")
+        with Pool(4) as p:
+            output_p = p.map(
+                partial(
+                    reconfigure_multiprocessing,
+                    dict_pointings=dict_pointings,
+                    conf=conf,
+                    workDir=workDir,
+                    clearOutput=clearOutput,
+                ),
+                np.array_split(list_pointings, 4),
+            )
+
+        list_pointings = list(
+            chain.from_iterable(
+                [
+                    list(output_tem[0])
+                    for output_tem in output_p
+                    if len(output_tem[0]) != 0
+                ]
+            )
+        )
+        design_filenames = list(
+            chain.from_iterable(
+                [output_tem[1] for output_tem in output_p if len(output_tem[0]) != 0]
+            )
+        )
+        design_ids_ = [
+            output_tem[2] for output_tem in output_p if len(output_tem[0]) != 0
+        ]
+        observation_times = list(
+            chain.from_iterable(
+                [output_tem[3] for output_tem in output_p if len(output_tem[0]) != 0]
+            )
+        )
+        observation_dates_in_hst = list(
+            chain.from_iterable(
+                [output_tem[4] for output_tem in output_p if len(output_tem[0]) != 0]
+            )
+        )
+
+        design_ids = design_ids_[0]
+        for tt in design_ids_:
+            design_ids.update(tt)
+
+    else:
+        (
+            list_pointings,
+            design_filenames,
+            design_ids,
+            observation_times,
+            observation_dates_in_hst,
+        ) = reconfigure_multiprocessing(
+            list_pointings, dict_pointings, conf, workDir, clearOutput
+        )
+
+    print(
+        list_pointings,
+        design_filenames,
+        design_ids,
+        observation_times,
+        observation_dates_in_hst,
+    )
 
     df_summary = pd.DataFrame(
         {
