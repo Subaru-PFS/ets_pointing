@@ -111,20 +111,31 @@ def generate_pfs_design(
             ra[idx_fiber] = tgt[tidx].ra
             dec[idx_fiber] = tgt[tidx].dec
             # netflow's Target class convert object IDs to string.
-            obj_id[idx_fiber] = np.int64(tgt[tidx].ID)
+            # obj_id[idx_fiber] = np.int64(tgt[tidx].ID)
+            obj_id[idx_fiber] = np.int64(tgt[tidx].ID.split("_")[0])
             pfi_nominal[idx_fiber] = [tp[tidx].real, tp[tidx].imag]
             target_type[idx_fiber] = tgt_class_dict[tgt[tidx].targetclass]
 
             idx_target = np.logical_and(
-                df_targets["obj_id"] == np.int64(tgt[tidx].ID),
+                # df_targets["obj_id"] == np.int64(tgt[tidx].ID),
+                df_targets["obj_id"].map(str)
+                + "_"
+                + df_targets["input_catalog_id"].map(str)
+                == tgt[tidx].ID,
                 df_targets["target_type_id"] == tgt_class_dict[tgt[tidx].targetclass],
             )
             idx_fluxstd = np.logical_and(
-                df_fluxstds["obj_id"] == np.int64(tgt[tidx].ID),
+                # df_fluxstds["obj_id"] == np.int64(tgt[tidx].ID),
+                df_fluxstds["obj_id"].map(str)
+                + "_"
+                + df_fluxstds["input_catalog_id"].map(str)
+                == tgt[tidx].ID,
                 df_fluxstds["target_type_id"] == tgt_class_dict[tgt[tidx].targetclass],
             )
             idx_sky = np.logical_and(
-                df_sky["obj_id"] == np.int64(tgt[tidx].ID),
+                # df_sky["obj_id"] == np.int64(tgt[tidx].ID),
+                df_sky["obj_id"].map(str) + "_" + df_sky["input_catalog_id"].map(str)
+                == tgt[tidx].ID,
                 df_sky["target_type_id"] == tgt_class_dict[tgt[tidx].targetclass],
             )
 
@@ -140,21 +151,42 @@ def generate_pfs_design(
                 # dict_of_flux_lists["total_flux"][i_fiber] = [
                 #     np.nan for _ in filter_band_names
                 # ]
+
                 dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
                     [
-                        df_targets[f"psf_flux_{band}"][idx_target].values[0]
-                        if df_targets[f"psf_flux_{band}"][idx_target].values[0]
-                        is not None
-                        else np.nan
+                        (
+                            df_targets[f"psf_flux_{band}"][idx_target].values[0]
+                            if (
+                                df_targets[f"psf_flux_{band}"][idx_target].values[0]
+                                is not None
+                            )
+                            and (
+                                df_targets[f"psf_flux_{band}"][idx_target].values[0]
+                                > 0.0
+                            )
+                            else np.nan
+                        )
                         for band in filter_band_names
                     ]
                 )
                 dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
                     [
-                        df_targets[f"psf_flux_error_{band}"][idx_target].values[0]
-                        if df_targets[f"psf_flux_error_{band}"][idx_target].values[0]
-                        is not None
-                        else np.nan
+                        (
+                            df_targets[f"psf_flux_error_{band}"][idx_target].values[0]
+                            if (
+                                df_targets[f"psf_flux_error_{band}"][idx_target].values[
+                                    0
+                                ]
+                                is not None
+                            )
+                            and (
+                                df_targets[f"psf_flux_error_{band}"][idx_target].values[
+                                    0
+                                ]
+                                > 0.0
+                            )
+                            else np.nan
+                        )
                         for band in filter_band_names
                     ]
                 )
@@ -275,7 +307,10 @@ def generate_pfs_design(
                 ]
             if is_filler:
                 idx_filler = np.logical_and(
-                    df_filler["obj_id"] == np.int64(tgt[tidx].ID),
+                    df_filler["obj_id"].map(str)
+                    + "_"
+                    + df_filler["input_catalog_id"].map(str)
+                    == tgt[tidx].ID,
                     df_filler["target_type_id"]
                     == tgt_class_dict[tgt[tidx].targetclass],
                 )
@@ -395,6 +430,7 @@ def generate_guidestars_from_gaiadb(
     search_radius=None,
     # gaiadb_epoch=2015.0,
     gaiadb_input_catalog_id=4,
+    guide_star_id_exclude=[],
 ):
     # Get ra, dec and position angle from input arguments
     ra_tel_deg, dec_tel_deg, pa_deg = ra, dec, pa
@@ -445,6 +481,11 @@ def generate_guidestars_from_gaiadb(
     conn = connect_subaru_gaiadb(conf)
     cur = conn.cursor()
 
+    sqlWhere=""
+    for gsId in guide_star_id_exclude:
+        sqlWhere+=f"AND source_id NOT EQUAL {gsId}"
+
+
     query_string = f"""SELECT source_id,ra,dec,parallax,pmra,pmdec,ref_epoch,phot_g_mean_mag,bp_rp
     FROM gaia3
     WHERE q3c_radial_query(ra, dec, {ra_tel_deg}, {dec_tel_deg}, {search_radius})
@@ -453,7 +494,7 @@ def generate_guidestars_from_gaiadb(
     AND {coldict['parallax']} IS NOT NULL
     AND {coldict['parallax']} >= 0
     AND astrometric_excess_noise_sig < 2.0
-    AND {coldict['mag']} BETWEEN {0.0} AND {guidestar_neighbor_mag_min}
+    AND {coldict['mag']} BETWEEN {0.0} AND {guidestar_neighbor_mag_min} {sqlWhere}
     ;
     """
     # print(query_string)

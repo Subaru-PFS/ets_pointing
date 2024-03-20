@@ -128,6 +128,9 @@ def getBench(
 
 
 def register_objects(df, target_class=None, force_priority=None, force_exptime=None):
+
+    df["netflow_id"] = df["obj_id"].map(str) + "_" + df["input_catalog_id"].map(str)
+
     if target_class == "sci":
         res = []
 
@@ -144,7 +147,8 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
 
             res.append(
                 nf.ScienceTarget(
-                    df["obj_id"][i],
+                    # df["obj_id"][i],
+                    df["netflow_id"][i],
                     df["ra"][i],
                     df["dec"][i],
                     exptime,
@@ -163,7 +167,8 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
         # print(min(cal_penalty), max(cal_penalty))
         res = [
             nf.CalibTarget(
-                df["obj_id"][i],
+                # df["obj_id"][i],
+                df["netflow_id"][i],
                 df["ra"][i],
                 df["dec"][i],
                 target_class,
@@ -178,7 +183,8 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
     elif target_class == "sky":
         res = [
             nf.CalibTarget(
-                df["obj_id"][i],
+                # df["obj_id"][i],
+                df["netflow_id"][i],
                 df["ra"][i],
                 df["dec"][i],
                 target_class,

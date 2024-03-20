@@ -14,9 +14,7 @@ import os
 
 import numpy as np
 import pandas as pd
-import pointing_utils.dbutils as dbutils
-import pointing_utils.designutils as designutils
-import pointing_utils.nfutils as nfutils
+from pfs_design_tool.pointing_utils import dbutils, designutils, nfutils
 import toml
 from astropy.time import Time
 from astropy.utils import iers
@@ -168,6 +166,18 @@ def get_arguments():
         help="Disable the force_priority (default: False)",
     )
     parser.add_argument(
+        "--degrade_priority",
+        type=int,
+        default=0,
+        help="Degrade priority of all science targets (default: 0)",
+    )
+    parser.add_argument(
+        "--degrade_priority_proposal",
+        type=str,
+        default=None,
+        help="ProposalId for the priority degradation. If not specified, all proposals are degraded (default: None)",
+    )
+    parser.add_argument(
         "--skip_target",
         action="store_true",
         help="Skip science targets (default: False)",
@@ -298,6 +308,22 @@ def get_arguments():
         default=30000,
         help="Number of random (or randomly reduced) SKY fibers to be allocated. (default: 30000)",
     )
+    parser.add_argument(
+        "--filler_random",
+        action="store_true",
+        help="Assign fillers randomly (default: False)",
+    )
+    parser.add_argument(
+        "--reduce_fillers",
+        action="store_true",
+        help="Reduce the number of fillers randomly (default: False)",
+    )
+    parser.add_argument(
+        "--n_fillers_random",
+        type=int,
+        default=30000,
+        help="Number of random (or randomly reduced) fillers to be allocated. (default: 30000)",
+    )
 
     # instrument parameter files
     parser.add_argument(
@@ -344,6 +370,14 @@ def get_arguments():
         type=str,
         default=None,
         help="Input proposal IDs for targets (default: None)",
+    )
+
+    parser.add_argument(
+        "--guide_star_id_exclude",
+        nargs="+",
+        type=int,
+        default=None,
+        help="guide star ID to be excluded (default: None)",
     )
 
     args = parser.parse_args()
@@ -401,6 +435,17 @@ def main():
         df_targets.priority[df_targets.priority == 4] = 3
         df_targets.priority[df_targets.priority < 1] = 7
 
+    ## FIXME: temporal workaround for S24B-QT907 targets ##
+    msk = (df_targets.proposal_id == 'S24B-QT907') * (df_targets.psf_flux_g > 1150)
+    df_targets = df_targets[~msk].reset_index()
+
+    # degrade priority of science targets (default: no degradation)
+    if args.degrade_priority_proposal == None:
+        df_targets.priority += args.degrade_priority
+    else:
+        df_targets.priority[df_targets.proposal_id == args.degrade_priority_proposal] += args.degrade_priority
+
+
     if args.skip_target:
         df_targets = df_targets[:0]
     df_fluxstds = dbutils.generate_fluxstds_from_targetdb(
@@ -444,7 +489,7 @@ def main():
                                        ignore_index=True,
                                        random_state=1
                                        )
-        logger.info(f"Fetched target DataFrame: \n{df_sky}")
+        logger.info(f"Fetched sky target DataFrame: \n{df_sky}")
         # df_sky = dbutils.generate_skyobjects_from_targetdb(
         #    args.ra,
         #    args.dec,
@@ -474,13 +519,17 @@ def main():
             exptime=60.0,
             priority=9999,
         )
+        if args.reduce_fillers:
+            n_fillers = args.n_fillers_random 
+            if len(df_filler) > n_fillers:
+                df_filler = df_filler.sample(n_fillers,
+                                       ignore_index=True,
+                                       random_state=1
+                                       )
+        logger.info(f"Fetched fillers DataFrame: \n{df_filler}")
     else:
         df_filler = None
-
-    # print(df_filler)
-
-    # exit()
-
+       
     vis, tp, tel, tgt, tgt_class_dict, is_no_target, bench = nfutils.fiber_allocation(
         df_targets,
         df_fluxstds,
@@ -530,6 +579,10 @@ def main():
         is_no_target=is_no_target,
         design_name=args.design_name,
     )
+    if args.guide_star_id_exclude is None:
+        guide_star_id_exclude = []
+    else:
+        guide_star_id_exclude = args.guide_star_id_exclude
     guidestars = designutils.generate_guidestars_from_gaiadb(
         args.ra,
         args.dec,
@@ -543,6 +596,7 @@ def main():
         guidestar_minsep_deg=args.guidestar_minsep_deg,
         # gaiadb_epoch=2015.0,
         # gaiadb_input_catalog_id=2,
+        guide_star_id_exclude=guide_star_id_exclude,
     )
 
     design.guideStars = guidestars

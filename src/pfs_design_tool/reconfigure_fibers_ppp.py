@@ -13,6 +13,9 @@ from astropy.utils import iers
 from IPython.display import clear_output
 from logzero import logger
 from pfs.datamodel import PfsDesign, TargetType
+from multiprocessing import Pool
+from functools import partial
+from itertools import chain
 
 from .pointing_utils import dbutils, designutils, nfutils
 
@@ -28,6 +31,7 @@ location_group_penalty = None
 cobra_instrument_region = None
 min_sky_targets_per_instrument_region = None
 instrument_region_penalty = None
+
 
 def get_arguments():
     parser = argparse.ArgumentParser()
@@ -279,6 +283,22 @@ def get_arguments():
         default=30000,
         help="Number of random (or randomly reduced) SKY fibers to be allocated. (default: 30000)",
     )
+    parser.add_argument(
+        "--filler_random",
+        action="store_true",
+        help="Assign fillers randomly (default: False)",
+    )
+    parser.add_argument(
+        "--reduce_fillers",
+        action="store_true",
+        help="Reduce the number of fillers randomly (default: False)",
+    )
+    parser.add_argument(
+        "--n_fillers_random",
+        type=int,
+        default=30000,
+        help="Number of random (or randomly reduced) fillers to be allocated. (default: 30000)",
+    )
 
     # instrument parameter files
     parser.add_argument(
@@ -427,28 +447,32 @@ def load_ppp_results(infile: str):
                 "epoch": df_pointing["equinox_target"],
                 "tract": np.full(n_obj, 0),
                 "patch": np.full(n_obj, 0),
-                "catalog_id": np.full(n_obj, 9),  # HSC-SSP PDR3 Wide
+                "catalog_id": df_pointing["cat_id"],
                 "target_type_id": np.full(n_obj, 1),  # SCIENCE
-                "input_catalog_id": np.full(n_obj, 9),  # HSC-SSP PDR3 Wide
+                "input_catalog_id": df_pointing["cat_id"],
                 "ob_code": df_pointing["ob_code"],
                 "proposal_id": df_pointing["proposal_id"],
                 "priority": [
                     int(p.replace("sci_P", "")) for p in df_pointing["target_class"]
                 ],
                 "effective_exptime": 900.0,
-                "psf_flux_g": [None] * n_obj,
-                "psf_flux_r": [None] * n_obj,
-                "psf_flux_i": [None] * n_obj,
-                "psf_flux_z": [None] * n_obj,
-                "psf_flux_y": [None] * n_obj,
-                "psf_flux_error_g": [None] * n_obj,
-                "psf_flux_error_r": [None] * n_obj,
-                "psf_flux_error_i": [None] * n_obj,
-                "psf_flux_error_z": [None] * n_obj,
-                "psf_flux_error_y": [None] * n_obj,
+                "filter_g": df_pointing["filter_g"],
+                "filter_r": df_pointing["filter_r"],
+                "filter_i": df_pointing["filter_i"],
+                "filter_z": df_pointing["filter_z"],
+                "filter_y": df_pointing["filter_y"],
+                "psf_flux_g": df_pointing["psf_flux_g"],
+                "psf_flux_r": df_pointing["psf_flux_r"],
+                "psf_flux_i": df_pointing["psf_flux_i"],
+                "psf_flux_z": df_pointing["psf_flux_z"],
+                "psf_flux_y": df_pointing["psf_flux_y"],
+                "psf_flux_error_g": df_pointing["psf_flux_error_g"],
+                "psf_flux_error_r": df_pointing["psf_flux_error_r"],
+                "psf_flux_error_i": df_pointing["psf_flux_error_i"],
+                "psf_flux_error_z": df_pointing["psf_flux_error_z"],
+                "psf_flux_error_y": df_pointing["psf_flux_error_y"],
             },
         )
-        # print(df_tmp)
 
         dict_pointings[pointing.lower()] = {
             "pointing_name": pointing,
@@ -468,18 +492,9 @@ def load_ppp_results(infile: str):
     return pointings, dict_pointings
 
 
-def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=False):
-    try:
-        list_pointings, dict_pointings = load_ppp_results(os.path.join(workDir, infile))
-    except FileNotFoundError:
-        list_pointings, dict_pointings = load_ppp_results(
-            os.path.join(workDir, conf["ppp"]["outputDir"], infile)
-        )
-
-    # in_design, df_sci, df_std, df_sky = load_input_design(
-    #     args.design_id, indir=args.design_indir, exptime=args.exptime
-    # )
-
+def reconfigure_multiprocessing(
+    list_pointings, dict_pointings, conf, workDir=".", clearOutput=False
+):
     obstime0 = Time("2023-06-15T10:00:00")
     # obstime0 = Time("2023-07-01T00:00:00.000")  # UTC
     d_obstime = 20 * u.min
@@ -559,7 +574,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
                     df_sky = df_sky.sample(
                         n_sky_target, ignore_index=True, random_state=1
                     )
-            logger.info(f"Fetched target DataFrame: \n{df_sky}")
+            logger.info(f"Fetched sky target DataFrame: \n{df_sky}")
 
         # get filler targets (optional)
         filler = conf["sfa"]["filler"]
@@ -576,12 +591,19 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
             )
             df_filler = dbutils.fixcols_gaiadb_to_targetdb(
                 df_filler,
-                proposal_id="S23A-EN16",
+                proposal_id="S24A-EN16",
                 target_type_id=1,  # SCIENCE
                 input_catalog_id=4,  # Gaia DR3
                 exptime=900.0,
                 priority=9999,
             )
+            if conf["sfa"]["reduce_fillers"]:
+                n_fillers = conf["sfa"]["n_fillers_random"]  # this value can be tuned
+                if len(df_filler) > n_fillers:
+                    df_filler = df_filler.sample(
+                        n_fillers, ignore_index=True, random_state=1
+                    )
+            logger.info(f"Fetched filler target DataFrame: \n{df_filler}")
         else:
             df_filler = None
 
@@ -623,6 +645,13 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
             force_exptime=conf["ppp"]["TEXP_NOMINAL"],
         )
 
+        ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
+        if "PPC_L" in ppc_code:
+            arms_ = "brn"
+        elif "PPC_M" in ppc_code:
+            arms_ = "bmn"
+        logger.info(f"PPC_code = {ppc_code}; the arms in use are {arms_}.")
+
         design = designutils.generate_pfs_design(
             df_sci,
             df_fluxstds,
@@ -633,7 +662,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
             tgt,
             tgt_class_dict,
             bench,
-            arms=conf["sfa"]["arms"],
+            arms=arms_,
             df_filler=df_filler,
             is_no_target=is_no_target,
             design_name=dict_pointings[pointing.lower()]["pointing_name"],
@@ -693,12 +722,105 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
         )
         logger.info("Number of AG stars: {:}".format(len(guidestars.objId)))
         logger.info(f"Observation Time: {observation_time}")
+    return (
+        list_pointings,
+        design_filenames,
+        design_ids,
+        observation_times,
+        observation_dates_in_hst,
+    )
+
+
+def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=False):
+    try:
+        list_pointings, dict_pointings = load_ppp_results(os.path.join(workDir, infile))
+    except FileNotFoundError:
+        list_pointings, dict_pointings = load_ppp_results(
+            os.path.join(workDir, conf["ppp"]["outputDir"], infile)
+        )
+
+    # in_design, df_sci, df_std, df_sky = load_input_design(
+    #     args.design_id, indir=args.design_indir, exptime=args.exptime
+    # )
+    multiPro = conf["sfa"]["multiprocessing"]
+
+    if multiPro:
+        logger.info("[SFA] Multiprocessing is turned on.")
+        with Pool(4) as p:
+            output_p = p.map(
+                partial(
+                    reconfigure_multiprocessing,
+                    dict_pointings=dict_pointings,
+                    conf=conf,
+                    workDir=workDir,
+                    clearOutput=clearOutput,
+                ),
+                np.array_split(list_pointings, 4),
+            )
+
+        list_pointings = list(
+            chain.from_iterable(
+                [
+                    list(output_tem[0])
+                    for output_tem in output_p
+                    if len(output_tem[0]) != 0
+                ]
+            )
+        )
+        design_filenames = list(
+            chain.from_iterable(
+                [output_tem[1] for output_tem in output_p if len(output_tem[0]) != 0]
+            )
+        )
+        design_ids_ = [
+            output_tem[2] for output_tem in output_p if len(output_tem[0]) != 0
+        ]
+        observation_times = list(
+            chain.from_iterable(
+                [output_tem[3] for output_tem in output_p if len(output_tem[0]) != 0]
+            )
+        )
+        observation_dates_in_hst = list(
+            chain.from_iterable(
+                [output_tem[4] for output_tem in output_p if len(output_tem[0]) != 0]
+            )
+        )
+
+        design_ids = design_ids_[0]
+        for tt in design_ids_:
+            design_ids.update(tt)
+
+    else:
+        (
+            list_pointings,
+            design_filenames,
+            design_ids,
+            observation_times,
+            observation_dates_in_hst,
+        ) = reconfigure_multiprocessing(
+            list_pointings, dict_pointings, conf, workDir, clearOutput
+        )
+
+    print(
+        list_pointings,
+        design_filenames,
+        design_ids,
+        observation_times,
+        observation_dates_in_hst,
+    )
 
     df_summary = pd.DataFrame(
         {
             "pointing": list_pointings,
-            "ra_center": [dict_pointings[p.lower()]["ra_center"] for p in list_pointings],
-            "dec_center": [dict_pointings[p.lower()]["dec_center"] for p in list_pointings],
+            "ra_center": [
+                dict_pointings[p.lower()]["ra_center"] for p in list_pointings
+            ],
+            "dec_center": [
+                dict_pointings[p.lower()]["dec_center"] for p in list_pointings
+            ],
+            "pa_center": [
+                dict_pointings[p.lower()]["pa_center"] for p in list_pointings
+            ],
             "design_filename": design_filenames,
             "observation_time": observation_times,
             "observation_date_in_hst": observation_dates_in_hst,
