@@ -430,6 +430,7 @@ def generate_guidestars_from_gaiadb(
     search_radius=None,
     # gaiadb_epoch=2015.0,
     gaiadb_input_catalog_id=4,
+    guide_star_id_exclude=[],
 ):
     # Get ra, dec and position angle from input arguments
     ra_tel_deg, dec_tel_deg, pa_deg = ra, dec, pa
@@ -480,6 +481,11 @@ def generate_guidestars_from_gaiadb(
     conn = connect_subaru_gaiadb(conf)
     cur = conn.cursor()
 
+    sqlWhere=""
+    for gsId in guide_star_id_exclude:
+        sqlWhere+=f"AND source_id NOT EQUAL {gsId}"
+
+
     query_string = f"""SELECT source_id,ra,dec,parallax,pmra,pmdec,ref_epoch,phot_g_mean_mag,bp_rp
     FROM gaia3
     WHERE q3c_radial_query(ra, dec, {ra_tel_deg}, {dec_tel_deg}, {search_radius})
@@ -488,7 +494,7 @@ def generate_guidestars_from_gaiadb(
     AND {coldict['parallax']} IS NOT NULL
     AND {coldict['parallax']} >= 0
     AND astrometric_excess_noise_sig < 2.0
-    AND {coldict['mag']} BETWEEN {0.0} AND {guidestar_neighbor_mag_min}
+    AND {coldict['mag']} BETWEEN {0.0} AND {guidestar_neighbor_mag_min} {sqlWhere}
     ;
     """
     # print(query_string)

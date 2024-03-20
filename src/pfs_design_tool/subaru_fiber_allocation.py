@@ -372,6 +372,14 @@ def get_arguments():
         help="Input proposal IDs for targets (default: None)",
     )
 
+    parser.add_argument(
+        "--guide_star_id_exclude",
+        nargs="+",
+        type=int,
+        default=None,
+        help="guide star ID to be excluded (default: None)",
+    )
+
     args = parser.parse_args()
 
     # NOTE: astropy.time.Time.now() uses datetime.utcnow()
@@ -571,6 +579,10 @@ def main():
         is_no_target=is_no_target,
         design_name=args.design_name,
     )
+    if args.guide_star_id_exclude is None:
+        guide_star_id_exclude = []
+    else:
+        guide_star_id_exclude = args.guide_star_id_exclude
     guidestars = designutils.generate_guidestars_from_gaiadb(
         args.ra,
         args.dec,
@@ -584,6 +596,7 @@ def main():
         guidestar_minsep_deg=args.guidestar_minsep_deg,
         # gaiadb_epoch=2015.0,
         # gaiadb_input_catalog_id=2,
+        guide_star_id_exclude=guide_star_id_exclude,
     )
 
     design.guideStars = guidestars
