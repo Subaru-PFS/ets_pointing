@@ -128,7 +128,6 @@ def getBench(
 
 
 def register_objects(df, target_class=None, force_priority=None, force_exptime=None):
-
     df["netflow_id"] = df["obj_id"].map(str) + "_" + df["input_catalog_id"].map(str)
 
     if target_class == "sci":
@@ -138,26 +137,26 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
             if force_priority is not None:
                 priority = force_priority
             else:
-                priority = int(df["priority"][i])
+                priority = int(df["priority"].values[i])
 
             if force_exptime is not None:
                 exptime = force_exptime
             else:
-                exptime = df["effective_exptime"][i]
+                exptime = df["effective_exptime"].values[i]
 
             res.append(
                 nf.ScienceTarget(
                     # df["obj_id"][i],
-                    df["netflow_id"][i],
-                    df["ra"][i],
-                    df["dec"][i],
+                    df["netflow_id"].values[i],
+                    df["ra"].values[i],
+                    df["dec"].values[i],
                     exptime,
                     priority,
                     target_class,
-                    pmra=df["pmra"][i],
-                    pmdec=df["pmdec"][i],
-                    parallax=df["parallax"][i],
-                    epoch=float(df["epoch"][i][1:]),
+                    pmra=df["pmra"].values[i],
+                    pmdec=df["pmdec"].values[i],
+                    parallax=df["parallax"].values[i],
+                    epoch=float(df["epoch"].values[i][1:]),
                 )
             )
     elif target_class == "cal":
@@ -168,15 +167,15 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
         res = [
             nf.CalibTarget(
                 # df["obj_id"][i],
-                df["netflow_id"][i],
-                df["ra"][i],
-                df["dec"][i],
+                df["netflow_id"].values[i],
+                df["ra"].values[i],
+                df["dec"].values[i],
                 target_class,
                 cal_penalty[i],
-                pmra=df["pmra"][i],
-                pmdec=df["pmdec"][i],
-                parallax=df["parallax"][i],
-                epoch=float(df["epoch"][i][1:]),
+                pmra=df["pmra"].values[i],
+                pmdec=df["pmdec"].values[i],
+                parallax=df["parallax"].values[i],
+                epoch=float(df["epoch"].values[i][1:]),
             )
             for i in range(df.index.size)
         ]
@@ -184,9 +183,9 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
         res = [
             nf.CalibTarget(
                 # df["obj_id"][i],
-                df["netflow_id"][i],
-                df["ra"][i],
-                df["dec"][i],
+                df["netflow_id"].values[i],
+                df["ra"].values[i],
+                df["dec"].values[i],
                 target_class,
                 0.0,
                 pmra=0.0,
@@ -227,6 +226,7 @@ def run_netflow(
     dot_penalty=None,
     numReservedFibers=0,
     fiberNonAllocationCost=0.0,
+    preassigned=None,
 ):
     # print(bench.cobras.status)
     # exit()
@@ -272,6 +272,7 @@ def run_netflow(
             blackDotPenalty=black_dot_penalty_cost,
             numReservedFibers=numReservedFibers,
             fiberNonAllocationCost=fiberNonAllocationCost,
+            preassigned=preassigned,
         )
 
         print("solving the problem")
@@ -371,6 +372,7 @@ def fiber_allocation(
     fiber_non_allocation_cost=0.0,
     df_filler=None,
     force_exptime=None,
+    two_stage=False,
 ):
     targets = []
 
@@ -384,21 +386,21 @@ def fiber_allocation(
 
     # print(len(targets))
 
-    if df_filler is not None:
-        print("Registering stars for fillers.")
-        targets += register_objects(
-            df_filler, target_class="sci", force_exptime=force_exptime
-        )
-        max_exptime_filler = df_filler["effective_exptime"].max()
-
-    # print(len(targets))
-
     if not df_fluxstds.empty:
         targets += register_objects(df_fluxstds, target_class="cal")
     if not df_sky.empty:
         targets += register_objects(df_sky, target_class="sky")
 
     # exit()
+
+    if (df_filler is not None) and (two_stage == False):
+        print("[single-stage] Registering stars for fillers.")
+        targets += register_objects(
+            df_filler, target_class="sci", force_exptime=force_exptime
+        )
+        max_exptime_filler = df_filler["effective_exptime"].max()
+
+    # print(len(targets))
 
     cobra_coach, bench = getBench(
         pfs_instdata_dir,
@@ -603,12 +605,68 @@ def fiber_allocation(
         fiberNonAllocationCost=0.0,
     )
 
-    return (
-        res[0],
-        target_fppos[0],
-        telescopes[0],
-        targets,
-        target_class_dict,
-        is_no_target,
-        bench,
-    )
+    if two_stage == False:
+        return (
+            res[0],
+            target_fppos[0],
+            telescopes[0],
+            targets,
+            target_class_dict,
+            is_no_target,
+            bench,
+        )
+
+    elif two_stage == True:
+        # get cobra ID of the 1st-stage assignment
+        assign_1stage = {}
+        for i, (vis, tp, tel) in enumerate(zip(res, target_fppos, telescopes)):
+            for tidx, cidx in vis.items():
+                assign_1stage[targets[tidx].ID] = cidx
+
+        # add fillers for the 2nd-stage assignment
+        if df_filler is not None:
+            print("[2-stage] Registering stars for fillers.")
+            targets += register_objects(
+                df_filler, target_class="sci", force_exptime=force_exptime
+            )
+            max_exptime_filler = df_filler["effective_exptime"].max()
+
+        # get focal plane positions for all targets and all visits
+        target_fppos = [tele.get_fp_positions(targets) for tele in telescopes]
+
+        res = run_netflow(
+            cobra_coach,
+            bench,
+            targets,
+            target_fppos,
+            class_dict,
+            exptime,
+            vis_cost=None,
+            cobraMoveCost=None,
+            collision_distance=2.0,
+            elbow_collisions=True,
+            gurobi=gurobi,
+            gurobiOptions=gurobi_options,
+            alreadyObserved=already_observed,
+            forbiddenPairs=forbidden_pairs,
+            cobraLocationGroup=cobra_location_group,
+            minSkyTargetsPerLocation=min_sky_targets_per_location,
+            locationGroupPenalty=location_group_penalty,
+            cobraInstrumentRegion=cobra_instrument_region,
+            minSkyTargetsPerInstrumentRegion=min_sky_targets_per_instrument_region,
+            instrumentRegionPenalty=instrument_region_penalty,
+            dot_penalty=dot_penalty,
+            numReservedFibers=0,
+            fiberNonAllocationCost=0.0,
+            preassigned=[assign_1stage],
+        )
+
+        return (
+            res[0],
+            target_fppos[0],
+            telescopes[0],
+            targets,
+            target_class_dict,
+            is_no_target,
+            bench,
+        )

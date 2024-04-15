@@ -405,11 +405,18 @@ def fixcols_gaiadb_to_targetdb(
 ):
     df.rename(columns={"source_id": "obj_id", "ref_epoch": "epoch"}, inplace=True)
 
-    df["epoch"] = df["epoch"].apply(lambda x: f"J{x:.1f}")
-    df["proposal_id"] = proposal_id
+    if df["epoch"].dtype != "O":
+        df["epoch"] = df["epoch"].apply(lambda x: f"J{x:.1f}")
+
+    if "proposal_id" not in df.columns:
+        df["proposal_id"] = proposal_id
+
     df["ob_code"] = df["obj_id"].astype("str")
     df["target_type_id"] = target_type_id
-    df["input_catalog_id"] = input_catalog_id
+
+    if "input_catalog_id" not in df.columns:
+        df["input_catalog_id"] = input_catalog_id
+
     df["effective_exptime"] = exptime
     df["priority"] = priority
 
@@ -433,7 +440,66 @@ def fixcols_gaiadb_to_targetdb(
 
     # df["priority"] = np.array(tb["g_mag_ab"].value, dtype=int)
     # df["priority"][tb["g_mag_ab"].value > 12] = 9999
-    df["priority"] = np.array(tb["g_mag_ab"].value - 7, dtype=int)
-    df["priority"][tb["g_mag_ab"].value - 7 > 12] = 9999
+    # df["priority"] = np.array(tb["g_mag_ab"].value - 7, dtype=int)
+    # df["priority"][tb["g_mag_ab"].value - 7 > 12] = 9999
+    # df["priority"][np.isnan(tb["g_mag_ab"])] = 9
 
     return df
+
+
+def generate_fillers_from_targetdb(
+    ra,
+    dec,
+    conf=None,
+    fp_radius_degree=260.0 * 10.2 / 3600,  # "Radius" of PFS FoV in degree (?)
+    fp_fudge_factor=1.5,  # fudge factor for search widths
+    search_radius=None,
+    write_csv=False,
+):
+    db = connect_targetdb(conf)
+
+    if search_radius is None:
+        search_radius = fp_radius_degree * fp_fudge_factor
+
+    query_string = f"""SELECT
+    obj_id,epoch,ra,dec,pmra,pmdec,parallax,
+    psf_mag_g,psf_mag_r,psf_mag_i,
+    psf_flux_error_g, psf_flux_error_r, psf_flux_error_i, 
+    proposal.proposal_id, input_catalog_id
+    FROM target JOIN proposal ON target.proposal_id=proposal.proposal_id 
+    WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
+    AND proposal.allocated_time_lr + proposal.allocated_time_mr = 0
+    """
+
+    query_string += ";"
+
+    logger.info(query_string)
+
+    df_res = pd.DataFrame(
+        db.fetch_query(query_string),
+        columns=[
+            "obj_id",
+            "epoch",
+            "ra",
+            "dec",
+            "pmra",
+            "pmdec",
+            "parallax",
+            "phot_g_mean_mag",
+            "phot_bp_mean_mag",
+            "phot_rp_mean_mag",
+            "phot_g_mean_flux_over_error",
+            "phot_bp_mean_flux_over_error",
+            "phot_rp_mean_flux_over_error",
+            "proposal_id",
+            "input_catalog_id",
+        ],
+    )
+
+    db.close()
+
+    # logger.info(df_res)
+    if write_csv:
+        df_res.to_csv("userfiller.csv")
+
+    return df_res

@@ -315,6 +315,9 @@ def generate_pfs_design(
                     == tgt_class_dict[tgt[tidx].targetclass],
                 )
                 if np.any(idx_filler):
+                    proposal_id[i_fiber] = df_filler["proposal_id"][idx_filler].values[
+                        0
+                    ]
                     epoch[i_fiber] = df_filler["epoch"][idx_filler].values[0]
                     pmRa[i_fiber] = df_filler["pmra"][idx_filler].values[0]
                     pmDec[i_fiber] = df_filler["pmdec"][idx_filler].values[0]
@@ -481,10 +484,9 @@ def generate_guidestars_from_gaiadb(
     conn = connect_subaru_gaiadb(conf)
     cur = conn.cursor()
 
-    sqlWhere=""
+    sqlWhere = ""
     for gsId in guide_star_id_exclude:
-        sqlWhere+=f"AND source_id NOT EQUAL {gsId}"
-
+        sqlWhere += f"AND source_id NOT EQUAL {gsId}"
 
     query_string = f"""SELECT source_id,ra,dec,parallax,pmra,pmdec,ref_epoch,phot_g_mean_mag,bp_rp
     FROM gaia3
