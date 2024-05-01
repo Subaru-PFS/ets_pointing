@@ -145,7 +145,7 @@ def generate_fluxstds_from_targetdb(
         extra_where += """
         AND flags_dist IS FALSE
         AND flags_ebv IS FALSE
-        AND prob_f_star BETWEEN 0.5 AND 1.0
+        AND is_fstar_gaia IS TRUE
         """
         if select_by_flux:
             extra_where += (
@@ -157,9 +157,6 @@ def generate_fluxstds_from_targetdb(
             )
 
     if not good_fluxstd:
-        extra_where = f"""
-        AND prob_f_star BETWEEN {min_prob_f_star} AND 1.0
-        """
         if select_by_flux:
             extra_where += (
                 f"""AND psf_flux_{mag_filter} BETWEEN {flux_min} AND {flux_max}"""
@@ -181,7 +178,7 @@ def generate_fluxstds_from_targetdb(
         for fluxstd_version in fluxstd_versions:
             if float(fluxstd_version) >= 3.0:
                 extra_where += f"""
-        AND teff_brutus BETWEEN {min_teff} AND {max_teff}
+        AND teff_gspphot BETWEEN {min_teff} AND {max_teff}
         """
                 break
 

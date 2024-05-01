@@ -1163,7 +1163,7 @@ class CheckDesign(object):
         if self.fluxstdCsv is not None:
             df = pd.read_csv(os.path.join(self.dataDir, self.fluxstdCsv))
             objId_all = df["obj_id"]
-            teff_star_all = df["teff_brutus"]
+            teff_star_all = df["teff_gspphot"]
             teff_star = np.zeros(len(objId_fluxstd)) + np.nan
             for i, oid1 in enumerate(objId_fluxstd):
                 for oid2, teff in zip(objId_all, teff_star_all):
@@ -1176,7 +1176,7 @@ class CheckDesign(object):
         if axe is None:
             axe = fig.add_subplot(111)
             axe.set_title(f"{self.objId}")
-        axe.set_xlabel("teff_brutus")
+        axe.set_xlabel("teff_gspphot")
         axe.set_ylabel("number")
         axe.grid(color="gray", linestyle="dotted", linewidth=1)
         if teff_star is not None:

@@ -223,7 +223,7 @@ def get_arguments():
     parser.add_argument(
         "--good_fluxstd",
         action="store_true",
-        help="Select fluxstd stars with prob_f_star>0.5, \
+        help="Select fluxstd stars with is_fstar_gaia=True, \
             flags_dist=False, and flags_ebv=False (default: False)",
     )
     parser.add_argument(
@@ -236,13 +236,13 @@ def get_arguments():
         "--fluxstd_min_teff",
         type=float,
         default=3000.0,
-        help="Minimum acceptable teff_brutus in [K] (default: 3000.)",
+        help="Minimum acceptable teff in [K] (default: 3000.)",
     )
     parser.add_argument(
         "--fluxstd_max_teff",
         type=float,
         default=10000.0,
-        help="Maximum acceptable teff_brutus in [K] (default: 10000.)",
+        help="Maximum acceptable teff in [K] (default: 10000.)",
     )
     parser.add_argument(
         "--fluxstd_flags_dist",
@@ -445,7 +445,6 @@ def main():
     else:
         df_targets.priority[df_targets.proposal_id == args.degrade_priority_proposal] += args.degrade_priority
 
-
     if args.skip_target:
         df_targets = df_targets[:0]
     df_fluxstds = dbutils.generate_fluxstds_from_targetdb(
@@ -466,6 +465,7 @@ def main():
         max_teff=args.fluxstd_max_teff,
         write_csv=True,
     )
+    df_fluxstds["prob_f_star"] = [1.0 for _ in range(len(df_fluxstds))]
 
     if args.n_sky == 0:
         logger.info("No sky object will be sent to netflow")
