@@ -58,9 +58,12 @@ def generate_pfs_design(
         fiber_status[fidx] = bench.cobras.status[cidx]
     fiber_status[fiber_status > 1] = 2  # filled bad fibers ad BROKENFIBER=2
 
-    proposal_id = np.full(len(fiber_status), "N/A", dtype="<U32")
-    ob_code = np.full(len(fiber_status), "N/A", dtype="<U64")
-    epoch = np.full(len(fiber_status), "J2000.0")
+    proposal_id = ["N/A" for _ in fiber_status]
+    ob_code = ["N/A" for _ in fiber_status]
+    epoch = ["J2000.0" for _ in fiber_status]
+    #proposal_id = np.full(len(fiber_status), "N/A", dtype="<U32")
+    #ob_code = np.full(len(fiber_status), "N/A", dtype="<U64")
+    #epoch = np.full(len(fiber_status), "J2000.0")
     pmRa = np.zeros_like(fiber_status, dtype=np.float32)
     pmDec = np.zeros_like(fiber_status, dtype=np.float32)
     parallax = np.full_like(fiber_status, 1.0e-5, dtype=np.float32)
