@@ -71,8 +71,8 @@ def get_arguments():
     parser.add_argument(
         "--arms",
         type=str,
-        default="br",
-        help="Spectrograph arms to expose, such as 'brn' and 'bmn' (default: 'br')",
+        default="brn",
+        help="Spectrograph arms to expose, such as 'brn' and 'bmn' (default: 'brn')",
     )
     parser.add_argument(
         "--exptime",
