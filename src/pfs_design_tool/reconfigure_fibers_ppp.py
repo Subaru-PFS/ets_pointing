@@ -579,7 +579,7 @@ def reconfigure_multiprocessing(
         # get filler targets (optional)
         filler = conf["sfa"]["filler"]
         if conf["sfa"]["filler"] == True:
-            df_filler = dbutils.generate_targets_from_gaiadb(
+            df_filler_obs = dbutils.generate_targets_from_gaiadb(
                 dict_pointings[pointing.lower()]["ra_center"],
                 dict_pointings[pointing.lower()]["dec_center"],
                 conf=conf,
@@ -589,21 +589,36 @@ def reconfigure_multiprocessing(
                 good_astrometry=False,  # select bright stars which may have large astrometric errors.
                 write_csv=False,
             )
-            df_filler = dbutils.fixcols_gaiadb_to_targetdb(
-                df_filler,
+            df_filler_obs = dbutils.fixcols_gaiadb_to_targetdb(
+                df_filler_obs,
                 proposal_id="S24A-EN16",
                 target_type_id=1,  # SCIENCE
                 input_catalog_id=4,  # Gaia DR3
                 exptime=900.0,
-                priority=9999,
+                priority=10,
             )
+            df_filler_usr = dbutils.generate_fillers_from_targetdb(
+                dict_pointings[pointing.lower()]["ra_center"],
+                dict_pointings[pointing.lower()]["dec_center"],
+                conf=conf,
+                write_csv=False,
+            )
+            df_filler_usr = dbutils.fixcols_gaiadb_to_targetdb(
+                df_filler_usr,
+                target_type_id=1,  # SCIENCE
+                exptime=900.0,
+                priority=10,
+            )
+            df_filler = pd.concat([df_filler_usr, df_filler_obs])
             if conf["sfa"]["reduce_fillers"]:
                 n_fillers = conf["sfa"]["n_fillers_random"]  # this value can be tuned
                 if len(df_filler) > n_fillers:
                     df_filler = df_filler.sample(
                         n_fillers, ignore_index=True, random_state=1
                     )
-            logger.info(f"Fetched filler target DataFrame: \n{df_filler}")
+            logger.info(
+                f"Fetched filler target DataFrame (obs filler = {len(df_filler_obs):.0f}, user filler = {len(df_filler_usr):.0f}): \n{df_filler}"
+            )
         else:
             df_filler = None
 
@@ -643,6 +658,7 @@ def reconfigure_multiprocessing(
             fiber_non_allocation_cost=0.0,
             df_filler=df_filler,
             force_exptime=conf["ppp"]["TEXP_NOMINAL"],
+            two_stage=conf["netflow"]["two_stage"],
         )
 
         ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
@@ -800,14 +816,6 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
         ) = reconfigure_multiprocessing(
             list_pointings, dict_pointings, conf, workDir, clearOutput
         )
-
-    print(
-        list_pointings,
-        design_filenames,
-        design_ids,
-        observation_times,
-        observation_dates_in_hst,
-    )
 
     df_summary = pd.DataFrame(
         {
