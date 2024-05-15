@@ -610,6 +610,13 @@ def reconfigure_multiprocessing(
                 priority=10,
             )
             df_filler = pd.concat([df_filler_usr, df_filler_obs])
+
+            ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
+            if "PPC_L" in ppc_code:
+                df_filler = df_filler[(df_filler["is_medium_resolution"]=="L/M") | (df_filler["is_medium_resolution"]==False)]
+            elif "PPC_M" in ppc_code:
+                df_filler = df_filler[(df_filler["is_medium_resolution"]=="L/M") | (df_filler["is_medium_resolution"]==True)]
+            
             if conf["sfa"]["reduce_fillers"]:
                 n_fillers = conf["sfa"]["n_fillers_random"]  # this value can be tuned
                 if len(df_filler) > n_fillers:
@@ -621,6 +628,13 @@ def reconfigure_multiprocessing(
             )
         else:
             df_filler = None
+
+        ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
+        if "PPC_L" in ppc_code:
+            arms_ = 'brn'
+        elif "PPC_M" in ppc_code:
+            arms_ = 'bmn'
+        logger.info(f"PPC_code = {ppc_code}; the arms in use are {arms_}.")
 
         (
             vis,
@@ -660,13 +674,6 @@ def reconfigure_multiprocessing(
             force_exptime=conf["ppp"]["TEXP_NOMINAL"],
             two_stage=conf["netflow"]["two_stage"],
         )
-
-        ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
-        if "PPC_L" in ppc_code:
-            arms_ = "brn"
-        elif "PPC_M" in ppc_code:
-            arms_ = "bmn"
-        logger.info(f"PPC_code = {ppc_code}; the arms in use are {arms_}.")
 
         design = designutils.generate_pfs_design(
             df_sci,

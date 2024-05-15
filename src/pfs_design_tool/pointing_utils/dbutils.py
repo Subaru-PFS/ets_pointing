@@ -411,6 +411,9 @@ def fixcols_gaiadb_to_targetdb(
     if "proposal_id" not in df.columns:
         df["proposal_id"] = proposal_id
 
+    if "is_medium_resolution" not in df.columns:
+        df["is_medium_resolution"] = "L/M"
+
     df["ob_code"] = df["obj_id"].astype("str")
     df["target_type_id"] = target_type_id
 
@@ -465,7 +468,7 @@ def generate_fillers_from_targetdb(
     obj_id,epoch,ra,dec,pmra,pmdec,parallax,
     psf_mag_g,psf_mag_r,psf_mag_i,
     psf_flux_error_g, psf_flux_error_r, psf_flux_error_i, 
-    proposal.proposal_id, input_catalog_id
+    proposal.proposal_id, input_catalog_id, is_medium_resolution
     FROM target JOIN proposal ON target.proposal_id=proposal.proposal_id 
     WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
     AND proposal.allocated_time_lr + proposal.allocated_time_mr = 0
@@ -493,6 +496,7 @@ def generate_fillers_from_targetdb(
             "phot_rp_mean_flux_over_error",
             "proposal_id",
             "input_catalog_id",
+            "is_medium_resolution",
         ],
     )
 
