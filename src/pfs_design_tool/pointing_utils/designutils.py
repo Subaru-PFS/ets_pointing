@@ -1,3 +1,5 @@
+import os
+
 import matplotlib.path as mppath
 import numpy as np
 import pandas as pd
@@ -6,10 +8,11 @@ from astroplan import FixedTarget, Observer
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from ets_shuffle.convenience import flag_close_pairs, guidecam_geometry
+from logzero import logger
 from pfs.utils.coordinates.CoordTransp import CoordinateTransform as ctrans
 from pfs.utils.coordinates.CoordTransp import ag_pfimm_to_pixel
 from pfs.utils.fiberids import FiberIds
-from pfs.utils.pfsDesignUtils import makePfsDesign
+from pfs.utils.pfsDesignUtils import makePfsDesign, setFiberStatus
 
 from ..utils import get_pfs_utils_path
 from .dbutils import connect_subaru_gaiadb
@@ -24,12 +27,13 @@ def generate_pfs_design(
     tel,
     tgt,
     tgt_class_dict,
-    bench,
+    bench,  # won't be used
     arms="br",
     n_fiber=2394,
     df_filler=None,
     is_no_target=False,
     design_name=None,
+    pfs_instdata_dir=None,
 ):
     gfm = FiberIds(path=get_pfs_utils_path())  # 2604
     cobra_ids = gfm.cobraId
@@ -49,24 +53,24 @@ def generate_pfs_design(
     cat_id = np.full(n_fiber, -1, dtype=int)
     obj_id = np.full(n_fiber, -1, dtype=np.int64)
     target_type = np.full(n_fiber, 4, dtype=int)  # filled as unassigned number
-    fiber_status = np.full(n_fiber, 1, dtype=int)  # filled as GOOD=1
-    for cidx in range(n_fiber):
-        fidx = (
-            cobra_ids[np.logical_and(scifiber_ids >= 0, scifiber_ids <= n_fiber)]
-            == cidx + 1
-        )
-        fiber_status[fidx] = bench.cobras.status[cidx]
-    fiber_status[fiber_status > 1] = 2  # filled bad fibers ad BROKENFIBER=2
+    # fiber_status = np.full(n_fiber, 1, dtype=int)  # filled as GOOD=1
+    # for cidx in range(n_fiber):
+    #     fidx = (
+    #         cobra_ids[np.logical_and(scifiber_ids >= 0, scifiber_ids <= n_fiber)]
+    #         == cidx + 1
+    #     )
+    #     fiber_status[fidx] = bench.cobras.status[cidx]
+    # fiber_status[fiber_status > 1] = 2  # filled bad fibers as BROKENFIBER=2
 
-    proposal_id = ["N/A" for _ in fiber_status]
-    ob_code = ["N/A" for _ in fiber_status]
-    epoch = ["J2000.0" for _ in fiber_status]
-    #proposal_id = np.full(len(fiber_status), "N/A", dtype="<U32")
-    #ob_code = np.full(len(fiber_status), "N/A", dtype="<U64")
-    #epoch = np.full(len(fiber_status), "J2000.0")
-    pmRa = np.zeros_like(fiber_status, dtype=np.float32)
-    pmDec = np.zeros_like(fiber_status, dtype=np.float32)
-    parallax = np.full_like(fiber_status, 1.0e-5, dtype=np.float32)
+    proposal_id = ["N/A" for _ in range(n_fiber)]
+    ob_code = ["N/A" for _ in range(n_fiber)]
+    epoch = ["J2000.0" for _ in range(n_fiber)]
+    # proposal_id = np.full(len(n_fiber), "N/A", dtype="<U32")
+    # ob_code = np.full(len(n_fiber), "N/A", dtype="<U64")
+    # epoch = np.full(len(n_fiber), "J2000.0")
+    pmRa = np.zeros(n_fiber, dtype=np.float32)
+    pmDec = np.zeros(n_fiber, dtype=np.float32)
+    parallax = np.full(n_fiber, 1.0e-5, dtype=np.float32)
 
     filter_band_names = ["g", "r", "i", "z", "y"]
     flux_default_values = np.full(len(filter_band_names), np.nan)
@@ -206,10 +210,12 @@ def generate_pfs_design(
                     ]
                 else:
                     dict_of_flux_lists["filter_names"][i_fiber] = [
-                        df_targets[f"filter_{band}"][idx_target].values[0]
-                        if df_targets[f"filter_{band}"][idx_target].values[0]
-                        is not None
-                        else "none"
+                        (
+                            df_targets[f"filter_{band}"][idx_target].values[0]
+                            if df_targets[f"filter_{band}"][idx_target].values[0]
+                            is not None
+                            else "none"
+                        )
                         for band in filter_band_names
                     ]
                 # FIXME: temporal workaround for co_field1
@@ -242,28 +248,37 @@ def generate_pfs_design(
                 # ]
                 dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
                     [
-                        df_fluxstds[f"psf_flux_{band}"][idx_fluxstd].values[0]
-                        if df_fluxstds[f"psf_flux_{band}"][idx_fluxstd].values[0]
-                        is not None
-                        else np.nan
+                        (
+                            df_fluxstds[f"psf_flux_{band}"][idx_fluxstd].values[0]
+                            if df_fluxstds[f"psf_flux_{band}"][idx_fluxstd].values[0]
+                            is not None
+                            else np.nan
+                        )
                         for band in filter_band_names
                     ]
                 )
                 dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
                     [
-                        df_fluxstds[f"psf_flux_error_{band}"][idx_fluxstd].values[0]
-                        if df_fluxstds[f"psf_flux_error_{band}"][idx_fluxstd].values[0]
-                        is not None
-                        else np.nan
+                        (
+                            df_fluxstds[f"psf_flux_error_{band}"][idx_fluxstd].values[0]
+                            if df_fluxstds[f"psf_flux_error_{band}"][
+                                idx_fluxstd
+                            ].values[0]
+                            is not None
+                            else np.nan
+                        )
                         for band in filter_band_names
                     ]
                 )
                 msk = dict_of_flux_lists["psf_flux_error"][i_fiber] <= 0
                 dict_of_flux_lists["psf_flux_error"][i_fiber][msk] = np.nan
                 dict_of_flux_lists["filter_names"][i_fiber] = [
-                    df_fluxstds[f"filter_{band}"][idx_fluxstd].values[0]
-                    if df_fluxstds[f"filter_{band}"][idx_fluxstd].values[0] is not None
-                    else "none"
+                    (
+                        df_fluxstds[f"filter_{band}"][idx_fluxstd].values[0]
+                        if df_fluxstds[f"filter_{band}"][idx_fluxstd].values[0]
+                        is not None
+                        else "none"
+                    )
                     for band in filter_band_names
                 ]
             # psf_flux[i_fiber] = df_fluxstds["psfFlux"][idx_fluxstd][0]
@@ -396,7 +411,7 @@ def generate_pfs_design(
         catId=cat_id,
         objId=obj_id,
         targetType=target_type,
-        fiberStatus=fiber_status,
+        # fiberStatus=fiber_status,
         epoch=epoch,
         pmRa=pmRa,
         pmDec=pmDec,
@@ -415,6 +430,30 @@ def generate_pfs_design(
         # guideStars=None,
         designName=design_name,
         fiberidsPath=get_pfs_utils_path(),
+    )
+
+    # Set the environment variables for the PFS instrument data and utilities directories
+    if os.environ.get("PFS_UTILS_DIR") is None:
+        pfs_utils_dir = pfs.utils.__path__
+        if isinstance(pfs_utils_dir, list):
+            pfs_utils_dir = pfs_utils_dir[0].replace("python/pfs/utils", "")
+        else:
+            pfs_utils_dir = pfs_utils_dir.replace("python/pfs/utils", "")
+        fiber_id_path = os.path.join(pfs_utils_dir, "data", "fiberids")
+    else:
+        fiber_id_path = os.path.join(
+            os.environ.get("PFS_UTILS_DIR"), "data", "fiberids"
+        )
+
+    if pfs_instdata_dir is None:
+        if os.environ.get("PFS_INSTDATA_DIR") is None:
+            raise ValueError("PFS_INSTDATA_DIR is not set.")
+        pfs_instdata_dir = os.environ.get("PFS_INSTDATA_DIR")
+
+    pfs_instdata_data_dir = os.path.join(pfs_instdata_dir, "data")
+
+    pfs_design = setFiberStatus(
+        pfs_design, configRoot=pfs_instdata_data_dir, fiberIdsPath=fiber_id_path
     )
 
     return pfs_design
