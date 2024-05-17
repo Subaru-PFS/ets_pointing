@@ -3,6 +3,9 @@
 import argparse
 import functools
 import os
+from functools import partial
+from itertools import chain
+from multiprocessing import Pool
 
 import astropy.units as u
 import numpy as np
@@ -13,9 +16,6 @@ from astropy.utils import iers
 from IPython.display import clear_output
 from logzero import logger
 from pfs.datamodel import PfsDesign, TargetType
-from multiprocessing import Pool
-from functools import partial
-from itertools import chain
 
 from .pointing_utils import dbutils, designutils, nfutils
 
@@ -682,6 +682,7 @@ def reconfigure_multiprocessing(
             df_filler=df_filler,
             is_no_target=is_no_target,
             design_name=dict_pointings[pointing.lower()]["pointing_name"],
+            pfs_instdata_dir=conf["sfa"]["pfs_instdata_dir"],
         )
 
         guidestars = designutils.generate_guidestars_from_gaiadb(
