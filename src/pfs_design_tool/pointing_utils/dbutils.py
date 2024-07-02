@@ -440,11 +440,11 @@ def fixcols_gaiadb_to_targetdb(
     ) * u.ABmag
 
     df["g_flux_njy"] = tb["g_mag_ab"].to("nJy").value
-    df["bp_flux_njy"] = tb["bp_mag_ab"].to("nJy").value
-    df["rp_flux_njy"] = tb["rp_mag_ab"].to("nJy").value
+    df["bp_r_flux_njy"] = tb["bp_mag_ab"].to("nJy").value
+    df["rp_i_flux_njy"] = tb["rp_mag_ab"].to("nJy").value
     df["g_flux_err_njy"] = df["g_flux_njy"] / df["phot_g_mean_flux_over_error"]
-    df["bp_flux_err_njy"] = df["bp_flux_njy"] / df["phot_bp_mean_flux_over_error"]
-    df["rp_flux_err_njy"] = df["rp_flux_njy"] / df["phot_rp_mean_flux_over_error"]
+    df["bp_r_flux_err_njy"] = df["bp_r_flux_njy"] / df["phot_bp_mean_flux_over_error"]
+    df["rp_i_flux_err_njy"] = df["rp_i_flux_njy"] / df["phot_rp_mean_flux_over_error"]
 
     # df["priority"] = np.array(tb["g_mag_ab"].value, dtype=int)
     # df["priority"][tb["g_mag_ab"].value > 12] = 9999
@@ -462,6 +462,9 @@ def generate_fillers_from_targetdb(
     fp_radius_degree=260.0 * 10.2 / 3600,  # "Radius" of PFS FoV in degree (?)
     fp_fudge_factor=1.5,  # fudge factor for search widths
     search_radius=None,
+    band_select="psf_flux_g",
+    mag_min=0.0,
+    mag_max=99.0,
     write_csv=False,
 ):
     db = connect_targetdb(conf)
@@ -469,14 +472,19 @@ def generate_fillers_from_targetdb(
     if search_radius is None:
         search_radius = fp_radius_degree * fp_fudge_factor
 
+    flux_max = (mag_min * u.ABmag).to(u.nJy).value
+    flux_min = (mag_max * u.ABmag).to(u.nJy).value
+
     query_string = f"""SELECT
-    obj_id,epoch,ra,dec,pmra,pmdec,parallax,
-    psf_mag_g,psf_mag_r,psf_mag_i,
+    ob_code,obj_id,epoch,ra,dec,pmra,pmdec,parallax,
+    psf_flux_g,psf_flux_r,psf_flux_i,
     psf_flux_error_g, psf_flux_error_r, psf_flux_error_i, 
-    proposal.proposal_id, input_catalog_id, is_medium_resolution
-    FROM target JOIN proposal ON target.proposal_id=proposal.proposal_id 
+    proposal.proposal_id, c.input_catalog_id, is_medium_resolution
+    FROM target JOIN proposal ON target.proposal_id=proposal.proposal_id JOIN input_catalog AS c ON target.input_catalog_id = c.input_catalog_id
     WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
-    AND proposal.allocated_time_lr + proposal.allocated_time_mr = 0
+    AND proposal.grade IN ('C','F')
+    AND c.active
+    AND {band_select} BETWEEN {flux_min} AND {flux_max}
     """
 
     query_string += ";"
@@ -486,6 +494,7 @@ def generate_fillers_from_targetdb(
     df_res = pd.DataFrame(
         db.fetch_query(query_string),
         columns=[
+            "ob_code",
             "obj_id",
             "epoch",
             "ra",
@@ -493,12 +502,12 @@ def generate_fillers_from_targetdb(
             "pmra",
             "pmdec",
             "parallax",
-            "phot_g_mean_mag",
-            "phot_bp_mean_mag",
-            "phot_rp_mean_mag",
-            "phot_g_mean_flux_over_error",
-            "phot_bp_mean_flux_over_error",
-            "phot_rp_mean_flux_over_error",
+            "psf_flux_g",
+            "psf_flux_r",
+            "psf_flux_i",
+            "psf_flux_error_g",
+            "psf_flux_error_r",
+            "psf_flux_error_i",
             "proposal_id",
             "input_catalog_id",
             "is_medium_resolution",
@@ -512,3 +521,32 @@ def generate_fillers_from_targetdb(
         df_res.to_csv("userfiller.csv")
 
     return df_res
+
+
+def fixcols_filler_targetdb(
+    df,
+    target_type_id=None,
+    exptime=900.0,
+    priority=1,
+):
+    df.rename(
+        columns={
+            "psf_flux_g": "g_flux_njy",
+            "psf_flux_r": "bp_r_flux_njy",
+            "psf_flux_i": "rp_i_flux_njy",
+            "psf_flux_error_g": "g_flux_err_njy",
+            "psf_flux_error_r": "bp_r_flux_err_njy",
+            "psf_flux_error_i": "rp_i_flux_err_njy",
+        },
+        inplace=True,
+    )
+
+    if df["epoch"].dtype != "O":
+        df["epoch"] = df["epoch"].apply(lambda x: f"J{x:.1f}")
+
+    df["target_type_id"] = target_type_id
+
+    df["effective_exptime"] = exptime
+    df["priority"] = priority
+
+    return df

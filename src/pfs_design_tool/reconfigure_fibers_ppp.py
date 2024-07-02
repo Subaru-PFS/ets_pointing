@@ -600,10 +600,13 @@ def reconfigure_multiprocessing(
             df_filler_usr = dbutils.generate_fillers_from_targetdb(
                 dict_pointings[pointing.lower()]["ra_center"],
                 dict_pointings[pointing.lower()]["dec_center"],
+                band_select="psf_flux_r",
+                mag_min=conf["sfa"]["filler_mag_min"],
+                mag_max=conf["sfa"]["filler_mag_max"],
                 conf=conf,
                 write_csv=False,
             )
-            df_filler_usr = dbutils.fixcols_gaiadb_to_targetdb(
+            df_filler_usr = dbutils.fixcols_filler_targetdb(
                 df_filler_usr,
                 target_type_id=1,  # SCIENCE
                 exptime=900.0,
@@ -613,10 +616,16 @@ def reconfigure_multiprocessing(
 
             ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
             if "PPC_L" in ppc_code:
-                df_filler = df_filler[(df_filler["is_medium_resolution"]=="L/M") | (df_filler["is_medium_resolution"]==False)]
+                df_filler = df_filler[
+                    (df_filler["is_medium_resolution"] == "L/M")
+                    | (df_filler["is_medium_resolution"] == False)
+                ]
             elif "PPC_M" in ppc_code:
-                df_filler = df_filler[(df_filler["is_medium_resolution"]=="L/M") | (df_filler["is_medium_resolution"]==True)]
-            
+                df_filler = df_filler[
+                    (df_filler["is_medium_resolution"] == "L/M")
+                    | (df_filler["is_medium_resolution"] == True)
+                ]
+
             if conf["sfa"]["reduce_fillers"]:
                 n_fillers = conf["sfa"]["n_fillers_random"]  # this value can be tuned
                 if len(df_filler) > n_fillers:
@@ -631,10 +640,28 @@ def reconfigure_multiprocessing(
 
         ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
         if "PPC_L" in ppc_code:
-            arms_ = 'brn'
+            arms_ = "brn"
         elif "PPC_M" in ppc_code:
-            arms_ = 'bmn'
+            arms_ = "bmn"
         logger.info(f"PPC_code = {ppc_code}; the arms in use are {arms_}.")
+
+        cobra_coach, bench = nfutils.getBench(
+            conf["sfa"]["pfs_instdata_dir"],
+            conf["sfa"]["cobra_coach_dir"],
+            None,
+            conf["sfa"]["sm"],
+            conf["sfa"]["dot_margin"],
+        )
+
+        ncobras = bench.cobras.nCobras
+        cobraRegions = np.zeros(ncobras, dtype=np.int32)
+        cobraRegions_ = np.array_split(
+            cobraRegions, conf["netflow"]["cobra_location_group_n"]
+        )
+        for i in range(conf["netflow"]["cobra_location_group_n"]):
+            cobraRegions_[i] += i
+        cobraRegions = np.concatenate(cobraRegions_)
+        print(ncobras, cobraRegions)
 
         (
             vis,
@@ -662,9 +689,11 @@ def reconfigure_multiprocessing(
             conf["sfa"]["sm"],
             conf["sfa"]["dot_margin"],
             None,
-            cobra_location_group=cobra_location_group,
-            min_sky_targets_per_location=min_sky_targets_per_location,
-            location_group_penalty=location_group_penalty,
+            cobra_location_group=cobraRegions,
+            min_sky_targets_per_location=conf["netflow"][
+                "min_sky_targets_per_location"
+            ],
+            location_group_penalty=conf["netflow"]["location_group_penalty"],
             cobra_instrument_region=cobra_instrument_region,
             min_sky_targets_per_instrument_region=min_sky_targets_per_instrument_region,
             instrument_region_penalty=instrument_region_penalty,
