@@ -455,7 +455,7 @@ def load_ppp_results(infile: str):
                 "priority": [
                     int(p.replace("sci_P", "")) for p in df_pointing["target_class"]
                 ],
-                "effective_exptime": 900.0,
+                "effective_exptime": df_pointing["ob_single_exptime"],
                 "filter_g": df_pointing["filter_g"],
                 "filter_r": df_pointing["filter_r"],
                 "filter_i": df_pointing["filter_i"],
@@ -485,6 +485,7 @@ def load_ppp_results(infile: str):
             # "observation_time": observation_time,
             "observation_time": df_pointing["obstime"],
             "observation_date_in_hst": df_pointing["obsdate_in_hst"],
+            "single_exptime": df_pointing["ob_single_exptime"][0],
         }
 
     # print(dict_pointings)
@@ -594,7 +595,7 @@ def reconfigure_multiprocessing(
                 proposal_id="S24A-EN16",
                 target_type_id=1,  # SCIENCE
                 input_catalog_id=4,  # Gaia DR3
-                exptime=900.0,
+                exptime=dict_pointings[pointing.lower()]["single_exptime"],
                 priority=10,
             )
             df_filler_usr = dbutils.generate_fillers_from_targetdb(
@@ -609,7 +610,7 @@ def reconfigure_multiprocessing(
             df_filler_usr = dbutils.fixcols_filler_targetdb(
                 df_filler_usr,
                 target_type_id=1,  # SCIENCE
-                exptime=900.0,
+                exptime=dict_pointings[pointing.lower()]["single_exptime"],
                 priority=10,
             )
             df_filler = pd.concat([df_filler_usr, df_filler_obs])
@@ -700,7 +701,7 @@ def reconfigure_multiprocessing(
             num_reserved_fibers=0,
             fiber_non_allocation_cost=0.0,
             df_filler=df_filler,
-            force_exptime=conf["ppp"]["TEXP_NOMINAL"],
+            force_exptime=dict_pointings[pointing.lower()]["single_exptime"],
             two_stage=conf["netflow"]["two_stage"],
         )
 
