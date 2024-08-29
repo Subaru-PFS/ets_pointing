@@ -529,6 +529,24 @@ def main():
         logger.info(f"Fetched fillers DataFrame: \n{df_filler}")
     else:
         df_filler = None
+
+    cobra_coach, bench = nfutils.getBench(
+        args.pfs_instdata_dir,
+        args.cobra_coach_dir,
+        None,
+        args.sm,
+        args.dot_margin,
+    )
+
+    ncobras = bench.cobras.nCobras
+    cobraRegions = np.zeros(ncobras, dtype=np.int32)
+    cobraRegions_ = np.array_split(
+        cobraRegions, conf["netflow"]["cobra_location_group_n"]
+    )
+    for i in range(conf["netflow"]["cobra_location_group_n"]):
+        cobraRegions_[i] += i
+    cobraRegions = np.concatenate(cobraRegions_)
+    print(ncobras, cobraRegions)
        
     vis, tp, tel, tgt, tgt_class_dict, is_no_target, bench = nfutils.fiber_allocation(
         df_targets,
@@ -548,9 +566,9 @@ def main():
         args.sm,
         args.dot_margin,
         args.dot_penalty,
-        cobra_location_group=cobra_location_group,
-        min_sky_targets_per_location=min_sky_targets_per_location,
-        location_group_penalty=location_group_penalty,
+        cobra_location_group=cobraRegions,
+        min_sky_targets_per_location=conf["netflow"]["min_sky_targets_per_location"],
+        location_group_penalty=conf["netflow"]["location_group_penalty"],
         cobra_instrument_region=cobra_instrument_region,
         min_sky_targets_per_instrument_region=min_sky_targets_per_instrument_region,
         instrument_region_penalty=instrument_region_penalty,
