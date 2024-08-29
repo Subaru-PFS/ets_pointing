@@ -29,7 +29,7 @@ def generate_targets_from_targetdb(
     ra,
     dec,
     conf=None,
-    arms="br",
+    arms="brn",
     tablename="target",
     fp_radius_degree=260.0 * 10.2 / 3600,  # "Radius" of PFS FoV in degree (?)
     fp_fudge_factor=1.5,  # fudge factor for search widths
@@ -46,10 +46,15 @@ def generate_targets_from_targetdb(
 
     search_radius = fp_radius_degree * fp_fudge_factor
 
+    if extra_where is None:
+        extra_where = ""
+
     if "m" in arms:
-        extra_where = "AND is_medium_resolution IS TRUE"
+        if "r" not in arms:
+            extra_where = "AND is_medium_resolution IS TRUE"
     else:
-        extra_where = "AND is_medium_resolution IS FALSE"
+        if "r" in arms:
+            extra_where = "AND is_medium_resolution IS FALSE"
 
     query_string = f"""SELECT *
     FROM {tablename}
