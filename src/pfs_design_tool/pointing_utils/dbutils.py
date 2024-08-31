@@ -128,6 +128,7 @@ def generate_fluxstds_from_targetdb(
     max_teff=None,
     extra_where=None,
     write_csv=False,
+    ignore_prob_f_star=False,
 ):
     try:
         fluxstd_versions = conf["targetdb"]["fluxstd"]["version"]
@@ -146,11 +147,15 @@ def generate_fluxstds_from_targetdb(
     if extra_where is None:
         extra_where = ""
 
+    if not ignore_prob_f_star:
+        extra_where = f"""
+        AND prob_f_star BETWEEN {min_prob_f_star} AND 1.0
+        """
+
     if good_fluxstd:
         extra_where += """
         AND flags_dist IS FALSE
         AND flags_ebv IS FALSE
-        AND prob_f_star BETWEEN 0.5 AND 1.0
         """
         if select_by_flux:
             extra_where += (
@@ -162,9 +167,6 @@ def generate_fluxstds_from_targetdb(
             )
 
     if not good_fluxstd:
-        extra_where = f"""
-        AND prob_f_star BETWEEN {min_prob_f_star} AND 1.0
-        """
         if select_by_flux:
             extra_where += (
                 f"""AND psf_flux_{mag_filter} BETWEEN {flux_min} AND {flux_max}"""
@@ -184,11 +186,14 @@ def generate_fluxstds_from_targetdb(
             """
     if fluxstd_versions is not None:
         for fluxstd_version in fluxstd_versions:
-            if float(fluxstd_version) >= 3.0:
-                extra_where += f"""
-        AND teff_brutus BETWEEN {min_teff} AND {max_teff}
-        """
-                break
+            try:
+                if float(fluxstd_version) >= 3.0:
+                    extra_where += f"""
+            AND teff_brutus BETWEEN {min_teff} AND {max_teff}
+            """
+                    break
+            except:
+                extra_where += f""
 
     if fluxstd_versions is not None:
         version_condition = "("

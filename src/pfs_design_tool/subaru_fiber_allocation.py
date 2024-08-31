@@ -371,13 +371,17 @@ def get_arguments():
         default=None,
         help="Input proposal IDs for targets (default: None)",
     )
-
     parser.add_argument(
         "--guide_star_id_exclude",
         nargs="+",
         type=int,
         default=None,
         help="guide star ID to be excluded (default: None)",
+    )
+    parser.add_argument(
+        "--ignore_prob_f_star",
+        action="store_true",
+        help="Ignore prob_f_star selection (default: False)",
     )
 
     args = parser.parse_args()
@@ -448,6 +452,7 @@ def main():
 
     if args.skip_target:
         df_targets = df_targets[:0]
+
     df_fluxstds = dbutils.generate_fluxstds_from_targetdb(
         args.ra,
         args.dec,
@@ -465,7 +470,10 @@ def main():
         min_teff=args.fluxstd_min_teff,
         max_teff=args.fluxstd_max_teff,
         write_csv=True,
+        ignore_prob_f_star=args.ignore_prob_f_star,
     )
+    
+    df_fluxstds['prob_f_star'] = df_fluxstds['prob_f_star'].fillna(1.0)
 
     if args.n_sky == 0:
         logger.info("No sky object will be sent to netflow")
