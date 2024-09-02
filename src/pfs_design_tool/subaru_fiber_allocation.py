@@ -383,6 +383,11 @@ def get_arguments():
         action="store_true",
         help="Ignore prob_f_star selection (default: False)",
     )
+    parser.add_argument(
+        "--select_from_gaia",
+        action="store_true",
+        help="Select FLUXSTD from Gaia catalog (default: False)",
+    )
 
     args = parser.parse_args()
 
@@ -471,6 +476,7 @@ def main():
         max_teff=args.fluxstd_max_teff,
         write_csv=True,
         ignore_prob_f_star=args.ignore_prob_f_star,
+        select_from_gaia=args.select_from_gaia,
     )
     
     df_fluxstds['prob_f_star'] = df_fluxstds['prob_f_star'].fillna(1.0)

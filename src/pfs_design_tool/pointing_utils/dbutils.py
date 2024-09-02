@@ -129,6 +129,7 @@ def generate_fluxstds_from_targetdb(
     extra_where=None,
     write_csv=False,
     ignore_prob_f_star=False,
+    select_from_gaia=False,
 ):
     try:
         fluxstd_versions = conf["targetdb"]["fluxstd"]["version"]
@@ -188,10 +189,16 @@ def generate_fluxstds_from_targetdb(
         for fluxstd_version in fluxstd_versions:
             try:
                 if float(fluxstd_version) >= 3.0:
-                    extra_where += f"""
-            AND teff_brutus BETWEEN {min_teff} AND {max_teff}
-            """
-                    break
+                    if not select_from_gaia:
+                        extra_where += f"""
+                AND teff_brutus BETWEEN {min_teff} AND {max_teff}
+                """
+                        break
+                    else:
+                        extra_where += f"""
+                AND teff_gspphot BETWEEN {min_teff} AND {max_teff}
+                """
+
             except:
                 extra_where += f""
 
