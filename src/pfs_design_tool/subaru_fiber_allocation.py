@@ -371,13 +371,22 @@ def get_arguments():
         default=None,
         help="Input proposal IDs for targets (default: None)",
     )
-
     parser.add_argument(
         "--guide_star_id_exclude",
         nargs="+",
         type=int,
         default=None,
         help="guide star ID to be excluded (default: None)",
+    )
+    parser.add_argument(
+        "--ignore_prob_f_star",
+        action="store_true",
+        help="Ignore prob_f_star selection (default: False)",
+    )
+    parser.add_argument(
+        "--select_from_gaia",
+        action="store_true",
+        help="Select FLUXSTD from Gaia catalog (default: False)",
     )
 
     args = parser.parse_args()
@@ -448,6 +457,7 @@ def main():
 
     if args.skip_target:
         df_targets = df_targets[:0]
+
     df_fluxstds = dbutils.generate_fluxstds_from_targetdb(
         args.ra,
         args.dec,
@@ -465,7 +475,11 @@ def main():
         min_teff=args.fluxstd_min_teff,
         max_teff=args.fluxstd_max_teff,
         write_csv=True,
+        ignore_prob_f_star=args.ignore_prob_f_star,
+        select_from_gaia=args.select_from_gaia,
     )
+    
+    df_fluxstds['prob_f_star'] = df_fluxstds['prob_f_star'].fillna(1.0)
 
     if args.n_sky == 0:
         logger.info("No sky object will be sent to netflow")
@@ -529,6 +543,24 @@ def main():
         logger.info(f"Fetched fillers DataFrame: \n{df_filler}")
     else:
         df_filler = None
+
+    cobra_coach, bench = nfutils.getBench(
+        args.pfs_instdata_dir,
+        args.cobra_coach_dir,
+        None,
+        args.sm,
+        args.dot_margin,
+    )
+
+    ncobras = bench.cobras.nCobras
+    cobraRegions = np.zeros(ncobras, dtype=np.int32)
+    cobraRegions_ = np.array_split(
+        cobraRegions, conf["netflow"]["cobra_location_group_n"]
+    )
+    for i in range(conf["netflow"]["cobra_location_group_n"]):
+        cobraRegions_[i] += i
+    cobraRegions = np.concatenate(cobraRegions_)
+    print(ncobras, cobraRegions)
        
     vis, tp, tel, tgt, tgt_class_dict, is_no_target, bench = nfutils.fiber_allocation(
         df_targets,
@@ -548,9 +580,9 @@ def main():
         args.sm,
         args.dot_margin,
         args.dot_penalty,
-        cobra_location_group=cobra_location_group,
-        min_sky_targets_per_location=min_sky_targets_per_location,
-        location_group_penalty=location_group_penalty,
+        cobra_location_group=cobraRegions,
+        min_sky_targets_per_location=conf["netflow"]["min_sky_targets_per_location"],
+        location_group_penalty=conf["netflow"]["location_group_penalty"],
         cobra_instrument_region=cobra_instrument_region,
         min_sky_targets_per_instrument_region=min_sky_targets_per_instrument_region,
         instrument_region_penalty=instrument_region_penalty,

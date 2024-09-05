@@ -336,6 +336,7 @@ def generate_pfs_design(
                     proposal_id[i_fiber] = df_filler["proposal_id"][idx_filler].values[
                         0
                     ]
+                    ob_code[i_fiber] = df_filler["ob_code"][idx_filler].values[0]
                     epoch[i_fiber] = df_filler["epoch"][idx_filler].values[0]
                     pmRa[i_fiber] = df_filler["pmra"][idx_filler].values[0]
                     pmDec[i_fiber] = df_filler["pmdec"][idx_filler].values[0]
@@ -347,8 +348,8 @@ def generate_pfs_design(
                     dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
                         [
                             df_filler["g_flux_njy"][idx_filler].values[0],
-                            df_filler["bp_flux_njy"][idx_filler].values[0],
-                            df_filler["rp_flux_njy"][idx_filler].values[0],
+                            df_filler["bp_r_flux_njy"][idx_filler].values[0],
+                            df_filler["rp_i_flux_njy"][idx_filler].values[0],
                             np.nan,
                             np.nan,
                         ]
@@ -356,8 +357,8 @@ def generate_pfs_design(
                     dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
                         [
                             df_filler["g_flux_err_njy"][idx_filler].values[0],
-                            df_filler["bp_flux_err_njy"][idx_filler].values[0],
-                            df_filler["rp_flux_err_njy"][idx_filler].values[0],
+                            df_filler["bp_r_flux_err_njy"][idx_filler].values[0],
+                            df_filler["rp_i_flux_err_njy"][idx_filler].values[0],
                             np.nan,
                             np.nan,
                         ]
@@ -365,16 +366,16 @@ def generate_pfs_design(
                     dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
                         [
                             df_filler["g_flux_err_njy"][idx_filler].values[0],
-                            df_filler["bp_flux_err_njy"][idx_filler].values[0],
-                            df_filler["rp_flux_err_njy"][idx_filler].values[0],
+                            df_filler["bp_r_flux_err_njy"][idx_filler].values[0],
+                            df_filler["rp_i_flux_err_njy"][idx_filler].values[0],
                             np.nan,
                             np.nan,
                         ]
                     )
                     dict_of_flux_lists["filter_names"][i_fiber] = [
-                        "g_gaia",
-                        "bp_gaia",
-                        "rp_gaia",
+                        "g_gaia_ps1",
+                        "bp_gaia_r_ps1",
+                        "rp_gaia_i_ps1",
                         "none",
                         "none",
                     ]
