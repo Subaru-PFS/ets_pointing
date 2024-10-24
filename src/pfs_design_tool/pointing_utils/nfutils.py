@@ -162,7 +162,8 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
     elif target_class == "cal":
         # cal_penalty = ((-2.5*np.log10(df["psf_flux_g"] * 1e-32)) -
         #               (-2.5*np.log10(max(df["psf_flux_g"]) * 1e-32))) #* 5.0e+10
-        cal_penalty = 5.0e10 * (1 - df["prob_f_star"])
+        
+        cal_penalty = np.array([5.0e10 * (1 - ii) if ii >= 0 else 0 for ii in df["prob_f_star"]])
         # print(min(cal_penalty), max(cal_penalty))
         res = [
             nf.CalibTarget(
