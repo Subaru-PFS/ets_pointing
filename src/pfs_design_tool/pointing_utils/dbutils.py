@@ -228,8 +228,8 @@ def generate_fluxstds_from_targetdb(
 
     if len(df) == 0:
         # select gaia fstar when no PS1 fstar is selected
-        flux_max = (mag_max * u.ABmag).to(u.nJy).value
-        flux_min = (mag_min * u.ABmag).to(u.nJy).value
+        flux_max = (mag_min * u.ABmag).to(u.nJy).value
+        flux_min = (mag_max * u.ABmag).to(u.nJy).value
 
         query_string = f"""SELECT *
             FROM {tablename}
