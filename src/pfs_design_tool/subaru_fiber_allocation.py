@@ -32,6 +32,9 @@ location_group_penalty = None
 cobra_instrument_region = None
 min_sky_targets_per_instrument_region = None
 instrument_region_penalty = None
+num_reserved_fibers = 0
+fiber_non_allocation_cost = 1.0e+03
+#fiber_non_allocation_cost = 0.0
 
 def get_arguments():
     parser = argparse.ArgumentParser()
@@ -388,6 +391,11 @@ def get_arguments():
         action="store_true",
         help="Select FLUXSTD from Gaia catalog (default: False)",
     )
+    parser.add_argument(
+        "--good_astrometry",
+        action="store_true",
+        help="Select Gaia sources with good astrometry (default: False)",
+    )
 
     args = parser.parse_args()
 
@@ -522,7 +530,7 @@ def main():
             band_select="phot_g_mean_mag",
             mag_min=args.filler_mag_min,
             mag_max=args.filler_mag_max,
-            good_astrometry=False,  # select bright stars which may have large astrometric errors.
+            good_astrometry=args.good_astrometry,  # select bright stars which may have large astrometric errors.
             write_csv=True,
         )
         df_filler = dbutils.fixcols_gaiadb_to_targetdb(
@@ -586,8 +594,8 @@ def main():
         cobra_instrument_region=cobra_instrument_region,
         min_sky_targets_per_instrument_region=min_sky_targets_per_instrument_region,
         instrument_region_penalty=instrument_region_penalty,
-        num_reserved_fibers=0,
-        fiber_non_allocation_cost=0.0,
+        num_reserved_fibers=num_reserved_fibers,
+        fiber_non_allocation_cost=fiber_non_allocation_cost,
         df_filler=df_filler,
         force_exptime=args.exptime,
     )
@@ -629,6 +637,7 @@ def main():
         # gaiadb_epoch=2015.0,
         # gaiadb_input_catalog_id=2,
         guide_star_id_exclude=guide_star_id_exclude,
+        good_astrometry=args.good_astrometry,
     )
 
     design.guideStars = guidestars
