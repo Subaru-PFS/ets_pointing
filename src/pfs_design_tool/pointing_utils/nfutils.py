@@ -601,8 +601,8 @@ def fiber_allocation(
         minSkyTargetsPerInstrumentRegion=min_sky_targets_per_instrument_region,
         instrumentRegionPenalty=instrument_region_penalty,
         dot_penalty=dot_penalty,
-        numReservedFibers=0,
-        fiberNonAllocationCost=0.0,
+        numReservedFibers=num_reserved_fibers,
+        fiberNonAllocationCost=fiber_non_allocation_cost,
     )
 
     if two_stage == False:
