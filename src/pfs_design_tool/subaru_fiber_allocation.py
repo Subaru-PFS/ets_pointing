@@ -452,6 +452,14 @@ def main():
         df_targets.priority[df_targets.priority == 4] = 3
         df_targets.priority[df_targets.priority < 1] = 7
 
+    ## FIXME: temporal workaround for M31 bright targets ##
+    if 'S24B-QT948' in args.proposal_id:
+        #logger.info(df_targets.psf_flux_i)
+        idx_bright = [i for i,f in enumerate(df_targets.psf_flux_i) if f>912010.8] # objects brighter than i=16.5 ABmag
+        #logger.info(idx_bright)
+        df_targets = df_targets.drop(index = idx_bright)
+        #logger.info(df_targets.psf_flux_i)
+
     ## FIXME: temporal workaround for S24B-QT907 targets ##
     msk = (df_targets.proposal_id == 'S24B-QT907') * (df_targets.psf_flux_g > 1150)
     df_targets = df_targets[~msk].reset_index()

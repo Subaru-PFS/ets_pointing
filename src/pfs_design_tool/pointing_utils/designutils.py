@@ -261,9 +261,7 @@ def generate_pfs_design(
                     [
                         (
                             df_fluxstds[f"psf_flux_error_{band}"][idx_fluxstd].values[0]
-                            if df_fluxstds[f"psf_flux_error_{band}"][
-                                idx_fluxstd
-                            ].values[0]
+                            if df_fluxstds[f"psf_flux_error_{band}"][idx_fluxstd].values[0]
                             is not None
                             else np.nan
                         )
@@ -281,6 +279,15 @@ def generate_pfs_design(
                     )
                     for band in filter_band_names
                 ]
+
+                # FIXME: temporal fix for gaia fluxstds
+                #if "g_gaia" in dict_of_flux_lists["filter_names"][i_fiber]:
+                #    dict_of_flux_lists["filter_names"][i_fiber] = list(dict_of_flux_lists["filter_names"][i_fiber][:3])
+                #    dict_of_flux_lists["psf_flux"][i_fiber] = np.array(dict_of_flux_lists["psf_flux"][i_fiber][:3])
+                #    dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(dict_of_flux_lists["psf_flux_error"][i_fiber][:3])
+                #    dict_of_flux_lists["filter_names"][i_fiber][3] = 'none'
+                #    dict_of_flux_lists["filter_names"][i_fiber][4] = 'none'
+
             # psf_flux[i_fiber] = df_fluxstds["psfFlux"][idx_fluxstd][0]
             # filter_names[i_fiber] = df_fluxstds["filterNames"][idx_fluxstd][0].tolist()
             if np.any(idx_sky):
@@ -373,9 +380,9 @@ def generate_pfs_design(
                         ]
                     )
                     dict_of_flux_lists["filter_names"][i_fiber] = [
-                        "g_gaia_ps1",
-                        "bp_gaia_r_ps1",
-                        "rp_gaia_i_ps1",
+                        "g_gaia",
+                        "bp_gaia",
+                        "rp_gaia",
                         "none",
                         "none",
                     ]
