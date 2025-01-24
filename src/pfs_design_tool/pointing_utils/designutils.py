@@ -540,19 +540,29 @@ def generate_guidestars_from_gaiadb(
         sqlWhere += f"AND source_id NOT EQUAL {gsId}"
 
     if good_astrometry is True:
-        astrometric_flag = "\n   AND astrometric_excess_noise_sig < 2.0"
+        astrometric_flag = f"""AND  {coldict['pmra']} IS NOT NULL   
+        AND {coldict['pmdec']} IS NOT NULL
+        AND {coldict['parallax']} IS NOT NULL
+        AND {coldict['parallax']} >= 0 
+        AND astrometric_excess_noise_sig < 2.0 
+        """
     else:
         astrometric_flag = ""
+
     query_string = f"""SELECT source_id,ra,dec,parallax,pmra,pmdec,ref_epoch,phot_g_mean_mag,bp_rp
     FROM gaia3
     WHERE q3c_radial_query(ra, dec, {ra_tel_deg}, {dec_tel_deg}, {search_radius})
-    AND {coldict['pmra']} IS NOT NULL
-    AND {coldict['pmdec']} IS NOT NULL
-    AND {coldict['parallax']} IS NOT NULL
-    AND {coldict['parallax']} >= 0 {astrometric_flag}
-    AND {coldict['mag']} BETWEEN {guidestar_mag_min} AND {guidestar_mag_max} {sqlWhere}
+    {astrometric_flag} AND {coldict['mag']} BETWEEN {guidestar_mag_min} AND {guidestar_mag_max} {sqlWhere}
     ;
     """
+    
+    #query_string = f"""SELECT source_id,ra,dec,parallax,pmra,pmdec,ref_epoch,phot_g_mean_mag,bp_rp
+    #FROM gaia3
+    #WHERE q3c_radial_query(ra, dec, {ra_tel_deg}, {dec_tel_deg}, {search_radius})
+    #AND {coldict['mag']} BETWEEN {guidestar_mag_min} AND {guidestar_mag_max} {sqlWhere}
+    #;
+    #"""
+    
     print(query_string)
     cur.execute(query_string)
 
