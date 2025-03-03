@@ -602,6 +602,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
             df_raster=df_raster,
             is_no_target=is_no_target,
             design_name=dict_pointings[pointing.lower()]["pointing_name"],
+            obs_time=observation_time,
         )
 
         guidestars = designutils.generate_guidestars_from_gaiadb(

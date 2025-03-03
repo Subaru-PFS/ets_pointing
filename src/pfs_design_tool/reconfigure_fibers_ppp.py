@@ -720,6 +720,7 @@ def reconfigure_multiprocessing(
             is_no_target=is_no_target,
             design_name=dict_pointings[pointing.lower()]["pointing_name"],
             pfs_instdata_dir=conf["sfa"]["pfs_instdata_dir"],
+            obs_time=args.observation_time,
         )
 
         guidestars = designutils.generate_guidestars_from_gaiadb(

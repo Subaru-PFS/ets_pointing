@@ -513,6 +513,7 @@ def main():
         df_raster=df_raster,
         is_no_target=is_no_target,
         design_name=args.design_name,
+        obs_time=args.observation_time,
     )
     guidestars = designutils.generate_guidestars_from_gaiadb(
         args.ra,

@@ -618,6 +618,7 @@ def main():
         df_filler=df_filler,
         is_no_target=is_no_target,
         design_name=args.design_name,
+        obs_time=args.observation_time,
     )
     if args.guide_star_id_exclude is None:
         guide_star_id_exclude = []
