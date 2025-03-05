@@ -307,6 +307,7 @@ def main():
             df_filler=None,
             is_no_target=is_no_target,
             design_name=in_design.designName,
+            obs_time=args.observation_time,
         )
 
     # add guideStars table

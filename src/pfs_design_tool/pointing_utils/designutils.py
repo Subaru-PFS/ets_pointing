@@ -34,7 +34,9 @@ def generate_pfs_design(
     is_no_target=False,
     design_name=None,
     pfs_instdata_dir=None,
+    obs_time="",
 ):
+
     gfm = FiberIds(path=get_pfs_utils_path())  # 2604
     cobra_ids = gfm.cobraId
     scifiber_ids = gfm.scienceFiberId
@@ -431,6 +433,7 @@ def generate_pfs_design(
         # guideStars=None,
         designName=design_name,
         fiberidsPath=get_pfs_utils_path(),
+        obstime=obs_time,
     )
 
     # Set the environment variables for the PFS instrument data and utilities directories
