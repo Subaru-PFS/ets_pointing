@@ -250,6 +250,7 @@ def main():
         tgt_class_dict,
         arms=in_design.arms,
         design_name=in_design.designName,
+        obs_time=args.observation_time,
     )
 
     guidestars = designutils.generate_guidestars_from_gaiadb(

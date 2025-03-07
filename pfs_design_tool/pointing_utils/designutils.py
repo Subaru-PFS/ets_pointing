@@ -29,6 +29,7 @@ def generate_pfs_design(
     df_raster=None,
     is_no_target=False,
     design_name=None,
+    obs_time="",
 ):
     gfm = FiberIds()  # 2604
     cobra_ids = gfm.cobraId
@@ -372,6 +373,7 @@ def generate_pfs_design(
         # filterNames=filter_names,
         # guideStars=None,
         designName=design_name,
+        obstime=obs_time,
     )
 
     return pfs_design
