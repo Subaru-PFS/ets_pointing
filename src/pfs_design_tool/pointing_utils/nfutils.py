@@ -34,7 +34,7 @@ from ics.cobraOps.TargetGroup import TargetGroup
 # from targetdb import targetdb
 from logzero import logger
 from pfs.utils.fiberids import FiberIds
-from procedures.moduleTest.cobraCoach import CobraCoach
+from ics.cobraCharmer.cobraCoach.cobraCoach import CobraCoach
 
 # This was needed for fixing some issues with the XML files.
 # Can probably be simplified. Javier?
