@@ -263,9 +263,7 @@ def generate_pfs_design(
                     [
                         (
                             df_fluxstds[f"psf_flux_error_{band}"][idx_fluxstd].values[0]
-                            if df_fluxstds[f"psf_flux_error_{band}"][
-                                idx_fluxstd
-                            ].values[0]
+                            if df_fluxstds[f"psf_flux_error_{band}"][idx_fluxstd].values[0]
                             is not None
                             else np.nan
                         )
@@ -283,6 +281,15 @@ def generate_pfs_design(
                     )
                     for band in filter_band_names
                 ]
+
+                # FIXME: temporal fix for gaia fluxstds
+                #if "g_gaia" in dict_of_flux_lists["filter_names"][i_fiber]:
+                #    dict_of_flux_lists["filter_names"][i_fiber] = list(dict_of_flux_lists["filter_names"][i_fiber][:3])
+                #    dict_of_flux_lists["psf_flux"][i_fiber] = np.array(dict_of_flux_lists["psf_flux"][i_fiber][:3])
+                #    dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(dict_of_flux_lists["psf_flux_error"][i_fiber][:3])
+                #    dict_of_flux_lists["filter_names"][i_fiber][3] = 'none'
+                #    dict_of_flux_lists["filter_names"][i_fiber][4] = 'none'
+
             # psf_flux[i_fiber] = df_fluxstds["psfFlux"][idx_fluxstd][0]
             # filter_names[i_fiber] = df_fluxstds["filterNames"][idx_fluxstd][0].tolist()
             if np.any(idx_sky):
@@ -375,9 +382,9 @@ def generate_pfs_design(
                         ]
                     )
                     dict_of_flux_lists["filter_names"][i_fiber] = [
-                        "g_gaia_ps1",
-                        "bp_gaia_r_ps1",
-                        "rp_gaia_i_ps1",
+                        "g_gaia",
+                        "bp_gaia",
+                        "rp_gaia",
                         "none",
                         "none",
                     ]
@@ -536,19 +543,29 @@ def generate_guidestars_from_gaiadb(
         sqlWhere += f"AND source_id NOT EQUAL {gsId}"
 
     if good_astrometry is True:
-        astrometric_flag = "\n   AND astrometric_excess_noise_sig < 2.0"
+        astrometric_flag = f"""AND  {coldict['pmra']} IS NOT NULL   
+        AND {coldict['pmdec']} IS NOT NULL
+        AND {coldict['parallax']} IS NOT NULL
+        AND {coldict['parallax']} >= 0 
+        AND astrometric_excess_noise_sig < 2.0 
+        """
     else:
         astrometric_flag = ""
+
     query_string = f"""SELECT source_id,ra,dec,parallax,pmra,pmdec,ref_epoch,phot_g_mean_mag,bp_rp
     FROM gaia3
     WHERE q3c_radial_query(ra, dec, {ra_tel_deg}, {dec_tel_deg}, {search_radius})
-    AND {coldict['pmra']} IS NOT NULL
-    AND {coldict['pmdec']} IS NOT NULL
-    AND {coldict['parallax']} IS NOT NULL
-    AND {coldict['parallax']} >= 0 {astrometric_flag}
-    AND {coldict['mag']} BETWEEN {guidestar_mag_min} AND {guidestar_mag_max} {sqlWhere}
+    {astrometric_flag} AND {coldict['mag']} BETWEEN {guidestar_mag_min} AND {guidestar_mag_max} {sqlWhere}
     ;
     """
+    
+    #query_string = f"""SELECT source_id,ra,dec,parallax,pmra,pmdec,ref_epoch,phot_g_mean_mag,bp_rp
+    #FROM gaia3
+    #WHERE q3c_radial_query(ra, dec, {ra_tel_deg}, {dec_tel_deg}, {search_radius})
+    #AND {coldict['mag']} BETWEEN {guidestar_mag_min} AND {guidestar_mag_max} {sqlWhere}
+    #;
+    #"""
+    
     print(query_string)
     cur.execute(query_string)
 
