@@ -225,6 +225,23 @@ def generate_fluxstds_from_targetdb(
 
     t_begin = time.time()
     df = db.fetch_query(query_string)
+
+    if len(df) == 0:
+        # select gaia fstar when no PS1 fstar is selected
+        flux_max = (mag_min * u.ABmag).to(u.nJy).value
+        flux_min = (mag_max * u.ABmag).to(u.nJy).value
+
+        query_string = f"""SELECT *
+            FROM {tablename}
+            WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
+            AND is_fstar_gaia
+            AND teff_gspphot BETWEEN {min_teff} AND {max_teff}
+            AND psf_flux_r BETWEEN {flux_min} AND {flux_max};
+            """
+        logger.info(f"Query string for fluxstd (Gaia): \n{query_string}")
+
+        df = db.fetch_query(query_string)
+
     t_end = time.time()
     logger.info(f"Time spent for querying (s): {t_end - t_begin:.3f}")
 
