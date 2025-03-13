@@ -705,6 +705,11 @@ def reconfigure_multiprocessing(
             two_stage=conf["netflow"]["two_stage"],
         )
 
+        try:
+            obs_time_ = args.observation_time
+        except NameError:
+            obs_time_ = observation_time
+
         design = designutils.generate_pfs_design(
             df_sci,
             df_fluxstds,
@@ -720,7 +725,7 @@ def reconfigure_multiprocessing(
             is_no_target=is_no_target,
             design_name=dict_pointings[pointing.lower()]["pointing_name"],
             pfs_instdata_dir=conf["sfa"]["pfs_instdata_dir"],
-            obs_time=args.observation_time,
+            obs_time=obs_time_,
         )
 
         guidestars = designutils.generate_guidestars_from_gaiadb(
