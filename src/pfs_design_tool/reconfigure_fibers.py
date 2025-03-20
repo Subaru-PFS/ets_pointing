@@ -159,6 +159,17 @@ def get_arguments():
         default=None,
         help="Input catalog ID for targets (default: None)",
     )
+    parser.add_argument(
+        "--use_gs_csv",
+        action="store_true",
+        help="Select Gaia sources from GuideStar csv file (default: False)",
+    )
+    parser.add_argument(
+        "--gs_csv",
+        type=str,
+        default=None,
+        help="GuideStar csv file (default: None)",
+    )
 
     args = parser.parse_args()
 
@@ -312,18 +323,33 @@ def main():
 
     # add guideStars table
     print("add guideStars...")
-    guidestars = designutils.generate_guidestars_from_gaiadb(
-        in_design.raBoresight,
-        in_design.decBoresight,
-        in_design.posAng,
-        args.observation_time,
-        telescope_elevation=None,
-        conf=conf,
-        guidestar_mag_min=args.guidestar_mag_min,
-        guidestar_mag_max=args.guidestar_mag_max,
-        guidestar_neighbor_mag_min=args.guidestar_neighbor_mag_min,
-        guidestar_minsep_deg=args.guidestar_minsep_deg,
-    )
+    if args.use_gs_csv:
+        guidestars = designutils.generate_guidestars_from_gaiadb(
+            in_design.raBoresight,
+            in_design.decBoresight,
+            in_design.posAng,
+            args.observation_time,
+            telescope_elevation=None,
+            conf=conf,
+            guidestar_mag_min=args.guidestar_mag_min,
+            guidestar_mag_max=args.guidestar_mag_max,
+            guidestar_neighbor_mag_min=args.guidestar_neighbor_mag_min,
+            guidestar_minsep_deg=args.guidestar_minsep_deg,
+            gs_csv=args.gs_csv,
+        )
+    else:
+        guidestars = designutils.generate_guidestars_from_gaiadb(
+            in_design.raBoresight,
+            in_design.decBoresight,
+            in_design.posAng,
+            args.observation_time,
+            telescope_elevation=None,
+            conf=conf,
+            guidestar_mag_min=args.guidestar_mag_min,
+            guidestar_mag_max=args.guidestar_mag_max,
+            guidestar_neighbor_mag_min=args.guidestar_neighbor_mag_min,
+            guidestar_minsep_deg=args.guidestar_minsep_deg,
+        )
     out_design.guideStars = guidestars
     
     # add proposalId for science targets

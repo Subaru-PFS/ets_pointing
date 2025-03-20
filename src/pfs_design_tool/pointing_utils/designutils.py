@@ -470,6 +470,99 @@ def generate_pfs_design(
     return pfs_design
 
 
+# a function to set bitMask for AG flags
+def get_gs_flag(df, gs_snr_thresh):
+    keys = [k.name for k in pfs.datamodel.guideStars.AutoGuiderStarMask]
+    flags = {k: np.zeros(len(df), dtype=np.uint16) for k in keys}
+
+    catalog = df.catalog.to_numpy()
+    flags["GAIA"][catalog == "gaia_dr3"] = 1
+    flags["HSC"][catalog == "hsc_pdr3"] = 1
+
+    pmra = df.pmra.to_numpy()
+    msk = np.isnan(pmra)
+    flags["PMRA"][~msk] = 1
+
+    pmra_error = df.pmra_error.to_numpy()
+    snr = np.abs(pmra) / pmra_error
+    snr[np.isnan(snr)] = 0.0
+    flags["PMRA_SIG"][snr>gs_snr_thresh] = 1  
+    
+    pmdec = df.pmdec.to_numpy()
+    pmdec_error = df.pmdec_error.to_numpy()
+    msk = np.isnan(pmdec)
+    flags["PMDEC"][~msk] = 1
+
+    snr = np.abs(pmdec) / pmdec_error
+    snr[np.isnan(snr)] = 0.0
+    flags["PMDEC_SIG"][snr>gs_snr_thresh] = 1
+
+    para = df.pmdec.to_numpy()
+    pmdec_error = df.pmdec_error.to_numpy()
+    msk = np.isnan(para)
+    flags["PARA"][~msk] = 1
+
+    parallax_over_error = df.parallax_over_error.to_numpy()
+    parallax_over_error[np.isnan(parallax_over_error)] = 0.0
+    flags["PARA_SIG"][parallax_over_error**2>gs_snr_thresh**2] = 1
+
+    astrometric_excess_noise = df.astrometric_excess_noise.to_numpy()
+    astrometric_excess_noise[np.isnan(astrometric_excess_noise)] = 9999
+    msk = astrometric_excess_noise < 1.0
+    flags["ASTROMETRIC"][msk] = 1
+
+    astrometric_excess_noise_sig = df.astrometric_excess_noise_sig.to_numpy()
+    astrometric_excess_noise_sig[np.isnan(astrometric_excess_noise_sig)] = 0
+    msk = astrometric_excess_noise_sig > 2.0
+    flags["ASTROMETRIC_SIG"][msk] = 1
+        
+    ruwe = df.ruwe.to_numpy()
+    ruwe[np.isnan(ruwe)] = 9999
+    msk = ruwe < 1.4
+    flags["NON_BINARY"][msk] = 1
+
+    mag = np.zeros(len(df))
+    phot_g_mean_mag = df.phot_g_mean_mag.to_numpy()
+    phot_g_mean_mag[np.isnan(phot_g_mean_mag)] = 0.0
+    mag += phot_g_mean_mag
+    r_cmodel_mag = df.r_cmodel_mag.to_numpy()
+    r_cmodel_mag[np.isnan(r_cmodel_mag)] = 0.0
+    mag += r_cmodel_mag
+
+    snr = np.zeros(len(df))
+    phot_g_mean_flux_over_error = df.phot_g_mean_flux_over_error.to_numpy()
+    phot_g_mean_flux_over_error[np.isnan(phot_g_mean_flux_over_error)] = 0.0
+    snr += phot_g_mean_flux_over_error
+    r_cmodel_mag = df.r_cmodel_mag.to_numpy()
+    r_cmodel_magerr = df.r_cmodel_magerr.to_numpy()
+    flx = 10**(-0.4*(r_cmodel_mag+48.6))
+    dflx = 10**(-0.4*(r_cmodel_mag-r_cmodel_magerr+48.6)) - flx
+    r_cmodel_flux_over_error = flx / dflx
+    r_cmodel_flux_over_error[np.isnan(r_cmodel_flux_over_error)] = 0.0
+    snr += r_cmodel_flux_over_error  
+
+    msk = snr > gs_snr_thresh
+    flags["PHOTO_SIG"][msk] = 1
+
+    classification = np.zeros(len(df))
+    in_galaxy_candidates = df.in_galaxy_candidates.to_numpy()
+    in_galaxy_candidates[np.isnan(in_galaxy_candidates)] = 0
+    classification += in_galaxy_candidates
+    r_extendedness_value = df.r_extendedness_value.to_numpy()
+    r_extendedness_value[np.isnan(r_extendedness_value)] = 0
+    classification += r_extendedness_value
+    
+    msk = classification > 0
+    flags["GALAXY"][msk] = 1    
+
+    bitPos = {k: i for i, k in enumerate(flags.keys())}
+    flag = np.zeros(len(next(iter(flags.values()))), dtype=np.uint16)
+    for k,v in flags.items():
+        flag |= (v << bitPos[k])
+    
+    return flags, flag
+
+
 def generate_guidestars_from_gaiadb(
     ra,
     dec,
@@ -488,6 +581,7 @@ def generate_guidestars_from_gaiadb(
     gaiadb_input_catalog_id=4,
     guide_star_id_exclude=[],
     good_astrometry=False,
+    gs_snr_thresh=5.0,
 ):
     # Get ra, dec and position angle from input arguments
     ra_tel_deg, dec_tel_deg, pa_deg = ra, dec, pa
@@ -547,17 +641,23 @@ def generate_guidestars_from_gaiadb(
         AND {coldict['pmdec']} IS NOT NULL
         AND {coldict['parallax']} IS NOT NULL
         AND {coldict['parallax']} >= 0 
-        AND astrometric_excess_noise_sig < 2.0 
+        AND astrometric_excess_noise < 1.0 
         """
     else:
         astrometric_flag = ""
 
-    query_string = f"""SELECT source_id,ra,dec,parallax,pmra,pmdec,ref_epoch,phot_g_mean_mag,bp_rp
-    FROM gaia3
+    query_string = f"""SELECT * FROM gaia3
     WHERE q3c_radial_query(ra, dec, {ra_tel_deg}, {dec_tel_deg}, {search_radius})
     {astrometric_flag} AND {coldict['mag']} BETWEEN {guidestar_mag_min} AND {guidestar_mag_max} {sqlWhere}
     ;
     """
+
+    #query_string = f"""SELECT source_id,ra,dec,parallax,pmra,pmdec,ref_epoch,phot_g_mean_mag,bp_rp
+    #FROM gaia3
+    #WHERE q3c_radial_query(ra, dec, {ra_tel_deg}, {dec_tel_deg}, {search_radius})
+    #{astrometric_flag} AND {coldict['mag']} BETWEEN {guidestar_mag_min} AND {guidestar_mag_max} {sqlWhere}
+    #;
+    #"""
     
     #query_string = f"""SELECT source_id,ra,dec,parallax,pmra,pmdec,ref_epoch,phot_g_mean_mag,bp_rp
     #FROM gaia3
@@ -569,22 +669,34 @@ def generate_guidestars_from_gaiadb(
     print(query_string)
     cur.execute(query_string)
 
-    df_res = pd.DataFrame(
-        cur.fetchall(),
-        columns=[
-            "source_id",
-            "ra",
-            "dec",
-            "parallax",
-            "pmra",
-            "pmdec",
-            "ref_epoch",
-            "phot_g_mean_mag",
-            "bp_rp",
-        ],
-    )
+    column_list = [d.name for d in cur.description]
+    df_sel = pd.DataFrame(cur.fetchall(), columns=column_list)
     cur.close()
     conn.close()
+
+    df_sel["catalog"] = "gaia_dr3"
+    df_sel["r_cmodel_mag"] = np.nan
+    df_sel["r_cmodel_magerr"] = np.nan
+    df_sel["r_extendedness_value"] = np.nan
+    df_sel["magnitude"] = df_sel["phot_g_mean_mag"]
+    df_sel["color"] = df_sel["bp_rp"]
+
+    gs_cat_flags, gs_cat_flag = get_gs_flag(df_sel, gs_snr_thresh)
+
+    df_sel = df_sel.fillna({"parallax": 1.0e-07, "pmra": 0.0, "pmdec": 0.0})
+
+    df_res = pd.DataFrame({
+        "source_id": df_sel.source_id.to_list(),
+        "ra": df_sel.ra.to_list(),
+        "dec": df_sel.dec.to_list(),
+        "parallax": df_sel.parallax.to_list(),
+        "pmra": df_sel.pmra.to_list(),
+        "pmdec": df_sel.pmdec.to_list(),
+        "ref_epoch": df_sel.ref_epoch.to_list(),
+        "phot_g_mean_mag": df_sel.magnitude.to_list(),
+        "bp_rp": df_sel.color.to_list(),
+        "flag": list(gs_cat_flag),
+    })
 
     assert (
         np.unique(df_res["ref_epoch"]).size == 1
@@ -719,6 +831,236 @@ def generate_guidestars_from_gaiadb(
         targets["agpix_y"],  # AG y pixel coordinate
         telescope_elevation,
         gaiadb_input_catalog_id,  # numerical ID assigned to the GAIA catalogue
+        targets["flag"]
+    )
+
+    return guidestars
+
+
+def generate_guidestars_from_csv(
+    ra,
+    dec,
+    pa,
+    observation_time,
+    telescope_elevation=None,
+    conf=None,
+    guidestar_mag_min=12.0,
+    guidestar_mag_max=19.0,
+    guidestar_neighbor_mag_min=21.0,
+    guidestar_minsep_deg=1.0 / 3600,
+    fp_radius_degree=260.0 * 10.2 / 3600,  # "Radius" of PFS FoV in degree (?)
+    fp_fudge_factor=1.5,  # fudge factor for search widths
+    search_radius=None,
+    # gaiadb_epoch=2015.0,
+    gaiadb_input_catalog_id=4,
+    guide_star_id_exclude=[],
+    good_astrometry=False,
+    gs_csv=None,
+    gs_snr_thresh=5.0,
+):
+
+    # Get ra, dec and position angle from input arguments
+    ra_tel_deg, dec_tel_deg, pa_deg = ra, dec, pa
+
+    # Get telescope elevation from the observing time, target, and pointing
+    pointing_center = FixedTarget(SkyCoord(ra * u.deg, dec * u.deg, frame="icrs"))
+    observing_site = Observer.at_site("subaru")
+    if telescope_elevation is None:
+        telescope_elevation = observing_site.altaz(
+            observation_time,
+            pointing_center,
+        ).alt.value
+        print(
+            f"Telescope elevation is set to {telescope_elevation:.1f} degrees \
+                from the pointing center ({ra:.5f}, {dec:.5f}) and observing \
+                    time {observation_time} at Subaru Telescope"
+        )
+
+    # guide star cam geometries
+    agcoord = guidecam_geometry()
+
+    # internal, technical parameters
+    # set focal plane radius
+    # fp_radius_degree = 260.0 * 10.2 / 3600
+    # fp_fudge_factor = 1.2
+
+    if search_radius is None:
+        search_radius = fp_radius_degree * fp_fudge_factor
+
+    coldict = {
+        "id": "source_id",
+        "ra": "ra",
+        "dec": "dec",
+        "parallax": "parallax",
+        "pmra": "pmra",
+        "pmdec": "pmdec",
+        "epoch": "ref_epoch",
+        "mag": "phot_g_mean_mag",
+        "color": "bp_rp",
+    }
+    racol, deccol = coldict["ra"], coldict["dec"]
+
+    # read guideStar catalog from csv
+    df = pd.read_csv(gs_csv)
+
+    ra_cat = df.ra.to_numpy()
+    dec_cat = df.dec.to_numpy()
+    r2 = ((ra_cat - ra)*np.cos(np.pi/180.*dec_cat))**2 + (dec_cat - dec)**2
+    df_sel = df[r2<search_radius**2].reset_index()
+
+    logger.info(f"GuideStars to use are selected: {len(df)} ==> {len(df_sel)}")
+
+    gs_cat_flags, gs_cat_flag = get_gs_flag(df_sel, gs_snr_thresh)
+
+    df_sel = df_sel.fillna({"parallax": 1.0e-07, "pmra": 0.0, "pmdec": 0.0})
+
+    df_res = pd.DataFrame({
+        "source_id": df_sel.source_id.to_list(),
+        "ra": df_sel.ra.to_list(),
+        "dec": df_sel.dec.to_list(),
+        "parallax": df_sel.parallax.to_list(),
+        "pmra": df_sel.pmra.to_list(),
+        "pmdec": df_sel.pmdec.to_list(),
+        "ref_epoch": df_sel.ref_epoch.to_list(),
+        "phot_g_mean_mag": df_sel.magnitude.to_list(),
+        "bp_rp": df_sel.color.to_list(),
+        "flag": list(gs_cat_flag),
+    })
+
+    assert (
+        np.unique(df_res["ref_epoch"]).size == 1
+    ), "Non-unique epochs for sources from GaiaDB"
+
+    gaiadb_epoch = np.unique(df_res["ref_epoch"])[0]
+
+    res = {}
+    for col in df_res.columns:
+        res[col] = df_res[col].to_numpy()
+
+    # MO: I'm not sure if the following FIXME is still valid or not.
+    # # FIXME: run similar query, but without the PM requirement, to get a list of
+    # # potentially too-bright neighbours
+
+    # # adjust for proper motion
+    # epoch = Time(observation_time).jyear
+    # res[racol], res[deccol] = update_coords_for_proper_motion(
+    #     res[racol],
+    #     res[deccol],
+    #     res[coldict["pmra"]],
+    #     res[coldict["pmdec"]],
+    #     gaiadb_epoch,  # Gaia DR2 uses 2015.5
+    #     epoch,
+    # )
+
+    # compute PFI coordinates
+    tmp = np.array([res[racol], res[deccol]])
+    tmp = ctrans(
+        xyin=tmp,
+        mode="sky_pfi",
+        pa=pa_deg,
+        cent=np.array([ra_tel_deg, dec_tel_deg]).reshape((2, 1)),
+        pm=np.stack([res[coldict["pmra"]], res[coldict["pmdec"]]], axis=0),
+        par=res[coldict["parallax"]],
+        time=observation_time,
+        epoch=gaiadb_epoch,
+    )
+
+    res["xypos"] = np.array([tmp[0, :], tmp[1, :]]).T
+
+    # determine the subset of sources falling within the guide cam FOVs
+    # For the moment I'm using matplotlib's path functionality for this task
+    # Once the "pfi_sky" transformation direction is available in
+    # pfs_utils.coordinates, we can do a direct polygon query for every camera,
+    # which should be more efficient.
+    targets = {}
+    tgtcam = []
+
+    for i in range(agcoord.shape[0]):
+        p = mppath.Path(agcoord[i])
+
+        # find all targets in the slighty enlarged FOV
+        tmp = p.contains_points(res["xypos"], radius=1.0)  # 1mm more
+        tdict = {}
+
+        for key, val in res.items():
+            tdict[key] = val[tmp]
+
+        # eliminate close neighbors
+        flags = flag_close_pairs(tdict[racol], tdict[deccol], guidestar_minsep_deg)
+
+        for key, val in tdict.items():
+            tdict[key] = val[np.invert(flags)]
+
+        # eliminate all targets which are not bright enough to be guide stars
+        flags = (tdict["phot_g_mean_mag"] > guidestar_mag_min) * (
+            tdict["phot_g_mean_mag"] < guidestar_mag_max
+        )
+
+        for key, val in tdict.items():
+            tdict[key] = val[flags]
+
+        # eliminate all targets which are not really in the camera's FOV
+        flags = p.contains_points(tdict["xypos"])  # exact size
+
+        for key, val in tdict.items():
+            tdict[key] = val[flags]
+
+        # add AG camera ID
+        tdict["agid"] = [i] * len(tdict[coldict["id"]])
+
+        # compute and add pixel coordinates
+        tmp = []
+        for pos in tdict["xypos"]:
+            tmp.append(ag_pfimm_to_pixel(i, pos[0], pos[1]))
+        tdict["agpix_x"] = np.array([x[0] for x in tmp])
+        tdict["agpix_y"] = np.array([x[1] for x in tmp])
+
+        # append the results for this camera to the full list
+        tgtcam.append(tdict)
+        for key, val in tdict.items():
+            if key not in targets:
+                targets[key] = val
+            else:
+                targets[key] = np.concatenate((targets[key], val))
+
+    # Write the results to a new pfsDesign file. Data fields are according to
+    # DAMD-101.
+    # required data:
+    # ra/dec of guide star candidates: in racol, deccol
+    # PM information: in pmra, pmdec
+    # parallax: currently N/A
+    # flux: currently N/A
+    # AgId: trivial to obtain from data structure
+    # AgX, AgY (pixel coordinates): only computable with access to the full
+    #   AG camera geometry
+    # output_design = input_design
+
+    ntgt = len(targets[coldict["id"]])
+
+    guidestars = pfs.datamodel.guideStars.GuideStars(
+        targets[coldict["id"]],
+        np.full(ntgt, f"J{gaiadb_epoch:.1f}"),
+        # np.full(ntgt, "J{:.1f}".format(epoch)),  # convert float epoch to string
+        # FIXME: the ra/dec values below are _not_ corrected for proper motion
+        #        any more! If corrected values are required, we might need
+        #        a new mode "sky_skycorrected" (or similar)
+        #        for pfs.utils.CoordinateTransform.
+        #        On the other hand, since we store catalog and object ID here,
+        #        most other columns are redundant anyway.
+        targets[coldict["ra"]],
+        targets[coldict["dec"]],
+        targets[coldict["pmra"]],
+        targets[coldict["pmdec"]],
+        targets[coldict["parallax"]],
+        targets[coldict["mag"]],
+        np.full(ntgt, "g_gaia"),  # passband
+        targets[coldict["color"]],  # color
+        targets["agid"],  # AG camera ID
+        targets["agpix_x"],  # AG x pixel coordinate
+        targets["agpix_y"],  # AG y pixel coordinate
+        telescope_elevation,
+        gaiadb_input_catalog_id,  # numerical ID assigned to the GAIA catalogue
+        targets["flag"]
     )
 
     return guidestars

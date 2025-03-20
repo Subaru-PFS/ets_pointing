@@ -396,6 +396,17 @@ def get_arguments():
         action="store_true",
         help="Select Gaia sources with good astrometry (default: False)",
     )
+    parser.add_argument(
+        "--use_gs_csv",
+        action="store_true",
+        help="Select Gaia sources from GuideStar csv file (default: False)",
+    )
+    parser.add_argument(
+        "--gs_csv",
+        type=str,
+        default=None,
+        help="GuideStar csv file (default: None)",
+    )
 
     args = parser.parse_args()
 
@@ -469,7 +480,6 @@ def main():
         df_targets.priority += args.degrade_priority
     else:
         df_targets.priority[df_targets.proposal_id == args.degrade_priority_proposal] += args.degrade_priority
-
 
     if args.skip_target:
         df_targets = df_targets[:0]
@@ -612,6 +622,7 @@ def main():
 
     # print(is_no_target)
 
+    # generate pfsDesign
     design = designutils.generate_pfs_design(
         df_targets,
         df_fluxstds,
@@ -628,31 +639,56 @@ def main():
         design_name=args.design_name,
         obs_time=args.observation_time,
     )
+
+    # set guideStars
     if args.guide_star_id_exclude is None:
         guide_star_id_exclude = []
     else:
         guide_star_id_exclude = args.guide_star_id_exclude
-    guidestars = designutils.generate_guidestars_from_gaiadb(
-        args.ra,
-        args.dec,
-        args.pa,
-        args.observation_time,
-        args.telescope_elevation,
-        conf=conf,
-        guidestar_mag_min=args.guidestar_mag_min,
-        guidestar_mag_max=args.guidestar_mag_max,
-        guidestar_neighbor_mag_min=args.guidestar_neighbor_mag_min,
-        guidestar_minsep_deg=args.guidestar_minsep_deg,
-        # gaiadb_epoch=2015.0,
-        # gaiadb_input_catalog_id=2,
-        guide_star_id_exclude=guide_star_id_exclude,
-        good_astrometry=args.good_astrometry,
-    )
+
+    if args.use_gs_csv:
+        guidestars = designutils.generate_guidestars_from_csv(
+            args.ra,
+            args.dec,
+            args.pa,
+            args.observation_time,
+            args.telescope_elevation,
+            conf=conf,
+            guidestar_mag_min=args.guidestar_mag_min,
+            guidestar_mag_max=args.guidestar_mag_max,
+            guidestar_neighbor_mag_min=args.guidestar_neighbor_mag_min,
+            guidestar_minsep_deg=args.guidestar_minsep_deg,
+            # gaiadb_epoch=2015.0,
+            # gaiadb_input_catalog_id=2,
+            guide_star_id_exclude=guide_star_id_exclude,
+            good_astrometry=args.good_astrometry,
+            gs_csv=args.gs_csv,
+        )
+
+    else:
+        guidestars = designutils.generate_guidestars_from_gaiadb(
+            args.ra,
+            args.dec,
+            args.pa,
+            args.observation_time,
+            args.telescope_elevation,
+            conf=conf,
+            guidestar_mag_min=args.guidestar_mag_min,
+            guidestar_mag_max=args.guidestar_mag_max,
+            guidestar_neighbor_mag_min=args.guidestar_neighbor_mag_min,
+            guidestar_minsep_deg=args.guidestar_minsep_deg,
+            # gaiadb_epoch=2015.0,
+            # gaiadb_input_catalog_id=2,
+            guide_star_id_exclude=guide_star_id_exclude,
+            good_astrometry=args.good_astrometry,
+        )
 
     design.guideStars = guidestars
 
+    # write pfsDesign
     design.write(dirName=args.design_dir, fileName=design.filename)
 
+    # write info into logger
     logger.info(
         f"pfsDesign file {design.filename} is created in the {args.design_dir} directory."
     )
