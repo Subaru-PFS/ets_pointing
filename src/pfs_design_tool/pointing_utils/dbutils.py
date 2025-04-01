@@ -506,12 +506,12 @@ def generate_fillers_from_targetdb(
 
     query_string = f"""SELECT
     ob_code,obj_id,epoch,ra,dec,pmra,pmdec,parallax,
-    psf_flux_g,psf_flux_r,psf_flux_i,
-    psf_flux_error_g, psf_flux_error_r, psf_flux_error_i, 
-    proposal.proposal_id, c.input_catalog_id, is_medium_resolution
+    psf_flux_g,psf_flux_r,psf_flux_i,psf_flux_z,psf_flux_y,
+    psf_flux_error_g, psf_flux_error_r, psf_flux_error_i, psf_flux_error_z, psf_flux_error_y, 
+    filter_g, filter_r, filter_i, filter_z, filter_y,
+    proposal.proposal_id, proposal.grade, c.input_catalog_id, is_medium_resolution
     FROM target JOIN proposal ON target.proposal_id=proposal.proposal_id JOIN input_catalog AS c ON target.input_catalog_id = c.input_catalog_id
     WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
-    AND proposal.grade IN ('C','F')
     AND c.active
     AND {band_select} BETWEEN {flux_min} AND {flux_max}
     """
@@ -534,10 +534,20 @@ def generate_fillers_from_targetdb(
             "psf_flux_g",
             "psf_flux_r",
             "psf_flux_i",
+            "psf_flux_z",
+            "psf_flux_y",
             "psf_flux_error_g",
             "psf_flux_error_r",
             "psf_flux_error_i",
+            "psf_flux_error_z",
+            "psf_flux_error_y",
+            "filter_g",
+            "filter_r",
+            "filter_i",
+            "filter_z",
+            "filter_y",
             "proposal_id",
+            "grade",
             "input_catalog_id",
             "is_medium_resolution",
         ],
@@ -556,8 +566,11 @@ def fixcols_filler_targetdb(
     df,
     target_type_id=None,
     exptime=900.0,
-    priority=1,
+    priority_obs=1,
+    priority_usr=1,
 ):
+    """
+    # only for gaia
     df.rename(
         columns={
             "psf_flux_g": "g_flux_njy",
@@ -569,6 +582,7 @@ def fixcols_filler_targetdb(
         },
         inplace=True,
     )
+    #"""
 
     if df["epoch"].dtype != "O":
         df["epoch"] = df["epoch"].apply(lambda x: f"J{x:.1f}")
@@ -576,6 +590,11 @@ def fixcols_filler_targetdb(
     df["target_type_id"] = target_type_id
 
     df["effective_exptime"] = exptime
-    df["priority"] = priority
 
-    return df
+    df_obs = df[df["grade"].isin(["G"])]
+    df_usr = df[df["grade"].isin(["C", "F"])]
+
+    df_obs["priority"] = priority_obs
+    df_usr["priority"] = priority_usr
+
+    return df_obs, df_usr

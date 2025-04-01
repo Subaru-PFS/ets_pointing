@@ -354,6 +354,43 @@ def generate_pfs_design(
                     cat_id[i_fiber] = df_filler["input_catalog_id"][idx_filler].values[
                         0
                     ]
+                    
+                    dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
+                        [
+                            (
+                                df_filler[f"psf_flux_{band}"][idx_filler].values[0]
+                                if df_filler[f"psf_flux_{band}"][idx_filler].values[0]
+                                is not None
+                                else np.nan
+                            )
+                            for band in filter_band_names
+                        ]
+                    )
+                    dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
+                        [
+                            (
+                                df_filler[f"psf_flux_error_{band}"][idx_filler].values[0]
+                                if df_filler[f"psf_flux_error_{band}"][idx_filler].values[0]
+                                is not None
+                                else np.nan
+                            )
+                            for band in filter_band_names
+                        ]
+                    )
+                    msk = dict_of_flux_lists["psf_flux_error"][i_fiber] <= 0
+                    dict_of_flux_lists["psf_flux_error"][i_fiber][msk] = np.nan
+                    dict_of_flux_lists["filter_names"][i_fiber] = [
+                        (
+                            df_filler[f"filter_{band}"][idx_filler].values[0]
+                            if df_filler[f"filter_{band}"][idx_filler].values[0]
+                            is not None
+                            else "none"
+                        )
+                        for band in filter_band_names
+                    ]
+
+                    """
+                    # for gaia fillers
                     dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
                         [
                             df_filler["g_flux_njy"][idx_filler].values[0],
@@ -388,6 +425,8 @@ def generate_pfs_design(
                         "none",
                         "none",
                     ]
+                    #"""
+
 
             # print(dict_of_flux_lists)
 

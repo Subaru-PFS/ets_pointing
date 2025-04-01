@@ -580,6 +580,7 @@ def reconfigure_multiprocessing(
         # get filler targets (optional)
         filler = conf["sfa"]["filler"]
         if conf["sfa"]["filler"] == True:
+            """
             df_filler_obs = dbutils.generate_targets_from_gaiadb(
                 dict_pointings[pointing.lower()]["ra_center"],
                 dict_pointings[pointing.lower()]["dec_center"],
@@ -598,7 +599,8 @@ def reconfigure_multiprocessing(
                 exptime=dict_pointings[pointing.lower()]["single_exptime"],
                 priority=10,
             )
-            df_filler_usr = dbutils.generate_fillers_from_targetdb(
+            """
+            df_filler = dbutils.generate_fillers_from_targetdb(
                 dict_pointings[pointing.lower()]["ra_center"],
                 dict_pointings[pointing.lower()]["dec_center"],
                 band_select="psf_flux_r",
@@ -607,13 +609,15 @@ def reconfigure_multiprocessing(
                 conf=conf,
                 write_csv=False,
             )
-            df_filler_usr = dbutils.fixcols_filler_targetdb(
-                df_filler_usr,
+            df_filler_obs, df_filler_usr = dbutils.fixcols_filler_targetdb(
+                df_filler,
                 target_type_id=1,  # SCIENCE
                 exptime=dict_pointings[pointing.lower()]["single_exptime"],
-                priority=10,
+                priority_obs=9999,
+                priority_usr=12,
             )
             df_filler = pd.concat([df_filler_usr, df_filler_obs])
+            #df_filler = df_filler_usr
 
             ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
             if "PPC_L" in ppc_code:
@@ -634,7 +638,7 @@ def reconfigure_multiprocessing(
                         n_fillers, ignore_index=True, random_state=1
                     )
             logger.info(
-                f"Fetched filler target DataFrame (obs filler = {len(df_filler_obs):.0f}, user filler = {len(df_filler_usr):.0f}): \n{df_filler}"
+                f"Fetched filler target DataFrame (obs filler = {len(df_filler_obs):.0f}, usr filler = {len(df_filler_usr):.0f}): \n{df_filler}"
             )
         else:
             df_filler = None
@@ -806,7 +810,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
 
     if multiPro:
         logger.info("[SFA] Multiprocessing is turned on.")
-        with Pool(4) as p:
+        with Pool(6) as p:
             output_p = p.map(
                 partial(
                     reconfigure_multiprocessing,
@@ -815,7 +819,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
                     workDir=workDir,
                     clearOutput=clearOutput,
                 ),
-                np.array_split(list_pointings, 4),
+                np.array_split(list_pointings, 6),
             )
 
         list_pointings = list(
