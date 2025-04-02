@@ -913,6 +913,8 @@ def generate_guidestars_from_csv(
     gs_cat_flags, gs_cat_flag = get_gs_flag(df_sel, gs_snr_thresh)
 
     df_sel = df_sel.fillna({"parallax": 1.0e-07, "pmra": 0.0, "pmdec": 0.0})
+    passband = np.full(len(df_sel), "g_gaia")
+    passband[gs_cat_flag & 0x2 != 0] = "r_hsc"
 
     df_res = pd.DataFrame({
         "source_id": df_sel.source_id.to_list(),
@@ -921,17 +923,18 @@ def generate_guidestars_from_csv(
         "parallax": df_sel.parallax.to_list(),
         "pmra": df_sel.pmra.to_list(),
         "pmdec": df_sel.pmdec.to_list(),
-        "ref_epoch": df_sel.ref_epoch.to_list(),
+        "ref_epoch": [f"J{e:.1f}" for e in df_sel.ref_epoch.to_list()],
         "phot_g_mean_mag": df_sel.magnitude.to_list(),
         "bp_rp": df_sel.color.to_list(),
         "flag": list(gs_cat_flag),
+        "passband": list(passband),
     })
 
+    epoch = df_sel.ref_epoch.to_numpy()[gs_cat_flag & 0x1 != 0]
     assert (
-        np.unique(df_res["ref_epoch"]).size == 1
+        np.unique(epoch).size == 1
     ), "Non-unique epochs for sources from GaiaDB"
-
-    gaiadb_epoch = np.unique(df_res["ref_epoch"])[0]
+    gaiadb_epoch = epoch[0]
 
     res = {}
     for col in df_res.columns:
@@ -1039,7 +1042,8 @@ def generate_guidestars_from_csv(
 
     guidestars = pfs.datamodel.guideStars.GuideStars(
         targets[coldict["id"]],
-        np.full(ntgt, f"J{gaiadb_epoch:.1f}"),
+        #np.full(ntgt, f"J{gaiadb_epoch:.1f}"),
+        targets["ref_epoch"],
         # np.full(ntgt, "J{:.1f}".format(epoch)),  # convert float epoch to string
         # FIXME: the ra/dec values below are _not_ corrected for proper motion
         #        any more! If corrected values are required, we might need
@@ -1053,7 +1057,7 @@ def generate_guidestars_from_csv(
         targets[coldict["pmdec"]],
         targets[coldict["parallax"]],
         targets[coldict["mag"]],
-        np.full(ntgt, "g_gaia"),  # passband
+        targets["passband"],  # passband
         targets[coldict["color"]],  # color
         targets["agid"],  # AG camera ID
         targets["agpix_x"],  # AG x pixel coordinate
