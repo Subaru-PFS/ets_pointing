@@ -20,7 +20,7 @@ dependencies = [
     "pyyaml==5.3.1",
     # "ets-fiber-assigner @ git+https://github.com/Subaru-PFS/ets_fiberalloc.git",
     "ics-cobraOps @ git+https://github.com/Subaru-PFS/ics_cobraOps.git",
-    "targetdb @ git+https://github.com/Subaru-PFS/ets_target_database.git",
+    # "targetdb @ git+https://github.com/Subaru-PFS/ets_target_database.git",
     "pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git",
     # "ets-shuffle @ git+https://github.com/Subaru-PFS/ets_shuffle.git",
 ]
