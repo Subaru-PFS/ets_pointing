@@ -161,46 +161,90 @@ def generate_pfs_design(
                 #     np.nan for _ in filter_band_names
                 # ]
 
-                dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
-                    [
-                        (
-                            df_targets[f"psf_flux_{band}"][idx_target].values[0]
-                            if (
+                try:
+                    dict_of_flux_lists["total_flux"][i_fiber] = np.array(
+                        [
+                            (
+                                df_targets[f"total_flux_{band}"][idx_target].values[0]
+                                if (
+                                    df_targets[f"total_flux_{band}"][idx_target].values[0]
+                                    is not None
+                                )
+                                and (
+                                    df_targets[f"total_flux_{band}"][idx_target].values[0]
+                                    > 0.0
+                                )
+                                else np.nan
+                            )
+                            for band in filter_band_names
+                        ]
+                    )
+                    dict_of_flux_lists["total_flux_error"][i_fiber] = np.array(
+                        [
+                            (
+                                df_targets[f"total_flux_error_{band}"][idx_target].values[0]
+                                if (
+                                    df_targets[f"total_flux_error_{band}"][idx_target].values[
+                                        0
+                                    ]
+                                    is not None
+                                )
+                                and (
+                                    df_targets[f"total_flux_error_{band}"][idx_target].values[
+                                        0
+                                    ]
+                                    > 0.0
+                                )
+                                else np.nan
+                            )
+                            for band in filter_band_names
+                        ]
+                    )
+                    msk = dict_of_flux_lists["total_flux_error"][i_fiber] <= 0
+                    dict_of_flux_lists["total_flux_error"][i_fiber][msk] = np.nan
+                except KeyError as e:
+                    logger.wanrning(f"total flux not found: {str(e)} -> use psf flux instead")
+                    dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
+                        [
+                            (
                                 df_targets[f"psf_flux_{band}"][idx_target].values[0]
-                                is not None
+                                if (
+                                    df_targets[f"psf_flux_{band}"][idx_target].values[0]
+                                    is not None
+                                )
+                                and (
+                                    df_targets[f"psf_flux_{band}"][idx_target].values[0]
+                                    > 0.0
+                                )
+                                else np.nan
                             )
-                            and (
-                                df_targets[f"psf_flux_{band}"][idx_target].values[0]
-                                > 0.0
+                            for band in filter_band_names
+                        ]
+                    )
+                    dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
+                        [
+                            (
+                                df_targets[f"psf_flux_error_{band}"][idx_target].values[0]
+                                if (
+                                    df_targets[f"psf_flux_error_{band}"][idx_target].values[
+                                        0
+                                    ]
+                                    is not None
+                                )
+                                and (
+                                    df_targets[f"psf_flux_error_{band}"][idx_target].values[
+                                        0
+                                    ]
+                                    > 0.0
+                                )
+                                else np.nan
                             )
-                            else np.nan
-                        )
-                        for band in filter_band_names
-                    ]
-                )
-                dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
-                    [
-                        (
-                            df_targets[f"psf_flux_error_{band}"][idx_target].values[0]
-                            if (
-                                df_targets[f"psf_flux_error_{band}"][idx_target].values[
-                                    0
-                                ]
-                                is not None
-                            )
-                            and (
-                                df_targets[f"psf_flux_error_{band}"][idx_target].values[
-                                    0
-                                ]
-                                > 0.0
-                            )
-                            else np.nan
-                        )
-                        for band in filter_band_names
-                    ]
-                )
-                msk = dict_of_flux_lists["psf_flux_error"][i_fiber] <= 0
-                dict_of_flux_lists["psf_flux_error"][i_fiber][msk] = np.nan
+                            for band in filter_band_names
+                        ]
+                    )
+                    msk = dict_of_flux_lists["psf_flux_error"][i_fiber] <= 0
+                    dict_of_flux_lists["psf_flux_error"][i_fiber][msk] = np.nan
+                
                 # FIXME: filter names should be in targetDB
                 if cat_id[i_fiber] >= 5 and cat_id[i_fiber] <= 12:
                     dict_of_flux_lists["filter_names"][i_fiber] = [
@@ -354,31 +398,59 @@ def generate_pfs_design(
                     cat_id[i_fiber] = df_filler["input_catalog_id"][idx_filler].values[
                         0
                     ]
-                    
-                    dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
-                        [
-                            (
-                                df_filler[f"psf_flux_{band}"][idx_filler].values[0]
-                                if df_filler[f"psf_flux_{band}"][idx_filler].values[0]
-                                is not None
-                                else np.nan
-                            )
-                            for band in filter_band_names
-                        ]
-                    )
-                    dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
-                        [
-                            (
-                                df_filler[f"psf_flux_error_{band}"][idx_filler].values[0]
-                                if df_filler[f"psf_flux_error_{band}"][idx_filler].values[0]
-                                is not None
-                                else np.nan
-                            )
-                            for band in filter_band_names
-                        ]
-                    )
-                    msk = dict_of_flux_lists["psf_flux_error"][i_fiber] <= 0
-                    dict_of_flux_lists["psf_flux_error"][i_fiber][msk] = np.nan
+
+                    try:
+                        dict_of_flux_lists["total_flux"][i_fiber] = np.array(
+                            [
+                                (
+                                    df_filler[f"total_flux_{band}"][idx_filler].values[0]
+                                    if df_filler[f"total_flux_{band}"][idx_filler].values[0]
+                                    is not None
+                                    else np.nan
+                                )
+                                for band in filter_band_names
+                            ]
+                        )
+                        dict_of_flux_lists["total_flux_error"][i_fiber] = np.array(
+                            [
+                                (
+                                    df_filler[f"total_flux_error_{band}"][idx_filler].values[0]
+                                    if df_filler[f"total_flux_error_{band}"][idx_filler].values[0]
+                                    is not None
+                                    else np.nan
+                                )
+                                for band in filter_band_names
+                            ]
+                        )
+                        msk = dict_of_flux_lists["total_flux_error"][i_fiber] <= 0
+                        dict_of_flux_lists["total_flux_error"][i_fiber][msk] = np.nan
+                    except KeyError as e:
+                        logger.wanrning(f"total flux not found: {str(e)} -> use psf flux instead")
+                        dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
+                            [
+                                (
+                                    df_filler[f"psf_flux_{band}"][idx_filler].values[0]
+                                    if df_filler[f"psf_flux_{band}"][idx_filler].values[0]
+                                    is not None
+                                    else np.nan
+                                )
+                                for band in filter_band_names
+                            ]
+                        )
+                        dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
+                            [
+                                (
+                                    df_filler[f"psf_flux_error_{band}"][idx_filler].values[0]
+                                    if df_filler[f"psf_flux_error_{band}"][idx_filler].values[0]
+                                    is not None
+                                    else np.nan
+                                )
+                                for band in filter_band_names
+                            ]
+                        )
+                        msk = dict_of_flux_lists["psf_flux_error"][i_fiber] <= 0
+                        dict_of_flux_lists["psf_flux_error"][i_fiber][msk] = np.nan
+                        
                     dict_of_flux_lists["filter_names"][i_fiber] = [
                         (
                             df_filler[f"filter_{band}"][idx_filler].values[0]
@@ -391,7 +463,7 @@ def generate_pfs_design(
 
                     """
                     # for gaia fillers
-                    dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
+                    dict_of_flux_lists["total_flux"][i_fiber] = np.array(
                         [
                             df_filler["g_flux_njy"][idx_filler].values[0],
                             df_filler["bp_r_flux_njy"][idx_filler].values[0],
@@ -400,7 +472,7 @@ def generate_pfs_design(
                             np.nan,
                         ]
                     )
-                    dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
+                    dict_of_flux_lists["total_flux_error"][i_fiber] = np.array(
                         [
                             df_filler["g_flux_err_njy"][idx_filler].values[0],
                             df_filler["bp_r_flux_err_njy"][idx_filler].values[0],
@@ -409,7 +481,7 @@ def generate_pfs_design(
                             np.nan,
                         ]
                     )
-                    dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
+                    dict_of_flux_lists["total_flux_error"][i_fiber] = np.array(
                         [
                             df_filler["g_flux_err_njy"][idx_filler].values[0],
                             df_filler["bp_r_flux_err_njy"][idx_filler].values[0],
@@ -470,10 +542,10 @@ def generate_pfs_design(
         # fiberFlux=dict_of_flux_lists["fiber_flux"],
         psfFlux=dict_of_flux_lists["psf_flux"],
         # psfFlux=psf_flux,
-        # totalFlux=dict_of_flux_lists["total_flux"],
+        totalFlux=dict_of_flux_lists["total_flux"],
         # fiberFluxErr=np.NaN,
         psfFluxErr=dict_of_flux_lists["psf_flux_error"],
-        # totalFluxErr=np.NaN,
+        totalFluxErr=dict_of_flux_lists["total_flux_error"],
         filterNames=dict_of_flux_lists["filter_names"],
         # filterNames=filter_names,
         # guideStars=None,
