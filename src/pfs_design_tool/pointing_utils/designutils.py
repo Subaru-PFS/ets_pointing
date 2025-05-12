@@ -203,7 +203,7 @@ def generate_pfs_design(
                     msk = dict_of_flux_lists["total_flux_error"][i_fiber] <= 0
                     dict_of_flux_lists["total_flux_error"][i_fiber][msk] = np.nan
                 except KeyError as e:
-                    logger.wanrning(f"total flux not found: {str(e)} -> use psf flux instead")
+                    logger.warning(f"total flux not found: {str(e)} -> use psf flux instead")
                     dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
                         [
                             (
@@ -425,7 +425,7 @@ def generate_pfs_design(
                         msk = dict_of_flux_lists["total_flux_error"][i_fiber] <= 0
                         dict_of_flux_lists["total_flux_error"][i_fiber][msk] = np.nan
                     except KeyError as e:
-                        logger.wanrning(f"total flux not found: {str(e)} -> use psf flux instead")
+                        logger.warning(f"total flux not found: {str(e)} -> use psf flux instead")
                         dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
                             [
                                 (

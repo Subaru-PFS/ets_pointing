@@ -491,7 +491,7 @@ def generate_fillers_from_targetdb(
     fp_radius_degree=260.0 * 10.2 / 3600,  # "Radius" of PFS FoV in degree (?)
     fp_fudge_factor=1.5,  # fudge factor for search widths
     search_radius=None,
-    band_select="psf_flux_g",
+    band_select="total_flux_g",
     mag_min=0.0,
     mag_max=99.0,
     write_csv=False,
@@ -508,6 +508,8 @@ def generate_fillers_from_targetdb(
     ob_code,obj_id,epoch,ra,dec,pmra,pmdec,parallax,
     psf_flux_g,psf_flux_r,psf_flux_i,psf_flux_z,psf_flux_y,
     psf_flux_error_g, psf_flux_error_r, psf_flux_error_i, psf_flux_error_z, psf_flux_error_y, 
+    total_flux_g,total_flux_r,total_flux_i,total_flux_z,total_flux_y,
+    total_flux_error_g, total_flux_error_r, total_flux_error_i, total_flux_error_z, total_flux_error_y, 
     filter_g, filter_r, filter_i, filter_z, filter_y,
     proposal.proposal_id, proposal.grade, c.input_catalog_id, is_medium_resolution
     FROM target JOIN proposal ON target.proposal_id=proposal.proposal_id JOIN input_catalog AS c ON target.input_catalog_id = c.input_catalog_id
@@ -541,6 +543,16 @@ def generate_fillers_from_targetdb(
             "psf_flux_error_i",
             "psf_flux_error_z",
             "psf_flux_error_y",
+            "total_flux_g",
+            "total_flux_r",
+            "total_flux_i",
+            "total_flux_z",
+            "total_flux_y",
+            "total_flux_error_g",
+            "total_flux_error_r",
+            "total_flux_error_i",
+            "total_flux_error_z",
+            "total_flux_error_y",
             "filter_g",
             "filter_r",
             "filter_i",
