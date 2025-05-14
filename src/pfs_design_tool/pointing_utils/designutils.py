@@ -107,6 +107,7 @@ def generate_pfs_design(
     # filter_names = [["none", "none", "none"]] * n_fiber
 
     if not is_no_target:
+        tidx_no_total_flux = []
         for tidx, cidx in vis.items():
             # print(cidx)
 
@@ -203,7 +204,7 @@ def generate_pfs_design(
                     msk = dict_of_flux_lists["total_flux_error"][i_fiber] <= 0
                     dict_of_flux_lists["total_flux_error"][i_fiber][msk] = np.nan
                 except KeyError as e:
-                    logger.warning(f"total flux not found: {str(e)} -> use psf flux instead")
+                    tidx_no_total_flux.append(tidx)
                     dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
                         [
                             (
@@ -425,7 +426,7 @@ def generate_pfs_design(
                         msk = dict_of_flux_lists["total_flux_error"][i_fiber] <= 0
                         dict_of_flux_lists["total_flux_error"][i_fiber][msk] = np.nan
                     except KeyError as e:
-                        logger.warning(f"total flux not found: {str(e)} -> use psf flux instead")
+                        tidx_no_total_flux.append(tidx)
                         dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
                             [
                                 (
@@ -501,6 +502,9 @@ def generate_pfs_design(
 
 
             # print(dict_of_flux_lists)
+
+        if tidx_no_total_flux != []:
+            logger.warning(f"total flux not found -> use psf flux instead {tidx_no_total_flux}")
 
     for i in range(len(dict_of_flux_lists["filter_names"])):
         dict_of_flux_lists["psf_flux_error"][i][
