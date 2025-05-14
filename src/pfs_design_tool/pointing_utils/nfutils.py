@@ -164,31 +164,33 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
                 )
             )
     elif target_class == "cal":
+        res = []
+        
         # cal_penalty = ((-2.5*np.log10(df["psf_flux_g"] * 1e-32)) -
         #               (-2.5*np.log10(max(df["psf_flux_g"]) * 1e-32))) #* 5.0e+10
         
         cal_penalty = np.array([5.0e10 * (1 - ii) if ii >= 0 else 0 for ii in df["prob_f_star"]])
         # print(min(cal_penalty), max(cal_penalty))
 
-        epoch_value = df["epoch"].values[i]
-        if epoch_value.startswith('J'):
-            epoch_value = epoch_value[1:]  # Remove the 'J' character
-                
-        res = [
-            nf.CalibTarget(
-                # df["obj_id"][i],
-                df["netflow_id"].values[i],
-                df["ra"].values[i],
-                df["dec"].values[i],
-                target_class,
-                cal_penalty[i],
-                pmra=df["pmra"].values[i],
-                pmdec=df["pmdec"].values[i],
-                parallax=df["parallax"].values[i],
-                epoch=float(epoch_value),
+        for i in range(df.index.size):
+            epoch_value = df["epoch"].values[i]
+            if epoch_value.startswith('J'):
+                epoch_value = epoch_value[1:]  # Remove the 'J' character
+                    
+            res.append(
+                nf.CalibTarget(
+                    # df["obj_id"][i],
+                    df["netflow_id"].values[i],
+                    df["ra"].values[i],
+                    df["dec"].values[i],
+                    target_class,
+                    cal_penalty[i],
+                    pmra=df["pmra"].values[i],
+                    pmdec=df["pmdec"].values[i],
+                    parallax=df["parallax"].values[i],
+                    epoch=float(epoch_value),
+                ) 
             )
-            for i in range(df.index.size)
-        ]
     elif target_class == "sky":
         res = [
             nf.CalibTarget(
