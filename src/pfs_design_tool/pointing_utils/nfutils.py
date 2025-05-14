@@ -144,6 +144,10 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
             else:
                 exptime = df["effective_exptime"].values[i]
 
+            epoch_value = df["epoch"].values[i]
+            if epoch_value.startswith('J'):
+                epoch_value = epoch_value[1:]  # Remove the 'J' character
+
             res.append(
                 nf.ScienceTarget(
                     # df["obj_id"][i],
@@ -156,7 +160,7 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
                     pmra=df["pmra"].values[i],
                     pmdec=df["pmdec"].values[i],
                     parallax=df["parallax"].values[i],
-                    epoch=float(df["epoch"].values[i][1:]),
+                    epoch=float(epoch_value),
                 )
             )
     elif target_class == "cal":
@@ -165,6 +169,11 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
         
         cal_penalty = np.array([5.0e10 * (1 - ii) if ii >= 0 else 0 for ii in df["prob_f_star"]])
         # print(min(cal_penalty), max(cal_penalty))
+
+        epoch_value = df["epoch"].values[i]
+        if epoch_value.startswith('J'):
+            epoch_value = epoch_value[1:]  # Remove the 'J' character
+                
         res = [
             nf.CalibTarget(
                 # df["obj_id"][i],
@@ -176,7 +185,7 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
                 pmra=df["pmra"].values[i],
                 pmdec=df["pmdec"].values[i],
                 parallax=df["parallax"].values[i],
-                epoch=float(df["epoch"].values[i][1:]),
+                epoch=float(epoch_value),
             )
             for i in range(df.index.size)
         ]
