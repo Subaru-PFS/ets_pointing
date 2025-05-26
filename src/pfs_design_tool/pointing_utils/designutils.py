@@ -405,8 +405,14 @@ def generate_pfs_design(
                             [
                                 (
                                     df_filler[f"total_flux_{band}"][idx_filler].values[0]
-                                    if df_filler[f"total_flux_{band}"][idx_filler].values[0]
-                                    is not None
+                                    if (
+                                        df_filler[f"total_flux_{band}"][idx_filler].values[0]
+                                        is not None
+                                    )
+                                    and (
+                                        df_filler[f"total_flux_{band}"][idx_filler].values[0]
+                                        != 0.0
+                                    )
                                     else np.nan
                                 )
                                 for band in filter_band_names
@@ -416,8 +422,14 @@ def generate_pfs_design(
                             [
                                 (
                                     df_filler[f"total_flux_error_{band}"][idx_filler].values[0]
-                                    if df_filler[f"total_flux_error_{band}"][idx_filler].values[0]
-                                    is not None
+                                    if (
+                                        df_filler[f"total_flux_error_{band}"][idx_filler].values[0]
+                                        is not None
+                                    )
+                                    and (
+                                        df_filler[f"total_flux_error_{band}"][idx_filler].values[0]
+                                        != 0.0
+                                    )
                                     else np.nan
                                 )
                                 for band in filter_band_names
