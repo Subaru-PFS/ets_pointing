@@ -775,7 +775,7 @@ def reconfigure_multiprocessing(
         )
 
         design.guideStars = guidestars
-        design_dir = os.path.join(workDir, conf["ope"]["designPath"])
+        design_dir = os.path.join(workDir, "design")
         design.write(dirName=design_dir, fileName=design.filename)
 
         design_filenames.append(design.filename)
@@ -827,7 +827,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
         list_pointings, dict_pointings = load_ppp_results(os.path.join(workDir, infile))
     except FileNotFoundError:
         list_pointings, dict_pointings = load_ppp_results(
-            os.path.join(workDir, conf["ppp"]["outputDir"], infile)
+            os.path.join(workDir, "ppp", infile)
         )
 
     # in_design, df_sci, df_std, df_sky = load_input_design(
@@ -911,7 +911,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
     )
     infile_base = os.path.splitext(os.path.basename(infile))[0]
     df_summary.to_csv(
-        os.path.join(workDir, f"output/summary_reconfigure_ppp-{infile_base}.csv"),
+        os.path.join(workDir, f"summary_reconfigure_ppp-{infile_base}.csv"),
         index=False,
     )
 
