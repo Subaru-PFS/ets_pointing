@@ -324,7 +324,7 @@ def main():
     # add guideStars table
     print("add guideStars...")
     if args.use_gs_csv:
-        guidestars = designutils.generate_guidestars_from_gaiadb(
+        guidestars = designutils.generate_guidestars_from_csv(
             in_design.raBoresight,
             in_design.decBoresight,
             in_design.posAng,

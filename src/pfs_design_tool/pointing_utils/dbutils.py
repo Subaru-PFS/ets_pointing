@@ -392,7 +392,7 @@ def generate_targets_from_gaiadb(
     """
 
     if good_astrometry:
-        query_string += "AND astrometric_excess_noise_sig < 2.0"
+        query_string += "AND astrometric_excess_noise < 1.0"
 
     query_string += ";"
 
@@ -468,13 +468,22 @@ def fixcols_gaiadb_to_targetdb(
         df["phot_rp_mean_mag"].to_numpy() + (25.1185 - 24.7600)
     ) * u.ABmag
 
-    df["g_flux_njy"] = tb["g_mag_ab"].to("nJy").value
-    df["bp_r_flux_njy"] = tb["bp_mag_ab"].to("nJy").value
-    df["rp_i_flux_njy"] = tb["rp_mag_ab"].to("nJy").value
-    df["g_flux_err_njy"] = df["g_flux_njy"] / df["phot_g_mean_flux_over_error"]
-    df["bp_r_flux_err_njy"] = df["bp_r_flux_njy"] / df["phot_bp_mean_flux_over_error"]
-    df["rp_i_flux_err_njy"] = df["rp_i_flux_njy"] / df["phot_rp_mean_flux_over_error"]
-
+    ## FIXME? ##
+    df["psf_flux_g"] = tb["g_mag_ab"].to("nJy").value
+    df["psf_flux_r"] = tb["bp_mag_ab"].to("nJy").value
+    df["psf_flux_i"] = tb["rp_mag_ab"].to("nJy").value
+    df["psf_flux_z"] = np.full(len(tb), np.nan)
+    df["psf_flux_y"] = np.full(len(tb), np.nan)
+    df["psf_flux_error_g"] = df["psf_flux_g"] / df["phot_g_mean_flux_over_error"]
+    df["psf_flux_error_r"] = df["psf_flux_r"] / df["phot_bp_mean_flux_over_error"]
+    df["psf_flux_error_i"] = df["psf_flux_i"] / df["phot_rp_mean_flux_over_error"]
+    df["psf_flux_error_z"] = np.full(len(tb), np.nan)
+    df["psf_flux_error_y"] =  np.full(len(tb), np.nan)
+    df["filter_g"] = ["g_gaia" for _ in range(len(tb))]
+    df["filter_r"] = ["bp_gaia" for _ in range(len(tb))]
+    df["filter_i"] = ["rp_gaia" for _ in range(len(tb))]
+    df["filter_z"] = ["none" for _ in range(len(tb))]
+    df["filter_y"] = ["none" for _ in range(len(tb))]
     # df["priority"] = np.array(tb["g_mag_ab"].value, dtype=int)
     # df["priority"][tb["g_mag_ab"].value > 12] = 9999
     # df["priority"] = np.array(tb["g_mag_ab"].value - 7, dtype=int)
