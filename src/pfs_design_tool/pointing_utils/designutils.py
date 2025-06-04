@@ -72,7 +72,7 @@ def generate_pfs_design(
     # epoch = np.full(len(n_fiber), "J2000.0")
     pmRa = np.zeros(n_fiber, dtype=np.float32)
     pmDec = np.zeros(n_fiber, dtype=np.float32)
-    parallax = np.full(n_fiber, 1.0e-7, dtype=np.float32)
+    parallax = np.full(n_fiber, 1.0e-07, dtype=np.float32)
 
     filter_band_names = ["g", "r", "i", "z", "y"]
     flux_default_values = np.full(len(filter_band_names), np.nan)
