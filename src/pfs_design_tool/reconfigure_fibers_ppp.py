@@ -400,7 +400,24 @@ def load_input_design(design_id, indir=".", exptime=None, bands=["g", "r", "i"])
     )
 
     for i, band in enumerate(bands):
-        for target_type in ["sci", "std"]:
+        for target_type in ["sci"]:
+            dataframes[target_type][f"filter_{band}"] = [
+                fib[target_type].filterNames[iobj][i]
+                for iobj in range(fib[target_type].objId.size)
+            ]
+
+            try:
+                dataframes[target_type][f"total_flux_{band}"] = [
+                    fib[target_type].psfFlux[iobj][i]
+                    for iobj in range(fib[target_type].objId.size)
+                ]
+            except KeyError:
+                dataframes[target_type][f"psf_flux_{band}"] = [
+                    fib[target_type].psfFlux[iobj][i]
+                    for iobj in range(fib[target_type].objId.size)
+                ]
+
+        for target_type in ["std"]:
             dataframes[target_type][f"filter_{band}"] = [
                 fib[target_type].filterNames[iobj][i]
                 for iobj in range(fib[target_type].objId.size)
@@ -471,6 +488,16 @@ def load_ppp_results(infile: str):
                 "psf_flux_error_i": df_pointing["psf_flux_error_i"],
                 "psf_flux_error_z": df_pointing["psf_flux_error_z"],
                 "psf_flux_error_y": df_pointing["psf_flux_error_y"],
+                "total_flux_g": df_pointing["total_flux_g"],
+                "total_flux_r": df_pointing["total_flux_r"],
+                "total_flux_i": df_pointing["total_flux_i"],
+                "total_flux_z": df_pointing["total_flux_z"],
+                "total_flux_y": df_pointing["total_flux_y"],
+                "total_flux_error_g": df_pointing["total_flux_error_g"],
+                "total_flux_error_r": df_pointing["total_flux_error_r"],
+                "total_flux_error_i": df_pointing["total_flux_error_i"],
+                "total_flux_error_z": df_pointing["total_flux_error_z"],
+                "total_flux_error_y": df_pointing["total_flux_error_y"],
             },
         )
 
@@ -603,7 +630,7 @@ def reconfigure_multiprocessing(
             df_filler = dbutils.generate_fillers_from_targetdb(
                 dict_pointings[pointing.lower()]["ra_center"],
                 dict_pointings[pointing.lower()]["dec_center"],
-                band_select="psf_flux_r",
+                band_select="total_flux_r",
                 mag_min=conf["sfa"]["filler_mag_min"],
                 mag_max=conf["sfa"]["filler_mag_max"],
                 conf=conf,
@@ -748,7 +775,7 @@ def reconfigure_multiprocessing(
         )
 
         design.guideStars = guidestars
-        design_dir = os.path.join(workDir, conf["ope"]["designPath"])
+        design_dir = os.path.join(workDir, "design")
         design.write(dirName=design_dir, fileName=design.filename)
 
         design_filenames.append(design.filename)
@@ -800,7 +827,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
         list_pointings, dict_pointings = load_ppp_results(os.path.join(workDir, infile))
     except FileNotFoundError:
         list_pointings, dict_pointings = load_ppp_results(
-            os.path.join(workDir, conf["ppp"]["outputDir"], infile)
+            os.path.join(workDir, "ppp", infile)
         )
 
     # in_design, df_sci, df_std, df_sky = load_input_design(
@@ -884,7 +911,7 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
     )
     infile_base = os.path.splitext(os.path.basename(infile))[0]
     df_summary.to_csv(
-        os.path.join(workDir, f"output/summary_reconfigure_ppp-{infile_base}.csv"),
+        os.path.join(workDir, f"summary_reconfigure_ppp-{infile_base}.csv"),
         index=False,
     )
 
