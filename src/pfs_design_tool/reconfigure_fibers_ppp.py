@@ -678,7 +678,7 @@ def reconfigure_multiprocessing(
         logger.info(f"PPC_code = {ppc_code}; the arms in use are {arms_}.")
 
         bench = nfutils.getBench(
-            conf["sfa"]["pfs_instdata_dir"],
+            conf["packages"]["pfs_instdata_dir"],
             conf["sfa"]["cobra_coach_dir"],
             None,
             conf["sfa"]["sm"],
@@ -715,7 +715,7 @@ def reconfigure_multiprocessing(
             observation_time,
             conf["netflow"]["use_gurobi"],
             dict(conf["gurobi"]) if conf["netflow"]["use_gurobi"] else None,
-            conf["sfa"]["pfs_instdata_dir"],
+            conf["packages"]["pfs_instdata_dir"],
             conf["sfa"]["cobra_coach_dir"],
             None,
             conf["sfa"]["sm"],
@@ -755,7 +755,7 @@ def reconfigure_multiprocessing(
             df_filler=df_filler,
             is_no_target=is_no_target,
             design_name=dict_pointings[pointing.lower()]["pointing_name"],
-            pfs_instdata_dir=conf["sfa"]["pfs_instdata_dir"],
+            pfs_instdata_dir=conf["packages"]["pfs_instdata_dir"],
             obs_time=obs_time_,
         )
 
