@@ -239,6 +239,7 @@ def run_netflow(
     numReservedFibers=0,
     fiberNonAllocationCost=0.0,
     preassigned=None,
+    cobraSafetyMargin=0.0,
 ):
     # print(bench.cobras.status)
     # exit()
@@ -285,6 +286,7 @@ def run_netflow(
             numReservedFibers=numReservedFibers,
             fiberNonAllocationCost=fiberNonAllocationCost,
             preassigned=preassigned,
+            cobraSafetyMargin=cobraSafetyMargin,
         )
 
         print("solving the problem")
@@ -385,6 +387,7 @@ def fiber_allocation(
     df_filler=None,
     force_exptime=None,
     two_stage=False,
+    cobra_safety_margin=0.0,
 ):
     targets = []
 
@@ -615,6 +618,7 @@ def fiber_allocation(
         dot_penalty=dot_penalty,
         numReservedFibers=num_reserved_fibers,
         fiberNonAllocationCost=fiber_non_allocation_cost,
+        cobraSafetyMargin=cobra_safety_margin,
     )
 
     if two_stage == False:
@@ -671,6 +675,7 @@ def fiber_allocation(
             numReservedFibers=0,
             fiberNonAllocationCost=0.0,
             preassigned=[assign_1stage],
+            cobraSafetyMargin=cobra_safety_margin,
         )
 
         return (

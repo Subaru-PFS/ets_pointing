@@ -587,7 +587,12 @@ def main():
         cobraRegions_[i] += i
     cobraRegions = np.concatenate(cobraRegions_)
     print(ncobras, cobraRegions)
-       
+
+    try:
+        cobra_safety_margin = conf["netflow"]["cobra_safety_margin"] 
+    except:
+        cobra_safety_margin = 0.0
+
     vis, tp, tel, tgt, tgt_class_dict, is_no_target, bench = nfutils.fiber_allocation(
         df_targets,
         df_fluxstds,
@@ -616,6 +621,7 @@ def main():
         fiber_non_allocation_cost=fiber_non_allocation_cost,
         df_filler=df_filler,
         force_exptime=args.exptime,
+        cobra_safety_margin=conf["netflow"]["cobra_safety_margin"],
     )
     # print(vis, tp, tel, tgt, tgt_classdict)
     # print(vis.items())
