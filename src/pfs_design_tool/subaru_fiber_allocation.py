@@ -287,6 +287,11 @@ def get_arguments():
         default="S23A-EN16",
         help="Proposal-ID for filler targets (default: S23A-EN16)",
     )
+    parser.add_argument(
+        "--raster",
+        action="store_true",
+        help="filler is used as raster scan (default: False)",
+    )
 
     # sky fibers
     parser.add_argument(
@@ -559,6 +564,8 @@ def main():
             exptime=60.0,
             priority=9999,
         )
+        if args.raster:
+            df_filler['priority'] = 1
         if args.reduce_fillers:
             n_fillers = args.n_fillers_random 
             if len(df_filler) > n_fillers:
