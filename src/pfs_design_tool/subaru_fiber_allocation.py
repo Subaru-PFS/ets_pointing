@@ -570,7 +570,7 @@ def main():
     else:
         df_filler = None
 
-    cobra_coach, bench = nfutils.getBench(
+    bench = nfutils.getBench(
         args.pfs_instdata_dir,
         args.cobra_coach_dir,
         None,

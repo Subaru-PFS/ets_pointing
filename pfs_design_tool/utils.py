@@ -290,9 +290,9 @@ class CheckDesign(object):
         from ics.cobraCharmer.pfiDesign import PFIDesign
         from ics.cobraOps.Bench import Bench
         from ics.cobraOps.BlackDotsCalibrationProduct import BlackDotsCalibrationProduct
-        # from ics.cobraOps.CollisionSimulator2 import CollisionSimulator2
+        # from ics.cobraOps.CollisionSimulator import CollisionSimulator
         # from ics.cobraOps.TargetGroup import TargetGroup
-        from procedures.moduleTest.cobraCoach import CobraCoach
+        from ics.cobraCharmer.cobraCoach.cobraCoach import CobraCoach
 
         def getBench(
             pfs_instdata_dir,
@@ -303,40 +303,26 @@ class CheckDesign(object):
         ):
             os.environ["PFS_INSTDATA_DIR"] = pfs_instdata_dir
             cobraCoach = CobraCoach(
-                "fpga", loadModel=False, trajectoryMode=True, rootDir=cobra_coach_dir
+                loadModel=True, trajectoryMode=True, rootDir=cobra_coach_dir
             )
-            cobraCoach.loadModel(version="ALL", moduleVersion=cobra_coach_module_version)
             # Get the calibration product
             calibrationProduct = cobraCoach.calibModel
-            # Set some dummy center positions and phi angles for those cobras that have
-            # zero centers
-            zeroCenters = calibrationProduct.centers == 0
-            calibrationProduct.centers[zeroCenters] = np.arange(np.sum(zeroCenters)) * 300j
-            calibrationProduct.phiIn[zeroCenters] = -np.pi
-            calibrationProduct.phiOut[zeroCenters] = 0
-            print("Cobras with zero centers: %i" % np.sum(zeroCenters))
-            # Use the median value link lengths in those cobras with zero link lengths
-            zeroLinkLengths = np.logical_or(
-                calibrationProduct.L1 == 0, calibrationProduct.L2 == 0
-            )
-            calibrationProduct.L1[zeroLinkLengths] = np.median(
-                calibrationProduct.L1[~zeroLinkLengths]
-            )
-            calibrationProduct.L2[zeroLinkLengths] = np.median(
-                calibrationProduct.L2[~zeroLinkLengths]
-            )
-            print("Cobras with zero link lengths: %i" % np.sum(zeroLinkLengths))
-            # Use the median value link lengths in those cobras with too long link lengths
-            tooLongLinkLengths = np.logical_or(
-                calibrationProduct.L1 > 100, calibrationProduct.L2 > 100
-            )
-            calibrationProduct.L1[tooLongLinkLengths] = np.median(
-                calibrationProduct.L1[~tooLongLinkLengths]
-            )
-            calibrationProduct.L2[tooLongLinkLengths] = np.median(
-                calibrationProduct.L2[~tooLongLinkLengths]
-            )
-            print("Cobras with too long link lengths: %i" % np.sum(tooLongLinkLengths))
+
+            # Fix the phi and tht angles for some of the cobras
+            wrongAngles = calibrationProduct.phiIn == 0
+            calibrationProduct.phiIn[wrongAngles] = -np.pi
+            calibrationProduct.phiOut[wrongAngles] = 0
+            calibrationProduct.tht0[wrongAngles] = 0
+            calibrationProduct.tht1[wrongAngles] = (2.1 * np.pi) % (2 * np.pi)
+            print(f"Number of cobras with wrong phi and tht angles: {np.sum(wrongAngles)}")
+            
+            # Check if there is any cobra with too short or too long link lengths
+            tooShortLinks = np.logical_or(
+                calibrationProduct.L1 < 1, calibrationProduct.L2 < 1)
+            tooLongLinks = np.logical_or(
+                calibrationProduct.L1 > 5, calibrationProduct.L2 > 5)
+            print(f"Number of cobras with too short link lenghts: {np.sum(tooShortLinks)}")
+            print(f"Number of cobras with too long link lenghts: {np.sum(tooLongLinks)}")
 
             # Limit spectral modules
             gfm = FiberIds()  # 2604
@@ -357,23 +343,22 @@ class CheckDesign(object):
 
             # Create the bench instance
             bench = Bench(
-                layout="calibration",
-                calibrationProduct=calibrationProduct,
+                cobraCoach=cobraCoach,
                 blackDotsCalibrationProduct=blackDotsCalibrationProduct,
                 blackDotsMargin=black_dot_radius_margin,
             )
             print("Number of cobras:", bench.cobras.nCobras)
 
-            return cobraCoach, bench
+            return bench
 
         ''' load bench information '''
         pfs_instdata_dir = os.path.join(self.repoDir, 'pfs_instdata')
         cobra_coach_dir = 'cobracoach'
         cobra_coach_module_version = None
         black_dot_radius_margin = self.dotMargin
-        self.cobra_coach, self.bench = getBench(pfs_instdata_dir, cobra_coach_dir,
-                                                cobra_coach_module_version,
-                                                sm, black_dot_radius_margin)
+        self.bench = getBench(pfs_instdata_dir, cobra_coach_dir,
+                              cobra_coach_module_version,
+                              sm, black_dot_radius_margin)
         ''' get cobra+dots geometry '''
         self.cobra_mpl_patches = []
         self.cobra_mpl_id = []

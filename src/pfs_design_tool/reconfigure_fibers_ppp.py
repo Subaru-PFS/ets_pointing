@@ -677,7 +677,7 @@ def reconfigure_multiprocessing(
             arms_ = "bmn"
         logger.info(f"PPC_code = {ppc_code}; the arms in use are {arms_}.")
 
-        cobra_coach, bench = nfutils.getBench(
+        bench = nfutils.getBench(
             conf["sfa"]["pfs_instdata_dir"],
             conf["sfa"]["cobra_coach_dir"],
             None,
