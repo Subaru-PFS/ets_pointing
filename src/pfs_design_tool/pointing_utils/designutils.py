@@ -13,6 +13,7 @@ from pfs.utils.coordinates.CoordTransp import CoordinateTransform as ctrans
 from pfs.utils.coordinates.CoordTransp import ag_pfimm_to_pixel
 from pfs.utils.fiberids import FiberIds
 from pfs.utils.pfsDesignUtils import makePfsDesign, setFiberStatus
+from pfs.utils.datamodel import ag
 
 from ..utils import get_pfs_utils_path
 from .dbutils import connect_subaru_gaiadb
@@ -597,7 +598,7 @@ def generate_pfs_design(
 
 # a function to set bitMask for AG flags
 def get_gs_flag(df, gs_snr_thresh):
-    keys = [k.name for k in pfs.datamodel.guideStars.AutoGuiderStarMask]
+    keys = [k.name for k in ag.AutoGuiderStarMask]
     flags = {k: np.zeros(len(df), dtype=np.uint16) for k in keys}
 
     catalog = df.catalog.to_numpy()
