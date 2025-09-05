@@ -734,6 +734,7 @@ def reconfigure_multiprocessing(
             df_filler=df_filler,
             force_exptime=dict_pointings[pointing.lower()]["single_exptime"],
             two_stage=conf["netflow"]["two_stage"],
+            cobraSafetyMargin=conf["netflow"]["cobra_safety_margin"],
         )
 
         try:

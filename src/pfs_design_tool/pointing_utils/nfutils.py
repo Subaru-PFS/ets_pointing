@@ -217,7 +217,10 @@ def run_netflow(
     dot_penalty=None,
     numReservedFibers=0,
     fiberNonAllocationCost=0.0,
+    obsprog_time_budget={},
+    stage=0.0,
     preassigned=None,
+    cobraSafetyMargin=0.0,
 ):
     # print(bench.cobras.status)
     # exit()
@@ -263,7 +266,10 @@ def run_netflow(
             blackDotPenalty=black_dot_penalty_cost,
             numReservedFibers=numReservedFibers,
             fiberNonAllocationCost=fiberNonAllocationCost,
+            obsprog_time_budget=obsprog_time_budget,
+            stage=stage,
             preassigned=preassigned,
+            cobraSafetyMargin=cobraSafetyMargin,
         )
 
         print("solving the problem")
@@ -364,6 +370,7 @@ def fiber_allocation(
     df_filler=None,
     force_exptime=None,
     two_stage=False,
+    cobraSafetyMargin=0.0,
 ):
     targets = []
 
@@ -593,6 +600,7 @@ def fiber_allocation(
         dot_penalty=dot_penalty,
         numReservedFibers=num_reserved_fibers,
         fiberNonAllocationCost=fiber_non_allocation_cost,
+        cobraSafetyMargin=cobraSafetyMargin,
     )
 
     if two_stage == False:
@@ -645,9 +653,10 @@ def fiber_allocation(
             minSkyTargetsPerInstrumentRegion=min_sky_targets_per_instrument_region,
             instrumentRegionPenalty=instrument_region_penalty,
             dot_penalty=dot_penalty,
-            numReservedFibers=0,
-            fiberNonAllocationCost=0.0,
+            numReservedFibers=num_reserved_fibers,
+            fiberNonAllocationCost=fiber_non_allocation_cost,
             preassigned=[assign_1stage],
+            cobraSafetyMargin=cobraSafetyMargin,
         )
 
         return (
