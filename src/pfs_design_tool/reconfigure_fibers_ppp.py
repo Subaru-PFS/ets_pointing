@@ -8,6 +8,7 @@ from itertools import chain
 from multiprocessing import Pool
 
 import astropy.units as u
+from astropy.coordinates import SkyCoord
 import numpy as np
 import pandas as pd
 import toml
@@ -570,7 +571,7 @@ def reconfigure_multiprocessing(
             min_teff=conf["sfa"]["fluxstd_min_teff"],
             max_teff=conf["sfa"]["fluxstd_max_teff"],
             write_csv=False,
-        )
+        )      
 
         # get sky targets
         if conf["sfa"]["n_sky"] == 0:
@@ -643,8 +644,75 @@ def reconfigure_multiprocessing(
                 priority_obs=9999,
                 priority_usr=12,
             )
+            
+            # remove duplicates in df_filler_obs with df_filler_usr & df_sci
+            if conf["sfa"]["dup_obs_filler_remove"] == True:
+                n_obs_filler_orig = len(df_filler_obs)
+                # Build SkyCoord for df_filler_obs 
+                coords_obs = SkyCoord(
+                    ra=df_filler_obs["ra"].values * u.deg,
+                    dec=df_filler_obs["dec"].values * u.deg
+                )
+                
+                # Build SkyCoord for df_filler_usr (user-filler) + df_sci (science)
+                coords_usr = SkyCoord(
+                    ra=df_filler_usr["ra"].values * u.deg,
+                    dec=df_filler_usr["dec"].values * u.deg
+                )
+                coords_sci = SkyCoord(
+                    ra=df_sci["ra"].values * u.deg,
+                    dec=df_sci["dec"].values * u.deg
+                )
+
+                # Match df_filler_obs → df_filler_usr
+                idx_usr, sep2d_usr, _ = coords_obs.match_to_catalog_sky(coords_usr)
+                mask_usr = sep2d_usr < (1.0 * u.arcsec)
+                
+                # Match df_filler_obs → df_sci
+                idx_sci, sep2d_sci, _ = coords_obs.match_to_catalog_sky(coords_sci)
+                mask_sci = sep2d_sci < (1.0 * u.arcsec)
+                
+                # Keep only those not duplicated in either catalog
+                mask_keep = ~(mask_usr | mask_sci)
+                df_filler_obs = df_filler_obs.loc[mask_keep].reset_index(drop=True)
+                n_obs_filler_red = len(df_filler_obs)
+                logger.info(f"Duplicates in obs. filler removed: {n_obs_filler_orig} --> {n_obs_filler_red}")
+
+            # combine obs. and usr. fillers
             df_filler = pd.concat([df_filler_usr, df_filler_obs])
-            #df_filler = df_filler_usr
+
+            # remove duplicates in df_fluxstds with df_filler_usr & df_sci
+            if conf["sfa"]["dup_fluxstd_remove"] == True:
+                n_fluxstd_orig = len(df_fluxstds)
+                # Build SkyCoord for df_filler_obs 
+                coords_fluxstds = SkyCoord(
+                    ra=df_fluxstds["ra"].values * u.deg,
+                    dec=df_fluxstds["dec"].values * u.deg
+                )
+                
+                # Build SkyCoord for df_filler_usr (user-filler) + df_sci (science)
+                coords_usr = SkyCoord(
+                    ra=df_filler_usr["ra"].values * u.deg,
+                    dec=df_filler_usr["dec"].values * u.deg
+                )
+                coords_sci = SkyCoord(
+                    ra=df_sci["ra"].values * u.deg,
+                    dec=df_sci["dec"].values * u.deg
+                )
+
+                # Match df_fluxstds → df_filler_usr
+                idx_usr, sep2d_usr, _ = coords_fluxstds.match_to_catalog_sky(coords_usr)
+                mask_usr = sep2d_usr < (1.0 * u.arcsec)
+                
+                # Match df_fluxstds → df_sci
+                idx_sci, sep2d_sci, _ = coords_fluxstds.match_to_catalog_sky(coords_sci)
+                mask_sci = sep2d_sci < (1.0 * u.arcsec)
+                
+                # Keep only those not duplicated in either catalog
+                mask_keep = ~(mask_usr | mask_sci)
+                df_fluxstds = df_fluxstds.loc[mask_keep].reset_index(drop=True)
+                n_fluxstd_red = len(df_fluxstds)
+                logger.info(f"Duplicates in fluxstds removed: {n_fluxstd_orig} --> {n_fluxstd_red}")
 
             ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
             if "PPC_L" in ppc_code:
