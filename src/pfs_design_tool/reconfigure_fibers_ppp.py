@@ -739,9 +739,9 @@ def reconfigure_multiprocessing(
             df_filler = None
 
         ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
-        if "PPC_L" in ppc_code:
+        if "_L" in ppc_code:
             arms_ = "brn"
-        elif "PPC_M" in ppc_code:
+        elif "_M" in ppc_code:
             arms_ = "bmn"
         logger.info(f"PPC_code = {ppc_code}; the arms in use are {arms_}.")
 
