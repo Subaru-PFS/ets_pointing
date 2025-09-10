@@ -8,8 +8,7 @@ import numpy as np
 from ics.cobraCharmer.pfiDesign import PFIDesign
 from ics.cobraOps.Bench import Bench
 from ics.cobraOps.BlackDotsCalibrationProduct import BlackDotsCalibrationProduct
-from ics.cobraOps.cobraConstants import NULL_TARGET_ID, NULL_TARGET_POSITION
-from ics.cobraOps.CollisionSimulator2 import CollisionSimulator2
+from ics.cobraOps.CollisionSimulator import CollisionSimulator
 from ics.cobraOps.TargetGroup import TargetGroup
 
 # import argparse
@@ -53,45 +52,27 @@ def getBench(
 ):
     os.environ["PFS_INSTDATA_DIR"] = pfs_instdata_dir
     cobraCoach = CobraCoach(
-        "fpga", loadModel=False, trajectoryMode=True, rootDir=cobra_coach_dir
+        loadModel=True, trajectoryMode=True, rootDir=cobra_coach_dir
     )
-
-    cobraCoach.loadModel(version="ALL", moduleVersion=cobra_coach_module_version)
 
     # Get the calibration product
     calibrationProduct = cobraCoach.calibModel
 
-    # Set some dummy center positions and phi angles for those cobras that have
-    # zero centers
-    zeroCenters = calibrationProduct.centers == 0
-    calibrationProduct.centers[zeroCenters] = np.arange(np.sum(zeroCenters)) * 300j
-    calibrationProduct.phiIn[zeroCenters] = -np.pi
-    calibrationProduct.phiOut[zeroCenters] = 0
-    print("Cobras with zero centers: %i" % np.sum(zeroCenters))
-
-    # Use the median value link lengths in those cobras with zero link lengths
-    zeroLinkLengths = np.logical_or(
-        calibrationProduct.L1 == 0, calibrationProduct.L2 == 0
-    )
-    calibrationProduct.L1[zeroLinkLengths] = np.median(
-        calibrationProduct.L1[~zeroLinkLengths]
-    )
-    calibrationProduct.L2[zeroLinkLengths] = np.median(
-        calibrationProduct.L2[~zeroLinkLengths]
-    )
-    print("Cobras with zero link lengths: %i" % np.sum(zeroLinkLengths))
-
-    # Use the median value link lengths in those cobras with too long link lengths
-    tooLongLinkLengths = np.logical_or(
-        calibrationProduct.L1 > 100, calibrationProduct.L2 > 100
-    )
-    calibrationProduct.L1[tooLongLinkLengths] = np.median(
-        calibrationProduct.L1[~tooLongLinkLengths]
-    )
-    calibrationProduct.L2[tooLongLinkLengths] = np.median(
-        calibrationProduct.L2[~tooLongLinkLengths]
-    )
-    print("Cobras with too long link lengths: %i" % np.sum(tooLongLinkLengths))
+    # Fix the phi and tht angles for some of the cobras
+    wrongAngles = calibrationProduct.phiIn == 0
+    calibrationProduct.phiIn[wrongAngles] = -np.pi
+    calibrationProduct.phiOut[wrongAngles] = 0
+    calibrationProduct.tht0[wrongAngles] = 0
+    calibrationProduct.tht1[wrongAngles] = (2.1 * np.pi) % (2 * np.pi)
+    print(f"Number of cobras with wrong phi and tht angles: {np.sum(wrongAngles)}")
+    
+    # Check if there is any cobra with too short or too long link lengths
+    tooShortLinks = np.logical_or(
+        calibrationProduct.L1 < 1, calibrationProduct.L2 < 1)
+    tooLongLinks = np.logical_or(
+        calibrationProduct.L1 > 5, calibrationProduct.L2 > 5)
+    print(f"Number of cobras with too short link lenghts: {np.sum(tooShortLinks)}")
+    print(f"Number of cobras with too long link lenghts: {np.sum(tooLongLinks)}")
 
     # set pfs_utils data path
     pfs_utils_path = get_pfs_utils_path()
@@ -117,14 +98,13 @@ def getBench(
 
     # Create the bench instance
     bench = Bench(
-        layout="calibration",
-        calibrationProduct=calibrationProduct,
+        cobraCoach=cobraCoach,
         blackDotsCalibrationProduct=blackDotsCalibrationProduct,
         blackDotsMargin=black_dot_radius_margin,
     )
     print("Number of cobras:", bench.cobras.nCobras)
 
-    return cobraCoach, bench
+    return bench
 
 
 def register_objects(df, target_class=None, force_priority=None, force_exptime=None):
@@ -215,7 +195,6 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
 
 
 def run_netflow(
-    cobra_coach,
     bench,
     targets,
     target_fppos,
@@ -238,7 +217,10 @@ def run_netflow(
     dot_penalty=None,
     numReservedFibers=0,
     fiberNonAllocationCost=0.0,
+    obsprog_time_budget={},
+    stage=0.0,
     preassigned=None,
+    cobraSafetyMargin=0.0,
 ):
     # print(bench.cobras.status)
     # exit()
@@ -284,7 +266,10 @@ def run_netflow(
             blackDotPenalty=black_dot_penalty_cost,
             numReservedFibers=numReservedFibers,
             fiberNonAllocationCost=fiberNonAllocationCost,
+            obsprog_time_budget=obsprog_time_budget,
+            stage=stage,
             preassigned=preassigned,
+            cobraSafetyMargin=cobraSafetyMargin,
         )
 
         print("solving the problem")
@@ -312,20 +297,20 @@ def run_netflow(
         print("Checking for trajectory collisions")
         ncoll = 0
         for ivis, (vis, tp) in enumerate(zip(res, target_fppos)):
-            selectedTargets = np.full(len(bench.cobras.centers), NULL_TARGET_POSITION)
-            ids = np.full(len(bench.cobras.centers), NULL_TARGET_ID)
+            selectedTargets = np.full(len(bench.cobras.centers), TargetGroup.NULL_TARGET_POSITION)
+            ids = np.full(len(bench.cobras.centers), TargetGroup.NULL_TARGET_ID)
             for tidx, cidx in vis.items():
                 selectedTargets[cidx] = tp[tidx]
                 ids[cidx] = ""
             for i in range(selectedTargets.size):
-                if selectedTargets[i] != NULL_TARGET_POSITION:
+                if selectedTargets[i] != TargetGroup.NULL_TARGET_POSITION:
                     dist = np.abs(selectedTargets[i] - bench.cobras.centers[i])
                     if dist > bench.cobras.L1[i] + bench.cobras.L2[i]:
                         logger.warning(
                             f"(CobraId={i}) Distance from the center exceeds L1+L2 ({dist} mm)"
                         )
-            simulator = CollisionSimulator2(
-                bench, cobra_coach, TargetGroup(selectedTargets, ids)
+            simulator = CollisionSimulator(
+                bench, TargetGroup(selectedTargets, ids)
             )
             simulator.run()
             # If you want to see the result of the collision simulator, uncomment the next three lines
@@ -385,6 +370,7 @@ def fiber_allocation(
     df_filler=None,
     force_exptime=None,
     two_stage=False,
+    cobraSafetyMargin=0.0,
 ):
     targets = []
 
@@ -414,7 +400,7 @@ def fiber_allocation(
 
     # print(len(targets))
 
-    cobra_coach, bench = getBench(
+    bench = getBench(
         pfs_instdata_dir,
         cobra_coach_dir,
         cobra_coach_module_version,
@@ -545,12 +531,12 @@ def fiber_allocation(
         },
         "cal": {
             "numRequired": n_fluxstd,
-            "nonObservationCost": 1e11,
+            "nonObservationCost": 6e10,
             "calib": True,
         },
         "sky": {
             "numRequired": n_sky,
-            "nonObservationCost": 1e11,
+            "nonObservationCost": 6e10,
             "calib": True,
         },
     }
@@ -592,7 +578,6 @@ def fiber_allocation(
         target_fppos = [tele.get_fp_positions(targets) for tele in telescopes]
 
     res = run_netflow(
-        cobra_coach,
         bench,
         targets,
         target_fppos,
@@ -615,6 +600,7 @@ def fiber_allocation(
         dot_penalty=dot_penalty,
         numReservedFibers=num_reserved_fibers,
         fiberNonAllocationCost=fiber_non_allocation_cost,
+        cobraSafetyMargin=cobraSafetyMargin,
     )
 
     if two_stage == False:
@@ -647,7 +633,6 @@ def fiber_allocation(
         target_fppos = [tele.get_fp_positions(targets) for tele in telescopes]
 
         res = run_netflow(
-            cobra_coach,
             bench,
             targets,
             target_fppos,
@@ -668,9 +653,10 @@ def fiber_allocation(
             minSkyTargetsPerInstrumentRegion=min_sky_targets_per_instrument_region,
             instrumentRegionPenalty=instrument_region_penalty,
             dot_penalty=dot_penalty,
-            numReservedFibers=0,
-            fiberNonAllocationCost=0.0,
+            numReservedFibers=num_reserved_fibers,
+            fiberNonAllocationCost=fiber_non_allocation_cost,
             preassigned=[assign_1stage],
+            cobraSafetyMargin=cobraSafetyMargin,
         )
 
         return (
