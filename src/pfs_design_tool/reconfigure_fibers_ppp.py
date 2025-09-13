@@ -678,9 +678,6 @@ def reconfigure_multiprocessing(
                 n_obs_filler_red = len(df_filler_obs)
                 logger.info(f"Duplicates in obs. filler removed: {n_obs_filler_orig} --> {n_obs_filler_red}")
 
-            # combine obs. and usr. fillers
-            df_filler = pd.concat([df_filler_usr, df_filler_obs])
-
             # remove duplicates in df_fluxstds with df_filler_usr & df_sci
             if conf["sfa"]["dup_fluxstd_remove"] == True:
                 n_fluxstd_orig = len(df_fluxstds)
@@ -714,6 +711,29 @@ def reconfigure_multiprocessing(
                 n_fluxstd_red = len(df_fluxstds)
                 logger.info(f"Duplicates in fluxstds removed: {n_fluxstd_orig} --> {n_fluxstd_red}")
 
+            if conf["sfa"]["reduce_fillers"]:
+                n_fillers = conf["sfa"]["n_fillers_random"]
+                
+                if len(df_filler_usr) >= n_fillers:
+                    # too many user fillers → sample down to n_fillers
+                    df_filler_usr = df_filler_usr.sample(
+                        n_fillers, ignore_index=True, random_state=1
+                    )
+                    df_filler_obs = df_filler_obs.iloc[0:0]  # empty
+                else:
+                    # keep all user fillers, fill rest with obs fillers
+                    n_needed = n_fillers - len(df_filler_usr)
+                    if len(df_filler_obs) > n_needed:
+                        df_filler_obs = df_filler_obs.sample(
+                            n_needed, ignore_index=True, random_state=1
+                        )
+
+            # combine obs. and usr. fillers
+            df_filler = pd.concat([df_filler_usr, df_filler_obs])
+            logger.info(
+                f"Fetched filler target DataFrame (obs filler = {len(df_filler_obs):.0f}, usr filler = {len(df_filler_usr):.0f}): \n{df_filler}"
+            )
+
             ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
             if "PPC_L" in ppc_code:
                 df_filler = df_filler[
@@ -726,15 +746,6 @@ def reconfigure_multiprocessing(
                     | (df_filler["is_medium_resolution"] == True)
                 ]
 
-            if conf["sfa"]["reduce_fillers"]:
-                n_fillers = conf["sfa"]["n_fillers_random"]  # this value can be tuned
-                if len(df_filler) > n_fillers:
-                    df_filler = df_filler.sample(
-                        n_fillers, ignore_index=True, random_state=1
-                    )
-            logger.info(
-                f"Fetched filler target DataFrame (obs filler = {len(df_filler_obs):.0f}, usr filler = {len(df_filler_usr):.0f}): \n{df_filler}"
-            )
         else:
             df_filler = None
 
