@@ -711,6 +711,26 @@ def reconfigure_multiprocessing(
                 n_fluxstd_red = len(df_fluxstds)
                 logger.info(f"Duplicates in fluxstds removed: {n_fluxstd_orig} --> {n_fluxstd_red}")
 
+            ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
+            if "_L" in ppc_code:
+                df_filler_usr = df_filler_usr[
+                    (df_filler_usr["is_medium_resolution"] == "L/M")
+                    | (df_filler_usr["is_medium_resolution"] == False)
+                ]
+                df_filler_obs = df_filler_obs[
+                    (df_filler_obs["is_medium_resolution"] == "L/M")
+                    | (df_filler_obs["is_medium_resolution"] == False)
+                ]
+            elif "_M" in ppc_code:
+                df_filler_usr = df_filler_usr[
+                    (df_filler_usr["is_medium_resolution"] == "L/M")
+                    | (df_filler_usr["is_medium_resolution"] == True)
+                ]
+                df_filler_obs = df_filler_obs[
+                    (df_filler_obs["is_medium_resolution"] == "L/M")
+                    | (df_filler_obs["is_medium_resolution"] == True)
+                ]
+
             if conf["sfa"]["reduce_fillers"]:
                 n_fillers = conf["sfa"]["n_fillers_random"]
                 
@@ -732,19 +752,7 @@ def reconfigure_multiprocessing(
             df_filler = pd.concat([df_filler_usr, df_filler_obs])
             logger.info(
                 f"Fetched filler target DataFrame (obs filler = {len(df_filler_obs):.0f}, usr filler = {len(df_filler_usr):.0f}): \n{df_filler}"
-            )
-
-            ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
-            if "PPC_L" in ppc_code:
-                df_filler = df_filler[
-                    (df_filler["is_medium_resolution"] == "L/M")
-                    | (df_filler["is_medium_resolution"] == False)
-                ]
-            elif "PPC_M" in ppc_code:
-                df_filler = df_filler[
-                    (df_filler["is_medium_resolution"] == "L/M")
-                    | (df_filler["is_medium_resolution"] == True)
-                ]
+            )           
 
         else:
             df_filler = None
