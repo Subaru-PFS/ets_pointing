@@ -613,7 +613,10 @@ def fixcols_filler_targetdb(
     df["effective_exptime"] = exptime
 
     df_obs = df[df["grade"].isin(["G"])]
-    df_usr = df[df["grade"].isin(["C", "F"])]
+    df_usr = df[
+        ((df["grade"] == "C") & df["proposal_id"].str.startswith("S25B")) |
+        ((df["grade"] == "F") & df["proposal_id"].str.startswith("S25A"))
+    ]
 
     df_obs["priority"] = priority_obs
     df_usr["priority"] = priority_usr
