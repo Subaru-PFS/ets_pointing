@@ -4,6 +4,7 @@ import matplotlib.path as mppath
 import numpy as np
 import pandas as pd
 import pfs.datamodel
+from pfs.datamodel.pfsConfig import TargetType
 from astroplan import FixedTarget, Observer
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -36,6 +37,7 @@ def generate_pfs_design(
     design_name=None,
     pfs_instdata_dir=None,
     obs_time="",
+    df_unassigned=None,
 ):
 
     gfm = FiberIds(path=get_pfs_utils_path())  # 2604
@@ -517,6 +519,119 @@ def generate_pfs_design(
         if tidx_no_total_flux != []:
             logger.warning(f"total flux not found -> use psf flux instead {tidx_no_total_flux}")
 
+        # 2025.10 Additional targets for unassigned fiber
+        if df_unassigned is not None:
+            # calculate the pfi position.
+            xyin = df_unassigned[['ra', 'dec']].values.T
+            pm = df_unassigned[['pmra', 'pmdec']].values.T
+            par = df_unassigned['parallax'].values
+            xout, yout = ctrans(xyin, 'sky_pfi', pa=tel._posang,
+                           cent=[[tel._ra],[tel._dec]], pm=pm, par=par,
+                           time=obs_time, epoch=2016.)[0:2]
+            
+            df_unassigned['x'] = xout
+            df_unassigned['y'] = yout
+
+            for row in df_unassigned.itertuples():
+                idx_fiber = (
+                    cobra_ids[np.logical_and(scifiber_ids >= 0, scifiber_ids <= n_fiber)]
+                    == row.cidx + 1
+                    )
+
+                i_fiber = idx_array[idx_fiber][0]
+                #print(f"{row.x}, {row.y}, {row.cidx}, {i_fiber}")
+                # Fill required values.
+                ra[i_fiber] = row.ra
+                dec[i_fiber] = row.dec
+                obj_id[i_fiber] = row.obj_id
+                pfi_nominal[i_fiber] = row.x, row.y
+                target_type[i_fiber] = TargetType.SCIENCE  # Fow now, set SCIENCE (probably we need new TargetType)
+
+                # leave proposal Id to be defailt
+                #proposal_id[i_fiber] = row.proposal_id
+                ob_code[i_fiber] = row.ob_code
+                epoch[i_fiber] = row.epoch
+                pmRa[i_fiber] = row.pmra
+                pmDec[i_fiber] = row.pmdec
+                parallax[i_fiber] = row.parallax
+
+                cat_id[i_fiber] = row.input_catalog_id   
+                try:
+                    dict_of_flux_lists["total_flux"][i_fiber] = np.array(
+                        [
+                            (
+                                getattr(row, f"total_flux_{band}")
+                                if (
+                                    getattr(row, f"total_flux_{band}")
+                                    is not None
+                                )
+                                and (
+                                    getattr(row, f"total_flux_{band}")
+                                    != 0.0
+                                )
+                                else np.nan
+                            )
+                            for band in filter_band_names
+                            ]
+                        )
+                    dict_of_flux_lists["total_flux_error"][i_fiber] = np.array(
+                        [
+                            (
+                                getattr(row, f"total_flux_error_{band}")
+                                if (
+                                    getattr(row, f"total_flux_error_{band}")
+                                    is not None
+                                )
+                                and (
+                                    getattr(row, f"total_flux_error_{band}")
+                                    != 0.0
+                                )
+                                else np.nan
+                            )
+                            for band in filter_band_names
+                            ]
+                        )
+                    msk = dict_of_flux_lists["total_flux_error"][i_fiber] <= 0
+                    dict_of_flux_lists["total_flux_error"][i_fiber][msk] = np.nan
+                except AttributeError as e:
+                    #tidx_no_total_flux.append(tidx)
+                    dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
+                        [
+                            (
+                                getattr(row, f"psf_flux_{band}")
+                                if getattr(row, f"psf_flux_{band}")
+                                    is not None
+                                else np.nan
+                            )
+                            for band in filter_band_names
+                            ]
+                        )
+                    dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
+                        [
+                            (
+                                getattr(row, f"psf_flux_error_{band}")
+                                if getattr(row, f"psf_flux_error_{band}")
+                                    is not None
+                                else np.nan
+                                )
+                            for band in filter_band_names
+                            ]
+                        )
+                    msk = dict_of_flux_lists["psf_flux_error"][i_fiber] <= 0
+                    dict_of_flux_lists["psf_flux_error"][i_fiber][msk] = np.nan
+
+                dict_of_flux_lists["filter_names"][i_fiber] = [
+                    (
+                        getattr(row, f"filter_{band}")
+                        if getattr(row, f"filter_{band}")
+                        is not None
+                        else "none"
+                    )
+                    for band in filter_band_names
+                ]
+
+
+
     for i in range(len(dict_of_flux_lists["filter_names"])):
         dict_of_flux_lists["psf_flux_error"][i][
             dict_of_flux_lists["psf_flux_error"][i] == 0.0
@@ -853,7 +968,7 @@ def generate_guidestars_from_gaiadb(
     tmp = np.array([res[racol], res[deccol]])
     tmp = ctrans(
         xyin=tmp,
-        mode="sky_pfi",
+        mode="sky_pfi_ag",
         pa=pa_deg,
         cent=np.array([ra_tel_deg, dec_tel_deg]).reshape((2, 1)),
         pm=np.stack([res[coldict["pmra"]], res[coldict["pmdec"]]], axis=0),
@@ -1085,7 +1200,7 @@ def generate_guidestars_from_csv(
     tmp = np.array([res[racol], res[deccol]])
     tmp = ctrans(
         xyin=tmp,
-        mode="sky_pfi",
+        mode="sky_pfi_ag",
         pa=pa_deg,
         cent=np.array([ra_tel_deg, dec_tel_deg]).reshape((2, 1)),
         pm=np.stack([res[coldict["pmra"]], res[coldict["pmdec"]]], axis=0),
@@ -1194,3 +1309,16 @@ def generate_guidestars_from_csv(
     )
 
     return guidestars
+
+def get_skypos_cobra(ccenter, obstime, ppc_ra, ppc_dec, ppc_pa):
+    """
+    ccenter: (complex) cobra.center
+    obstime: (str) observation time for design
+    ppc_ra, ppc_dec: (float) sky coordinate of center of FoV (Pointing Center) [deg]
+    ppc_pa: (float) Porision Angle of FoV (Pointing Center) [deg]
+    """
+    xyin = np.array([[ccenter.real], [ccenter.imag]])
+    ra, dec = ctrans(xyin, 'pfi_sky', pa=ppc_pa,
+                    cent=[[ppc_ra],[ppc_dec]],
+                    time=obstime, epoch=2016.)[0:2]
+    return ra[0], dec[0]
