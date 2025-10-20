@@ -628,7 +628,7 @@ def reconfigure_multiprocessing(
                 priority=10,
             )
             """
-            df_filler = dbutils.generate_fillers_from_targetdb(
+            df_filler, df_filler_nocut = dbutils.generate_fillers_from_targetdb(
                 dict_pointings[pointing.lower()]["ra_center"],
                 dict_pointings[pointing.lower()]["dec_center"],
                 band_select="total_flux_r",
@@ -639,6 +639,7 @@ def reconfigure_multiprocessing(
             )
             df_filler_obs, df_filler_usr = dbutils.fixcols_filler_targetdb(
                 df_filler,
+                df_filler_nocut,
                 target_type_id=1,  # SCIENCE
                 exptime=dict_pointings[pointing.lower()]["single_exptime"],
                 priority_obs=9999,
@@ -646,69 +647,30 @@ def reconfigure_multiprocessing(
                 dup_obs_filler_remove=conf["sfa"]["dup_obs_filler_remove"],
                 obs_filler_done_remove=conf["sfa"]["obs_filler_done_remove"],
             )
-            
-            # remove duplicates in df_filler_obs with df_filler_usr & df_sci
-            if conf["sfa"]["dup_obs_filler_remove"] == True:
-                n_obs_filler_orig = len(df_filler_obs)
-                # Build SkyCoord for df_filler_obs 
-                coords_obs = SkyCoord(
-                    ra=df_filler_obs["ra"].values * u.deg,
-                    dec=df_filler_obs["dec"].values * u.deg
-                )
-                
-                # Build SkyCoord for df_filler_usr (user-filler) + df_sci (science)
-                coords_usr = SkyCoord(
-                    ra=df_filler_usr["ra"].values * u.deg,
-                    dec=df_filler_usr["dec"].values * u.deg
-                )
-                coords_sci = SkyCoord(
-                    ra=df_sci["ra"].values * u.deg,
-                    dec=df_sci["dec"].values * u.deg
-                )
-
-                # Match df_filler_obs → df_filler_usr
-                idx_usr, sep2d_usr, _ = coords_obs.match_to_catalog_sky(coords_usr)
-                mask_usr = sep2d_usr < (1.0 * u.arcsec)
-                
-                # Match df_filler_obs → df_sci
-                idx_sci, sep2d_sci, _ = coords_obs.match_to_catalog_sky(coords_sci)
-                mask_sci = sep2d_sci < (1.0 * u.arcsec)
-                
-                # Keep only those not duplicated in either catalog
-                mask_keep = ~(mask_usr | mask_sci)
-                df_filler_obs = df_filler_obs.loc[mask_keep].reset_index(drop=True)
-                n_obs_filler_red = len(df_filler_obs)
-                logger.info(f"Duplicates in obs. filler removed: {n_obs_filler_orig} --> {n_obs_filler_red}")
 
             # remove duplicates in df_fluxstds with df_filler_usr & df_sci
             if conf["sfa"]["dup_fluxstd_remove"] == True:
                 n_fluxstd_orig = len(df_fluxstds)
-                # Build SkyCoord for df_filler_obs 
+                # Build SkyCoord for df_filler_fluxstds
                 coords_fluxstds = SkyCoord(
                     ra=df_fluxstds["ra"].values * u.deg,
                     dec=df_fluxstds["dec"].values * u.deg
                 )
                 
                 # Build SkyCoord for df_filler_usr (user-filler) + df_sci (science)
+                df_usr_nocut = df_filler_nocut[df_filler_nocut["grade"].isin(["B", "C", "F"])]
+                
                 coords_usr = SkyCoord(
-                    ra=df_filler_usr["ra"].values * u.deg,
-                    dec=df_filler_usr["dec"].values * u.deg
-                )
-                coords_sci = SkyCoord(
-                    ra=df_sci["ra"].values * u.deg,
-                    dec=df_sci["dec"].values * u.deg
+                    ra=df_usr_nocut["ra"].values * u.deg,
+                    dec=df_usr_nocut["dec"].values * u.deg
                 )
 
-                # Match df_fluxstds → df_filler_usr
-                idx_usr, sep2d_usr, _ = coords_fluxstds.match_to_catalog_sky(coords_usr)
-                mask_usr = sep2d_usr < (1.0 * u.arcsec)
-                
                 # Match df_fluxstds → df_sci
-                idx_sci, sep2d_sci, _ = coords_fluxstds.match_to_catalog_sky(coords_sci)
+                idx_sci, sep2d_sci, _ = coords_fluxstds.match_to_catalog_sky(coords_usr)
                 mask_sci = sep2d_sci < (1.0 * u.arcsec)
                 
                 # Keep only those not duplicated in either catalog
-                mask_keep = ~(mask_usr | mask_sci)
+                mask_keep = ~(mask_sci)
                 df_fluxstds = df_fluxstds.loc[mask_keep].reset_index(drop=True)
                 n_fluxstd_red = len(df_fluxstds)
                 logger.info(f"Duplicates in fluxstds removed: {n_fluxstd_orig} --> {n_fluxstd_red}")
@@ -723,6 +685,8 @@ def reconfigure_multiprocessing(
                     (df_filler_obs["is_medium_resolution"] == "L/M")
                     | (df_filler_obs["is_medium_resolution"] == False)
                 ]
+                if "backup" in ppc_code:
+                    df_filler_usr = df_filler_usr[df_filler_usr["grade"].isin(["G", "F"])]
             elif "_M" in ppc_code:
                 df_filler_usr = df_filler_usr[
                     (df_filler_usr["is_medium_resolution"] == "L/M")
@@ -732,6 +696,8 @@ def reconfigure_multiprocessing(
                     (df_filler_obs["is_medium_resolution"] == "L/M")
                     | (df_filler_obs["is_medium_resolution"] == True)
                 ]
+                if "backup" in ppc_code:
+                    df_filler_usr = df_filler_usr[df_filler_usr["grade"].isin(["G", "F"])]
 
             if conf["sfa"]["reduce_fillers"]:
                 n_fillers = conf["sfa"]["n_fillers_random"]
