@@ -643,7 +643,7 @@ def reconfigure_multiprocessing(
                 target_type_id=1,  # SCIENCE
                 exptime=dict_pointings[pointing.lower()]["single_exptime"],
                 priority_obs=9999,
-                priority_usr=12,
+                priority_usr=11,
                 dup_obs_filler_remove=conf["sfa"]["dup_obs_filler_remove"],
                 obs_filler_done_remove=conf["sfa"]["obs_filler_done_remove"],
             )
