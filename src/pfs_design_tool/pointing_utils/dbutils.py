@@ -589,6 +589,8 @@ def fixcols_filler_targetdb(
     exptime=900.0,
     priority_obs=1,
     priority_usr=1,
+    dup_obs_filler_remove=False,
+    obs_filler_done_remove=False,
 ):
     """
     # only for gaia

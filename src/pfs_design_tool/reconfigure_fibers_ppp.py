@@ -643,6 +643,8 @@ def reconfigure_multiprocessing(
                 exptime=dict_pointings[pointing.lower()]["single_exptime"],
                 priority_obs=9999,
                 priority_usr=12,
+                dup_obs_filler_remove=conf["sfa"]["dup_obs_filler_remove"],
+                obs_filler_done_remove=conf["sfa"]["obs_filler_done_remove"],
             )
             
             # remove duplicates in df_filler_obs with df_filler_usr & df_sci
