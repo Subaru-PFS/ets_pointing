@@ -9,6 +9,7 @@ import pandas as pd
 import psycopg2
 import psycopg2.extras
 from astropy import units as u
+from astropy.coordinates import SkyCoord
 from astropy.table import Table
 from logzero import logger
 from targetdb import targetdb
@@ -23,6 +24,10 @@ def connect_targetdb(conf=None):
     db = targetdb.TargetDB(**dict(conf["targetdb"]["db"]))
     db.connect()
     return db
+
+def connect_qdb(conf=None):
+    conn = psycopg2.connect(**dict(conf["qdb"]))
+    return conn
 
 
 def generate_targets_from_targetdb(
@@ -649,6 +654,7 @@ def fixcols_filler_targetdb(
         df_filler_obs = df_filler_obs.loc[mask_keep].reset_index(drop=True)
         n_obs_filler_red = len(df_filler_obs)
         logger.info(f"Duplicates in obs. filler removed: {n_obs_filler_orig} --> {n_obs_filler_red}")
+
 
     df_filler_obs["priority"] = priority_obs
     df_filler_usr["priority"] = priority_usr
