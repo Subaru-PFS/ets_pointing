@@ -71,7 +71,6 @@ def patch_pfsdesign_by_rawdata(datadir=".", skip_patch=False):
     visit = 78155
 
     if not skip_patch:
-
         patchPfsDesign(pfsConfig, visit, datadir=datadir)
         pfsConfig.designName += " MO"
 
@@ -93,7 +92,6 @@ def load_design(pfs_design, hdu=1):
 
 
 def plot_designs(input_design_file, patched_design_file, datadir=".", outdir="plots"):
-
     gfm = FiberIds()
 
     def plot_one_design(design_file, ax, **kwargs):
@@ -108,7 +106,6 @@ def plot_designs(input_design_file, patched_design_file, datadir=".", outdir="pl
         ax.scatter(x_alloc[idx_sm], y_alloc[idx_sm], **kwargs)
 
     with plt.style.context("tableau-colorblind10"):
-
         fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(12, 12))
         ax.set_aspect("equal")
 
@@ -146,7 +143,6 @@ def plot_designs(input_design_file, patched_design_file, datadir=".", outdir="pl
 
 
 if __name__ == "__main__":
-
     datadir = "testdata"
 
     input_design, patched_design = patch_pfsdesign_by_rawdata(

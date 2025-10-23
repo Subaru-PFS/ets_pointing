@@ -65,12 +65,10 @@ def getBench(
     calibrationProduct.tht0[wrongAngles] = 0
     calibrationProduct.tht1[wrongAngles] = (2.1 * np.pi) % (2 * np.pi)
     print(f"Number of cobras with wrong phi and tht angles: {np.sum(wrongAngles)}")
-    
+
     # Check if there is any cobra with too short or too long link lengths
-    tooShortLinks = np.logical_or(
-        calibrationProduct.L1 < 1, calibrationProduct.L2 < 1)
-    tooLongLinks = np.logical_or(
-        calibrationProduct.L1 > 5, calibrationProduct.L2 > 5)
+    tooShortLinks = np.logical_or(calibrationProduct.L1 < 1, calibrationProduct.L2 < 1)
+    tooLongLinks = np.logical_or(calibrationProduct.L1 > 5, calibrationProduct.L2 > 5)
     print(f"Number of cobras with too short link lenghts: {np.sum(tooShortLinks)}")
     print(f"Number of cobras with too long link lenghts: {np.sum(tooLongLinks)}")
 
@@ -125,7 +123,7 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
                 exptime = df["effective_exptime"].values[i]
 
             epoch_value = df["epoch"].values[i]
-            if epoch_value.startswith('J'):
+            if epoch_value.startswith("J"):
                 epoch_value = epoch_value[1:]  # Remove the 'J' character
 
             res.append(
@@ -145,18 +143,20 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
             )
     elif target_class == "cal":
         res = []
-        
+
         # cal_penalty = ((-2.5*np.log10(df["psf_flux_g"] * 1e-32)) -
         #               (-2.5*np.log10(max(df["psf_flux_g"]) * 1e-32))) #* 5.0e+10
-        
-        cal_penalty = np.array([5.0e10 * (1 - ii) if ii >= 0 else 0 for ii in df["prob_f_star"]])
+
+        cal_penalty = np.array(
+            [5.0e10 * (1 - ii) if ii >= 0 else 0 for ii in df["prob_f_star"]]
+        )
         # print(min(cal_penalty), max(cal_penalty))
 
         for i in range(df.index.size):
             epoch_value = df["epoch"].values[i]
-            if epoch_value.startswith('J'):
+            if epoch_value.startswith("J"):
                 epoch_value = epoch_value[1:]  # Remove the 'J' character
-                    
+
             res.append(
                 nf.CalibTarget(
                     # df["obj_id"][i],
@@ -169,7 +169,7 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
                     pmdec=df["pmdec"].values[i],
                     parallax=df["parallax"].values[i],
                     epoch=float(epoch_value),
-                ) 
+                )
             )
     elif target_class == "sky":
         res = [
@@ -297,7 +297,9 @@ def run_netflow(
         print("Checking for trajectory collisions")
         ncoll = 0
         for ivis, (vis, tp) in enumerate(zip(res, target_fppos)):
-            selectedTargets = np.full(len(bench.cobras.centers), TargetGroup.NULL_TARGET_POSITION)
+            selectedTargets = np.full(
+                len(bench.cobras.centers), TargetGroup.NULL_TARGET_POSITION
+            )
             ids = np.full(len(bench.cobras.centers), TargetGroup.NULL_TARGET_ID)
             for tidx, cidx in vis.items():
                 selectedTargets[cidx] = tp[tidx]
@@ -309,9 +311,7 @@ def run_netflow(
                         logger.warning(
                             f"(CobraId={i}) Distance from the center exceeds L1+L2 ({dist} mm)"
                         )
-            simulator = CollisionSimulator(
-                bench, TargetGroup(selectedTargets, ids)
-            )
+            simulator = CollisionSimulator(bench, TargetGroup(selectedTargets, ids))
             simulator.run()
             # If you want to see the result of the collision simulator, uncomment the next three lines
             #            from ics.cobraOps import plotUtils

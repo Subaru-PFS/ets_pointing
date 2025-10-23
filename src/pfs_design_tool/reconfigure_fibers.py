@@ -13,9 +13,9 @@ from logzero import logger
 from pfs.datamodel import PfsDesign
 from pfs.datamodel import TargetType
 
-#import pointing_utils.dbutils as dbutils
-#import pointing_utils.designutils as designutils
-#import pointing_utils.nfutils as nfutils
+# import pointing_utils.dbutils as dbutils
+# import pointing_utils.designutils as designutils
+# import pointing_utils.nfutils as nfutils
 from pfs_design_tool.pointing_utils import dbutils, designutils, nfutils
 
 
@@ -26,7 +26,6 @@ iers.conf.auto_download = True
 
 
 def get_arguments():
-
     parser = argparse.ArgumentParser()
 
     # input pfsDesign file
@@ -190,7 +189,9 @@ def read_conf(conf):
     return config
 
 
-def load_input_design(design_id, indir=".", exptime=None, bands=["g", "r", "i"], just_add_guidestars=False):
+def load_input_design(
+    design_id, indir=".", exptime=None, bands=["g", "r", "i"], just_add_guidestars=False
+):
     pfs_design = PfsDesign.read(pfsDesignId=design_id, dirName=indir)
 
     fib = {
@@ -234,9 +235,7 @@ def load_input_design(design_id, indir=".", exptime=None, bands=["g", "r", "i"],
         pass
     else:
         for i, band in enumerate(bands):
-
             for target_type in ["sci", "std"]:
-
                 dataframes[target_type][f"filter_{band}"] = [
                     fib[target_type].filterNames[iobj][i]
                     for iobj in range(fib[target_type].objId.size)
@@ -256,22 +255,35 @@ def load_input_design(design_id, indir=".", exptime=None, bands=["g", "r", "i"],
 
 
 def main():
-
     args = get_arguments()
 
     conf = read_conf(args.conf)
     print(conf["netflow"]["use_gurobi"])
 
     in_design, df_sci, df_std, df_sky = load_input_design(
-        args.design_id, indir = args.design_indir, exptime=args.exptime, just_add_guidestars=args.just_add_guidestars
-        )
+        args.design_id,
+        indir=args.design_indir,
+        exptime=args.exptime,
+        just_add_guidestars=args.just_add_guidestars,
+    )
 
     if args.just_add_guidestars:
         out_design, _, _, _ = load_input_design(
-            args.design_id, indir = args.design_indir, exptime=args.exptime, just_add_guidestars=args.just_add_guidestars
-            )
+            args.design_id,
+            indir=args.design_indir,
+            exptime=args.exptime,
+            just_add_guidestars=args.just_add_guidestars,
+        )
     else:
-        vis, tp, tel, tgt, tgt_class_dict, is_no_target, bench = nfutils.fiber_allocation(
+        (
+            vis,
+            tp,
+            tel,
+            tgt,
+            tgt_class_dict,
+            is_no_target,
+            bench,
+        ) = nfutils.fiber_allocation(
             df_sci,
             df_std,
             df_sky,
@@ -283,14 +295,16 @@ def main():
             args.observation_time,
             conf["netflow"]["use_gurobi"],
             dict(conf["gurobi"]) if conf["netflow"]["use_gurobi"] else None,
-            args.pfs_instdata_dir   ,
+            args.pfs_instdata_dir,
             args.cobra_coach_dir,
             args.cobra_coach_module_version,
             args.sm,
             args.dot_margin,
             args.dot_penalty,
             cobra_location_group=None,
-            min_sky_targets_per_location=conf["netflow"]["min_sky_targets_per_location"],
+            min_sky_targets_per_location=conf["netflow"][
+                "min_sky_targets_per_location"
+            ],
             location_group_penalty=conf["netflow"]["location_group_penalty"],
             cobra_instrument_region=None,
             min_sky_targets_per_instrument_region=None,
@@ -351,15 +365,24 @@ def main():
             guidestar_minsep_deg=args.guidestar_minsep_deg,
         )
     out_design.guideStars = guidestars
-    
+
     # add proposalId for science targets
     if args.proposal_id is not None:
         print("add proposalId...")
-        out_design.proposalId = np.array([args.proposal_id for _ in range(len(out_design))])
+        out_design.proposalId = np.array(
+            [args.proposal_id for _ in range(len(out_design))]
+        )
 
     if args.cat_id is not None:
         print("add catId...")
-        out_design.catId[out_design.targetType==TargetType.SCIENCE] = np.array([args.cat_id for _ in range(len(out_design[out_design.targetType==TargetType.SCIENCE]))])
+        out_design.catId[out_design.targetType == TargetType.SCIENCE] = np.array(
+            [
+                args.cat_id
+                for _ in range(
+                    len(out_design[out_design.targetType == TargetType.SCIENCE])
+                )
+            ]
+        )
 
     # validation for PM and parallax
     out_design.pmRa[np.isnan(out_design.pmRa)] = 0.0

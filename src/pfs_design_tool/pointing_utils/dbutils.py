@@ -25,6 +25,7 @@ def connect_targetdb(conf=None):
     db.connect()
     return db
 
+
 def connect_qdb(conf=None):
     conn = psycopg2.connect(**dict(conf["qdb"]))
     return conn
@@ -483,7 +484,7 @@ def fixcols_gaiadb_to_targetdb(
     df["psf_flux_error_r"] = df["psf_flux_r"] / df["phot_bp_mean_flux_over_error"]
     df["psf_flux_error_i"] = df["psf_flux_i"] / df["phot_rp_mean_flux_over_error"]
     df["psf_flux_error_z"] = np.full(len(tb), np.nan)
-    df["psf_flux_error_y"] =  np.full(len(tb), np.nan)
+    df["psf_flux_error_y"] = np.full(len(tb), np.nan)
     df["filter_g"] = ["g_gaia" for _ in range(len(tb))]
     df["filter_r"] = ["bp_gaia" for _ in range(len(tb))]
     df["filter_i"] = ["rp_gaia" for _ in range(len(tb))]
@@ -579,8 +580,7 @@ def generate_fillers_from_targetdb(
     )
 
     df_res_magcut = df_res[
-        (df_res[band_select] >= flux_min) &
-        (df_res[band_select] <= flux_max)
+        (df_res[band_select] >= flux_min) & (df_res[band_select] <= flux_max)
     ].reset_index(drop=True)
 
     db.close()
@@ -626,35 +626,35 @@ def fixcols_filler_targetdb(
 
     df_filler_obs = df[df["grade"].isin(["G"])]
     df_filler_usr = df[
-        ((df["grade"] == "C") & df["proposal_id"].str.startswith("S25B")) |
-        ((df["grade"] == "F") & df["proposal_id"].str.startswith("S25A"))
+        ((df["grade"] == "C") & df["proposal_id"].str.startswith("S25B"))
+        | ((df["grade"] == "F") & df["proposal_id"].str.startswith("S25A"))
     ]
     df_sci = df_no_mag_cut[df_no_mag_cut["grade"].isin(["B", "C", "F"])]
 
-    if dup_obs_filler_remove:        
+    if dup_obs_filler_remove:
         n_obs_filler_orig = len(df_filler_obs)
-        # Build SkyCoord for df_filler_obs 
+        # Build SkyCoord for df_filler_obs
         coords_obs = SkyCoord(
             ra=df_filler_obs["ra"].values * u.deg,
-            dec=df_filler_obs["dec"].values * u.deg
+            dec=df_filler_obs["dec"].values * u.deg,
         )
-        
+
         # Build SkyCoord for df_filler_usr (user-filler) + df_sci (science)
         coords_sci = SkyCoord(
-            ra=df_sci["ra"].values * u.deg,
-            dec=df_sci["dec"].values * u.deg
+            ra=df_sci["ra"].values * u.deg, dec=df_sci["dec"].values * u.deg
         )
-        
+
         # Match df_filler_obs → df_sci
         idx_sci, sep2d_sci, _ = coords_obs.match_to_catalog_sky(coords_sci)
         mask_sci = sep2d_sci < (1.0 * u.arcsec)
-        
+
         # Keep only those not duplicated in either catalog
-        mask_keep = ~ mask_sci
+        mask_keep = ~mask_sci
         df_filler_obs = df_filler_obs.loc[mask_keep].reset_index(drop=True)
         n_obs_filler_red = len(df_filler_obs)
-        logger.info(f"Duplicates in obs. filler removed: {n_obs_filler_orig} --> {n_obs_filler_red}")
-
+        logger.info(
+            f"Duplicates in obs. filler removed: {n_obs_filler_orig} --> {n_obs_filler_red}"
+        )
 
     df_filler_obs["priority"] = priority_obs
     df_filler_usr["priority"] = priority_usr
