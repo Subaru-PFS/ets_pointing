@@ -287,6 +287,11 @@ def get_arguments():
         default="S23A-EN16",
         help="Proposal-ID for filler targets (default: S23A-EN16)",
     )
+    parser.add_argument(
+        "--raster",
+        action="store_true",
+        help="filler is used as raster scan (default: False)",
+    )
 
     # sky fibers
     parser.add_argument(
@@ -559,6 +564,8 @@ def main():
             exptime=60.0,
             priority=9999,
         )
+        if args.raster:
+            df_filler['priority'] = 1
         if args.reduce_fillers:
             n_fillers = args.n_fillers_random 
             if len(df_filler) > n_fillers:
@@ -588,6 +595,11 @@ def main():
     cobraRegions = np.concatenate(cobraRegions_)
     print(ncobras, cobraRegions)
        
+    try:
+        cobra_safety_margin = conf["netflow"]["cobra_safety_margin"] 
+    except:
+        cobra_safety_margin = 0.0
+
     vis, tp, tel, tgt, tgt_class_dict, is_no_target, bench = nfutils.fiber_allocation(
         df_targets,
         df_fluxstds,
@@ -616,11 +628,71 @@ def main():
         fiber_non_allocation_cost=fiber_non_allocation_cost,
         df_filler=df_filler,
         force_exptime=args.exptime,
+        cobraSafetyMargin=cobra_safety_margin,
     )
     # print(vis, tp, tel, tgt, tgt_classdict)
     # print(vis.items())
 
-    # print(is_no_target)
+    # 2025.10 fill as many unassigned fibers as possible
+    # Pickup the unassigned cobras (cobra index, 0-start)
+    # And collect ra,dec for assigned targets to check duplication
+    #print(len(vis.keys()))
+    unassigned = np.array([cidx for cidx in list(range(0,2394)) if cidx not in vis.values()])
+    assigned_ra = np.array([tgt[tidx].ra for tidx, cidx in vis.items()])
+    assigned_dec = np.array([tgt[tidx].dec for tidx, cidx in vis.items()])
+    print(f"The number of Unassigned + disabled fibers: {len(unassigned)} :")
+    print(unassigned)
+
+    # daaframe to store additional targets
+    df_unassigned = pd.DataFrame(None, columns=['source_id', 'ref_epoch', 'ra', 'dec', 'pmra', 'pmdec', 'parallax',
+                                                'phot_g_mean_mag', 'phot_bp_mean_mag', 'phot_rp_mean_mag',
+                                                'phot_g_mean_flux_over_error', 'phot_bp_mean_flux_over_error',
+                                                'phot_rp_mean_flux_over_error', 'cidx'])
+    for cidx in unassigned:
+        #print(bench.cobras.centers[cidx], bench.cobras.centers[cidx], bench.cobras.isGood[cidx])
+        if bench.cobras.isGood[cidx]:   # Nothing can be done for broken cobras/broken fibers
+            ra_un, dec_un = designutils.get_skypos_cobra(
+                bench.cobras.centers[cidx], 
+                args.observation_time,
+                args.ra,
+                args.dec,
+                args.pa)
+            #print(ra_un, dec_un)
+            # Search for objects around unassigned cobra.
+            df_gaia_un = dbutils.generate_targets_from_gaiadb(
+                ra_un, dec_un,
+                conf=conf,
+                search_radius=25/3600. ,  # Take patrol region as radius of 25" (~3mm physically) in degree. It is better to make it configurable.
+                band_select="phot_g_mean_mag",
+                mag_min=18.0,  # It is better to make it configurable.
+                mag_max=99.0,
+                good_astrometry=False,
+                write_csv=False)
+
+            if len(df_gaia_un)>0:  # >0 object is found
+                #print(df_gaia_un.columns)
+                # Check whether the found object is close to assigned targets and might be duplicated
+                for row in df_gaia_un.itertuples():
+                    diff = np.hypot((row[3]-assigned_ra)*np.cos(np.deg2rad(row[4])),row[4]-assigned_dec) 
+                    if any(diff< 1.1/3600.) :  # distance is less than one fiber (it should not be if the above query is right..)
+                        print(f"Looking for onject for {cidx}: {row[1]} is already allocated to another.")
+                        continue
+                    else:
+                        print(f"I found a source for {cidx}: {row[1]} (df index is {row[0]}).")
+                        df_tmp=df_gaia_un[row[0]:row[0]+1]
+                        df_tmp['cidx']=cidx
+                        df_unassigned = pd.concat([df_unassigned, df_tmp])
+                        break
+            else:
+                print(f"No gaia object around {cidx}")
+
+    # modify the columns
+    df_unassigned = dbutils.fixcols_gaiadb_to_targetdb(df_unassigned,
+                                                       input_catalog_id=4,  # Gaia DR3
+                                                      )  
+    print(f"{len(df_unassigned)} targets were found.")
+    # 2025.10 fill as many unassigned fibers as possible -- end
+
 
     # generate pfsDesign
     design = designutils.generate_pfs_design(
@@ -638,6 +710,7 @@ def main():
         is_no_target=is_no_target,
         design_name=args.design_name,
         obs_time=args.observation_time,
+        df_unassigned=df_unassigned,
     )
 
     # set guideStars
