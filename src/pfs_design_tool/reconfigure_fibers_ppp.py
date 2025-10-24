@@ -883,7 +883,6 @@ def reconfigure_multiprocessing(
                         df_candidates = pd.DataFrame()
 
                     if len(df_candidates) > 0:  # >0 object is found
-                        # print(df_gaia_un.columns)
                         # Check whether the found object is close to assigned targets and might be duplicated
                         for row in df_candidates.itertuples():
                             ra, dec = row.ra, row.dec
@@ -999,11 +998,8 @@ def reconfigure_multiprocessing(
         logger.info(
             "Number of SKY fibers: {:}".format(len(np.where(design.targetType == 2)[0]))
         )
-        logger.info("Number of AG stars: {:}".format(len(guidestars.objId)))
         logger.info(
-            "Number of unassigned filled: {:}".format(
-                len(np.where(design.targetType == 2)[0])
-            )
+            "Number of unassigned fibers: {:}".format(len(np.where(design.targetType == 4)[0]))
         )
         logger.info("Number of AG stars: {:}".format(len(guidestars.objId)))
         logger.info(f"Observation Time: {observation_time}")
