@@ -62,15 +62,11 @@ def generate_targets_from_targetdb(
         if "r" in arms:
             extra_where = "AND is_medium_resolution IS FALSE"
 
-    query_string = f"""SELECT *
-    FROM {tablename}
+    query_string = f"""SELECT ob_code,obj_id,c.input_catalog_id,ra,dec,epoch,priority,pmra,pmdec,parallax,effective_exptime,single_exptime,qa_reference_arm,is_medium_resolution,proposal.proposal_id,rank,grade,allocated_time_lr+allocated_time_mr as \"allocated_time\",allocated_time_lr,allocated_time_mr,filter_g,filter_r,filter_i,filter_z,filter_y,psf_flux_g,psf_flux_r,psf_flux_i,psf_flux_z,psf_flux_y,psf_flux_error_g,psf_flux_error_r,psf_flux_error_i,psf_flux_error_z,psf_flux_error_y,total_flux_g,total_flux_r,total_flux_i,total_flux_z,total_flux_y,total_flux_error_g,total_flux_error_r,total_flux_error_i,total_flux_error_z,total_flux_error_y
+    FROM {tablename} JOIN input_catalog AS c ON {tablename}.input_catalog_id = c.input_catalog_id JOIN proposal ON {tablename}.proposal_id=proposal.proposal_id
     WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
+    AND c.active
     """
-    if mag_filter is not None:
-        extra_where += f"""
-        AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}
-        """
-
     if extra_where is not None:
         query_string += extra_where
 
@@ -83,7 +79,7 @@ def generate_targets_from_targetdb(
 
     if proposal_id is not None:
         query_string += (
-            " AND (" + "OR".join([f" proposal_id='{v}' " for v in proposal_id]) + ")"
+            " AND (" + "OR".join([f" {tablename}.proposal_id='{v}' " for v in proposal_id]) + ")"
         )
 
     if max_priority is not None:
@@ -91,19 +87,28 @@ def generate_targets_from_targetdb(
 
     query_string += ";"
 
-    logger.info(f"Query string for targets:\n{query_string}")
+    #logger.info(f"Query string for targets:\n{query_string}")
 
     df = pd.DataFrame()
 
     t_begin = time.time()
     df = db.fetch_query(query_string)
     t_end = time.time()
-    logger.info(f"Time spent for querying (s): {t_end - t_begin:.3f}")
+    #logger.info(f"Time spent for querying (s): {t_end - t_begin:.3f}")
+
+    # keep grade BCF in S25B and FG in S25A
+    mask_keep = (
+        ((df["proposal_id"].str.startswith("S25B")) & (df["grade"].isin(["B", "C", "F"])))
+        | ((df["proposal_id"].str.startswith("S25A")) & (df["grade"].isin(["F", "G"])))
+    )
+    
+    df = df.loc[mask_keep].reset_index(drop=True)
 
     df.loc[df["pmra"].isna(), "pmra"] = 0.0
     df.loc[df["pmdec"].isna(), "pmdec"] = 0.0
     df.loc[df["parallax"].isna(), "parallax"] = 1.0e-7
-    logger.info(f"Fetched target DataFrame: \n{df}")
+    df.loc[df["rank"]<0, "rank"] = 10.0 # give highest rank to classic targets
+    #logger.info(f"Fetched target DataFrame: \n{df}")
 
     if force_priority is not None:
         df["priority"] = force_priority
