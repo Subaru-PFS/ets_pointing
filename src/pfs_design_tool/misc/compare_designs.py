@@ -26,7 +26,6 @@ def load_design(pfs_design, hdu=1):
 
 
 def main(design_file1, design_file2, plotname=None, datadir="testdata", outdir="plots"):
-
     gfm = FiberIds()
 
     def plot_one_design(design_file, ax, **kwargs):
@@ -41,7 +40,6 @@ def main(design_file1, design_file2, plotname=None, datadir="testdata", outdir="
         ax.scatter(x_alloc[idx_sm], y_alloc[idx_sm], **kwargs)
 
     with plt.style.context("tableau-colorblind10"):
-
         fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(12, 12))
         ax.set_aspect("equal")
 
@@ -80,7 +78,6 @@ def main(design_file1, design_file2, plotname=None, datadir="testdata", outdir="
 
 
 if __name__ == "__main__":
-
     design_file1 = "pfsDesign-0x7637277bb44703b8.fits"
     design_file2 = "pfsDesign-0x2a3e0e7f53f47587.fits"
     main(design_file1, design_file2, plotname="comp_two_designs")

@@ -36,8 +36,8 @@ def generate_pfs_design(
     design_name=None,
     pfs_instdata_dir=None,
     obs_time="",
+    df_unassigned=None,
 ):
-
     gfm = FiberIds(path=get_pfs_utils_path())  # 2604
     cobra_ids = gfm.cobraId
     scifiber_ids = gfm.scienceFiberId
@@ -169,11 +169,15 @@ def generate_pfs_design(
                             (
                                 df_targets[f"total_flux_{band}"][idx_target].values[0]
                                 if (
-                                    df_targets[f"total_flux_{band}"][idx_target].values[0]
+                                    df_targets[f"total_flux_{band}"][idx_target].values[
+                                        0
+                                    ]
                                     is not None
                                 )
                                 and (
-                                    df_targets[f"total_flux_{band}"][idx_target].values[0]
+                                    df_targets[f"total_flux_{band}"][idx_target].values[
+                                        0
+                                    ]
                                     > 0.0
                                 )
                                 else np.nan
@@ -184,17 +188,19 @@ def generate_pfs_design(
                     dict_of_flux_lists["total_flux_error"][i_fiber] = np.array(
                         [
                             (
-                                df_targets[f"total_flux_error_{band}"][idx_target].values[0]
+                                df_targets[f"total_flux_error_{band}"][
+                                    idx_target
+                                ].values[0]
                                 if (
-                                    df_targets[f"total_flux_error_{band}"][idx_target].values[
-                                        0
-                                    ]
+                                    df_targets[f"total_flux_error_{band}"][
+                                        idx_target
+                                    ].values[0]
                                     is not None
                                 )
                                 and (
-                                    df_targets[f"total_flux_error_{band}"][idx_target].values[
-                                        0
-                                    ]
+                                    df_targets[f"total_flux_error_{band}"][
+                                        idx_target
+                                    ].values[0]
                                     > 0.0
                                 )
                                 else np.nan
@@ -226,17 +232,19 @@ def generate_pfs_design(
                     dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
                         [
                             (
-                                df_targets[f"psf_flux_error_{band}"][idx_target].values[0]
+                                df_targets[f"psf_flux_error_{band}"][idx_target].values[
+                                    0
+                                ]
                                 if (
-                                    df_targets[f"psf_flux_error_{band}"][idx_target].values[
-                                        0
-                                    ]
+                                    df_targets[f"psf_flux_error_{band}"][
+                                        idx_target
+                                    ].values[0]
                                     is not None
                                 )
                                 and (
-                                    df_targets[f"psf_flux_error_{band}"][idx_target].values[
-                                        0
-                                    ]
+                                    df_targets[f"psf_flux_error_{band}"][
+                                        idx_target
+                                    ].values[0]
                                     > 0.0
                                 )
                                 else np.nan
@@ -246,7 +254,7 @@ def generate_pfs_design(
                     )
                     msk = dict_of_flux_lists["psf_flux_error"][i_fiber] <= 0
                     dict_of_flux_lists["psf_flux_error"][i_fiber][msk] = np.nan
-                
+
                 # FIXME: filter names should be in targetDB
                 if cat_id[i_fiber] >= 5 and cat_id[i_fiber] <= 12:
                     dict_of_flux_lists["filter_names"][i_fiber] = [
@@ -309,7 +317,9 @@ def generate_pfs_design(
                     [
                         (
                             df_fluxstds[f"psf_flux_error_{band}"][idx_fluxstd].values[0]
-                            if df_fluxstds[f"psf_flux_error_{band}"][idx_fluxstd].values[0]
+                            if df_fluxstds[f"psf_flux_error_{band}"][
+                                idx_fluxstd
+                            ].values[0]
                             is not None
                             else np.nan
                         )
@@ -329,7 +339,7 @@ def generate_pfs_design(
                 ]
 
                 # FIXME: temporal fix for gaia fluxstds
-                #if "g_gaia" in dict_of_flux_lists["filter_names"][i_fiber]:
+                # if "g_gaia" in dict_of_flux_lists["filter_names"][i_fiber]:
                 #    dict_of_flux_lists["filter_names"][i_fiber] = list(dict_of_flux_lists["filter_names"][i_fiber][:3])
                 #    dict_of_flux_lists["psf_flux"][i_fiber] = np.array(dict_of_flux_lists["psf_flux"][i_fiber][:3])
                 #    dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(dict_of_flux_lists["psf_flux_error"][i_fiber][:3])
@@ -388,7 +398,9 @@ def generate_pfs_design(
                     == tgt_class_dict[tgt[tidx].targetclass],
                 )
                 if np.any(idx_filler):
-                    proposal_id[i_fiber] = df_filler["proposal_id"][idx_filler].values[0]
+                    proposal_id[i_fiber] = df_filler["proposal_id"][idx_filler].values[
+                        0
+                    ]
                     ob_code[i_fiber] = df_filler["ob_code"][idx_filler].values[0]
                     epoch[i_fiber] = df_filler["epoch"][idx_filler].values[0]
                     pmRa[i_fiber] = df_filler["pmra"][idx_filler].values[0]
@@ -403,13 +415,19 @@ def generate_pfs_design(
                         dict_of_flux_lists["total_flux"][i_fiber] = np.array(
                             [
                                 (
-                                    df_filler[f"total_flux_{band}"][idx_filler].values[0]
+                                    df_filler[f"total_flux_{band}"][idx_filler].values[
+                                        0
+                                    ]
                                     if (
-                                        df_filler[f"total_flux_{band}"][idx_filler].values[0]
+                                        df_filler[f"total_flux_{band}"][
+                                            idx_filler
+                                        ].values[0]
                                         is not None
                                     )
                                     and (
-                                        df_filler[f"total_flux_{band}"][idx_filler].values[0]
+                                        df_filler[f"total_flux_{band}"][
+                                            idx_filler
+                                        ].values[0]
                                         != 0.0
                                     )
                                     else np.nan
@@ -420,13 +438,19 @@ def generate_pfs_design(
                         dict_of_flux_lists["total_flux_error"][i_fiber] = np.array(
                             [
                                 (
-                                    df_filler[f"total_flux_error_{band}"][idx_filler].values[0]
+                                    df_filler[f"total_flux_error_{band}"][
+                                        idx_filler
+                                    ].values[0]
                                     if (
-                                        df_filler[f"total_flux_error_{band}"][idx_filler].values[0]
+                                        df_filler[f"total_flux_error_{band}"][
+                                            idx_filler
+                                        ].values[0]
                                         is not None
                                     )
                                     and (
-                                        df_filler[f"total_flux_error_{band}"][idx_filler].values[0]
+                                        df_filler[f"total_flux_error_{band}"][
+                                            idx_filler
+                                        ].values[0]
                                         != 0.0
                                     )
                                     else np.nan
@@ -442,7 +466,9 @@ def generate_pfs_design(
                             [
                                 (
                                     df_filler[f"psf_flux_{band}"][idx_filler].values[0]
-                                    if df_filler[f"psf_flux_{band}"][idx_filler].values[0]
+                                    if df_filler[f"psf_flux_{band}"][idx_filler].values[
+                                        0
+                                    ]
                                     is not None
                                     else np.nan
                                 )
@@ -452,8 +478,12 @@ def generate_pfs_design(
                         dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
                             [
                                 (
-                                    df_filler[f"psf_flux_error_{band}"][idx_filler].values[0]
-                                    if df_filler[f"psf_flux_error_{band}"][idx_filler].values[0]
+                                    df_filler[f"psf_flux_error_{band}"][
+                                        idx_filler
+                                    ].values[0]
+                                    if df_filler[f"psf_flux_error_{band}"][
+                                        idx_filler
+                                    ].values[0]
                                     is not None
                                     else np.nan
                                 )
@@ -511,11 +541,157 @@ def generate_pfs_design(
                     ]
                     #"""
 
-
             # print(dict_of_flux_lists)
 
         if tidx_no_total_flux != []:
-            logger.warning(f"total flux not found -> use psf flux instead {tidx_no_total_flux}")
+            logger.warning(
+                f"total flux not found -> use psf flux instead {tidx_no_total_flux}"
+            )
+
+        # 2025.10 Additional targets for unassigned fiber
+        if df_unassigned is not None:
+            # calculate the pfi position.
+            xyin = df_unassigned[["ra", "dec"]].values.T
+            pm = df_unassigned[["pmra", "pmdec"]].values.T
+            par = df_unassigned["parallax"].values
+            xout, yout = ctrans(
+                xyin,
+                "sky_pfi_ag",
+                pa=tel._posang,
+                cent=[[tel._ra], [tel._dec]],
+                pm=pm,
+                par=par,
+                time=obs_time,
+                epoch=2016.0,
+            )[0:2]
+
+            df_unassigned["x"] = xout
+            df_unassigned["y"] = yout
+
+            for row in df_unassigned.itertuples():
+                idx_fiber = (
+                    cobra_ids[
+                        np.logical_and(scifiber_ids >= 0, scifiber_ids <= n_fiber)
+                    ]
+                    == row.cidx + 1
+                )
+                i_fiber = idx_array[idx_fiber][0]
+
+                # Fill required values.
+                ra[i_fiber] = row.ra
+                dec[i_fiber] = row.dec
+                obj_id[i_fiber] = row.obj_id
+                pfi_nominal[i_fiber] = row.x, row.y
+                ob_code[i_fiber] = row.ob_code
+                epoch[i_fiber] = row.epoch
+                pmRa[i_fiber] = row.pmra
+                pmDec[i_fiber] = row.pmdec
+                parallax[i_fiber] = row.parallax
+                cat_id[i_fiber] = row.input_catalog_id
+
+                if row.source_type == "sky":
+                    target_type[i_fiber] = 2 #TargetType.SKY = 2 
+                    try:
+                        dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
+                            [
+                                10
+                                ** (-0.4 * (row.mag_thresh - 8.9))
+                                * 1e09,
+                                np.nan,
+                                np.nan,
+                                np.nan,
+                                np.nan,
+                            ]
+                        )
+                    except:
+                        dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
+                            [
+                                np.nan,
+                                np.nan,
+                                np.nan,
+                                np.nan,
+                                np.nan,
+                            ]
+                        )
+                    dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
+                        [
+                            np.nan,
+                            np.nan,
+                            np.nan,
+                            np.nan,
+                            np.nan,
+                        ]
+                    )
+                    dict_of_flux_lists["filter_names"][i_fiber] = [
+                        "g_hsc",
+                        "none",
+                        "none",
+                        "none",
+                        "none",
+                    ]
+
+                elif row.source_type == "gaia":
+                    target_type[i_fiber] = 1 #TargetType.SCIENCE = 1
+                    proposal_id[i_fiber] = row.proposal_id
+                    try:
+                        dict_of_flux_lists["total_flux"][i_fiber] = np.array(
+                            [
+                                (
+                                    getattr(row, f"total_flux_{band}")
+                                    if (getattr(row, f"total_flux_{band}") is not None)
+                                    and (getattr(row, f"total_flux_{band}") != 0.0)
+                                    else np.nan
+                                )
+                                for band in filter_band_names
+                            ]
+                        )
+                        dict_of_flux_lists["total_flux_error"][i_fiber] = np.array(
+                            [
+                                (
+                                    getattr(row, f"total_flux_error_{band}")
+                                    if (
+                                        getattr(row, f"total_flux_error_{band}") is not None
+                                    )
+                                    and (getattr(row, f"total_flux_error_{band}") != 0.0)
+                                    else np.nan
+                                )
+                                for band in filter_band_names
+                            ]
+                        )
+                        msk = dict_of_flux_lists["total_flux_error"][i_fiber] <= 0
+                        dict_of_flux_lists["total_flux_error"][i_fiber][msk] = np.nan
+                    except AttributeError as e:
+                        dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
+                            [
+                                (
+                                    getattr(row, f"psf_flux_{band}")
+                                    if getattr(row, f"psf_flux_{band}") is not None
+                                    else np.nan
+                                )
+                                for band in filter_band_names
+                            ]
+                        )
+                        dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(
+                            [
+                                (
+                                    getattr(row, f"psf_flux_error_{band}")
+                                    if getattr(row, f"psf_flux_error_{band}") is not None
+                                    else np.nan
+                                )
+                                for band in filter_band_names
+                            ]
+                        )
+                        msk = dict_of_flux_lists["psf_flux_error"][i_fiber] <= 0
+                        dict_of_flux_lists["psf_flux_error"][i_fiber][msk] = np.nan
+    
+                    dict_of_flux_lists["filter_names"][i_fiber] = [
+                        (
+                            getattr(row, f"filter_{band}")
+                            if getattr(row, f"filter_{band}") is not None
+                            else "none"
+                        )
+                        for band in filter_band_names
+                    ]
 
     for i in range(len(dict_of_flux_lists["filter_names"])):
         dict_of_flux_lists["psf_flux_error"][i][
@@ -612,8 +788,8 @@ def get_gs_flag(df, gs_snr_thresh):
     pmra_error = df.pmra_error.to_numpy()
     snr = np.abs(pmra) / pmra_error
     snr[np.isnan(snr)] = 0.0
-    flags["PMRA_SIG"][snr>gs_snr_thresh] = 1  
-    
+    flags["PMRA_SIG"][snr > gs_snr_thresh] = 1
+
     pmdec = df.pmdec.to_numpy()
     pmdec_error = df.pmdec_error.to_numpy()
     msk = np.isnan(pmdec)
@@ -621,7 +797,7 @@ def get_gs_flag(df, gs_snr_thresh):
 
     snr = np.abs(pmdec) / pmdec_error
     snr[np.isnan(snr)] = 0.0
-    flags["PMDEC_SIG"][snr>gs_snr_thresh] = 1
+    flags["PMDEC_SIG"][snr > gs_snr_thresh] = 1
 
     para = df.pmdec.to_numpy()
     pmdec_error = df.pmdec_error.to_numpy()
@@ -630,7 +806,7 @@ def get_gs_flag(df, gs_snr_thresh):
 
     parallax_over_error = df.parallax_over_error.to_numpy()
     parallax_over_error[np.isnan(parallax_over_error)] = 0.0
-    flags["PARA_SIG"][parallax_over_error**2>gs_snr_thresh**2] = 1
+    flags["PARA_SIG"][parallax_over_error**2 > gs_snr_thresh**2] = 1
 
     astrometric_excess_noise = df.astrometric_excess_noise.to_numpy()
     astrometric_excess_noise[np.isnan(astrometric_excess_noise)] = 9999
@@ -641,7 +817,7 @@ def get_gs_flag(df, gs_snr_thresh):
     astrometric_excess_noise_sig[np.isnan(astrometric_excess_noise_sig)] = 0
     msk = astrometric_excess_noise_sig > 2.0
     flags["ASTROMETRIC_SIG"][msk] = 1
-        
+
     ruwe = df.ruwe.to_numpy()
     ruwe[np.isnan(ruwe)] = 9999
     msk = ruwe < 1.4
@@ -661,11 +837,11 @@ def get_gs_flag(df, gs_snr_thresh):
     snr += phot_g_mean_flux_over_error
     r_cmodel_mag = df.r_cmodel_mag.to_numpy()
     r_cmodel_magerr = df.r_cmodel_magerr.to_numpy()
-    flx = 10**(-0.4*(r_cmodel_mag+48.6))
-    dflx = 10**(-0.4*(r_cmodel_mag-r_cmodel_magerr+48.6)) - flx
+    flx = 10 ** (-0.4 * (r_cmodel_mag + 48.6))
+    dflx = 10 ** (-0.4 * (r_cmodel_mag - r_cmodel_magerr + 48.6)) - flx
     r_cmodel_flux_over_error = flx / dflx
     r_cmodel_flux_over_error[np.isnan(r_cmodel_flux_over_error)] = 0.0
-    snr += r_cmodel_flux_over_error  
+    snr += r_cmodel_flux_over_error
 
     msk = snr > gs_snr_thresh
     flags["PHOTO_SIG"][msk] = 1
@@ -677,15 +853,15 @@ def get_gs_flag(df, gs_snr_thresh):
     r_extendedness_value = df.r_extendedness_value.to_numpy()
     r_extendedness_value[np.isnan(r_extendedness_value)] = 0
     classification += r_extendedness_value
-    
+
     msk = classification > 0
-    flags["GALAXY"][msk] = 1    
+    flags["GALAXY"][msk] = 1
 
     bitPos = {k: i for i, k in enumerate(flags.keys())}
     flag = np.zeros(len(next(iter(flags.values()))), dtype=np.uint16)
-    for k,v in flags.items():
-        flag |= (v << bitPos[k])
-    
+    for k, v in flags.items():
+        flag |= v << bitPos[k]
+
     return flags, flag
 
 
@@ -778,20 +954,20 @@ def generate_guidestars_from_gaiadb(
     ;
     """
 
-    #query_string = f"""SELECT source_id,ra,dec,parallax,pmra,pmdec,ref_epoch,phot_g_mean_mag,bp_rp
-    #FROM gaia3
-    #WHERE q3c_radial_query(ra, dec, {ra_tel_deg}, {dec_tel_deg}, {search_radius})
-    #{astrometric_flag} AND {coldict['mag']} BETWEEN {guidestar_mag_min} AND {guidestar_mag_max} {sqlWhere}
-    #;
-    #"""
-    
-    #query_string = f"""SELECT source_id,ra,dec,parallax,pmra,pmdec,ref_epoch,phot_g_mean_mag,bp_rp
-    #FROM gaia3
-    #WHERE q3c_radial_query(ra, dec, {ra_tel_deg}, {dec_tel_deg}, {search_radius})
-    #AND {coldict['mag']} BETWEEN {guidestar_mag_min} AND {guidestar_mag_max} {sqlWhere}
-    #;
-    #"""
-    
+    # query_string = f"""SELECT source_id,ra,dec,parallax,pmra,pmdec,ref_epoch,phot_g_mean_mag,bp_rp
+    # FROM gaia3
+    # WHERE q3c_radial_query(ra, dec, {ra_tel_deg}, {dec_tel_deg}, {search_radius})
+    # {astrometric_flag} AND {coldict['mag']} BETWEEN {guidestar_mag_min} AND {guidestar_mag_max} {sqlWhere}
+    # ;
+    # """
+
+    # query_string = f"""SELECT source_id,ra,dec,parallax,pmra,pmdec,ref_epoch,phot_g_mean_mag,bp_rp
+    # FROM gaia3
+    # WHERE q3c_radial_query(ra, dec, {ra_tel_deg}, {dec_tel_deg}, {search_radius})
+    # AND {coldict['mag']} BETWEEN {guidestar_mag_min} AND {guidestar_mag_max} {sqlWhere}
+    # ;
+    # """
+
     print(query_string)
     cur.execute(query_string)
 
@@ -811,18 +987,20 @@ def generate_guidestars_from_gaiadb(
 
     df_sel = df_sel.fillna({"parallax": 1.0e-07, "pmra": 0.0, "pmdec": 0.0})
 
-    df_res = pd.DataFrame({
-        "source_id": df_sel.source_id.to_list(),
-        "ra": df_sel.ra.to_list(),
-        "dec": df_sel.dec.to_list(),
-        "parallax": df_sel.parallax.to_list(),
-        "pmra": df_sel.pmra.to_list(),
-        "pmdec": df_sel.pmdec.to_list(),
-        "ref_epoch": df_sel.ref_epoch.to_list(),
-        "phot_g_mean_mag": df_sel.magnitude.to_list(),
-        "bp_rp": df_sel.color.to_list(),
-        "flag": list(gs_cat_flag),
-    })
+    df_res = pd.DataFrame(
+        {
+            "source_id": df_sel.source_id.to_list(),
+            "ra": df_sel.ra.to_list(),
+            "dec": df_sel.dec.to_list(),
+            "parallax": df_sel.parallax.to_list(),
+            "pmra": df_sel.pmra.to_list(),
+            "pmdec": df_sel.pmdec.to_list(),
+            "ref_epoch": df_sel.ref_epoch.to_list(),
+            "phot_g_mean_mag": df_sel.magnitude.to_list(),
+            "bp_rp": df_sel.color.to_list(),
+            "flag": list(gs_cat_flag),
+        }
+    )
 
     assert (
         np.unique(df_res["ref_epoch"]).size == 1
@@ -853,7 +1031,7 @@ def generate_guidestars_from_gaiadb(
     tmp = np.array([res[racol], res[deccol]])
     tmp = ctrans(
         xyin=tmp,
-        mode="sky_pfi",
+        mode="sky_pfi_ag",
         pa=pa_deg,
         cent=np.array([ra_tel_deg, dec_tel_deg]).reshape((2, 1)),
         pm=np.stack([res[coldict["pmra"]], res[coldict["pmdec"]]], axis=0),
@@ -957,7 +1135,7 @@ def generate_guidestars_from_gaiadb(
         targets["agpix_y"],  # AG y pixel coordinate
         telescope_elevation,
         gaiadb_input_catalog_id,  # numerical ID assigned to the GAIA catalogue
-        targets["flag"]
+        targets["flag"],
     )
 
     return guidestars
@@ -984,7 +1162,6 @@ def generate_guidestars_from_csv(
     gs_csv=None,
     gs_snr_thresh=5.0,
 ):
-
     # Get ra, dec and position angle from input arguments
     ra_tel_deg, dec_tel_deg, pa_deg = ra, dec, pa
 
@@ -1031,8 +1208,8 @@ def generate_guidestars_from_csv(
 
     ra_cat = df.ra.to_numpy()
     dec_cat = df.dec.to_numpy()
-    r2 = ((ra_cat - ra)*np.cos(np.pi/180.*dec_cat))**2 + (dec_cat - dec)**2
-    df_sel = df[r2<search_radius**2].reset_index()
+    r2 = ((ra_cat - ra) * np.cos(np.pi / 180.0 * dec_cat)) ** 2 + (dec_cat - dec) ** 2
+    df_sel = df[r2 < search_radius**2].reset_index()
 
     logger.info(f"GuideStars to use are selected: {len(df)} ==> {len(df_sel)}")
 
@@ -1042,24 +1219,24 @@ def generate_guidestars_from_csv(
     passband = np.full(len(df_sel), "g_gaia")
     passband[(gs_cat_flag & 0x2) != 0] = "r_hsc"
 
-    df_res = pd.DataFrame({
-        "source_id": df_sel.source_id.to_list(),
-        "ra": df_sel.ra.to_list(),
-        "dec": df_sel.dec.to_list(),
-        "parallax": df_sel.parallax.to_list(),
-        "pmra": df_sel.pmra.to_list(),
-        "pmdec": df_sel.pmdec.to_list(),
-        "ref_epoch": [f"J{e:.1f}" for e in df_sel.ref_epoch.to_list()],
-        "phot_g_mean_mag": df_sel.magnitude.to_list(),
-        "bp_rp": df_sel.color.to_list(),
-        "flag": list(gs_cat_flag),
-        "passband": list(passband),
-    })
+    df_res = pd.DataFrame(
+        {
+            "source_id": df_sel.source_id.to_list(),
+            "ra": df_sel.ra.to_list(),
+            "dec": df_sel.dec.to_list(),
+            "parallax": df_sel.parallax.to_list(),
+            "pmra": df_sel.pmra.to_list(),
+            "pmdec": df_sel.pmdec.to_list(),
+            "ref_epoch": [f"J{e:.1f}" for e in df_sel.ref_epoch.to_list()],
+            "phot_g_mean_mag": df_sel.magnitude.to_list(),
+            "bp_rp": df_sel.color.to_list(),
+            "flag": list(gs_cat_flag),
+            "passband": list(passband),
+        }
+    )
 
     epoch = df_sel.ref_epoch.to_numpy()[gs_cat_flag & 0x1 != 0]
-    assert (
-        np.unique(epoch).size == 1
-    ), "Non-unique epochs for sources from GaiaDB"
+    assert np.unique(epoch).size == 1, "Non-unique epochs for sources from GaiaDB"
     gaiadb_epoch = epoch[0]
 
     res = {}
@@ -1085,7 +1262,7 @@ def generate_guidestars_from_csv(
     tmp = np.array([res[racol], res[deccol]])
     tmp = ctrans(
         xyin=tmp,
-        mode="sky_pfi",
+        mode="sky_pfi_ag",
         pa=pa_deg,
         cent=np.array([ra_tel_deg, dec_tel_deg]).reshape((2, 1)),
         pm=np.stack([res[coldict["pmra"]], res[coldict["pmdec"]]], axis=0),
@@ -1168,7 +1345,7 @@ def generate_guidestars_from_csv(
 
     guidestars = pfs.datamodel.guideStars.GuideStars(
         targets[coldict["id"]],
-        #np.full(ntgt, f"J{gaiadb_epoch:.1f}"),
+        # np.full(ntgt, f"J{gaiadb_epoch:.1f}"),
         targets["ref_epoch"],
         # np.full(ntgt, "J{:.1f}".format(epoch)),  # convert float epoch to string
         # FIXME: the ra/dec values below are _not_ corrected for proper motion
@@ -1190,7 +1367,26 @@ def generate_guidestars_from_csv(
         targets["agpix_y"],  # AG y pixel coordinate
         telescope_elevation,
         gaiadb_input_catalog_id,  # numerical ID assigned to the GAIA catalogue
-        targets["flag"]
+        targets["flag"],
     )
 
     return guidestars
+
+
+def get_skypos_cobra(ccenter, obstime, ppc_ra, ppc_dec, ppc_pa):
+    """
+    ccenter: (complex) cobra.center
+    obstime: (str) observation time for design
+    ppc_ra, ppc_dec: (float) sky coordinate of center of FoV (Pointing Center) [deg]
+    ppc_pa: (float) Porision Angle of FoV (Pointing Center) [deg]
+    """
+    xyin = np.array([[ccenter.real], [ccenter.imag]])
+    ra, dec = ctrans(
+        xyin,
+        "pfi_sky",
+        pa=ppc_pa,
+        cent=[[ppc_ra], [ppc_dec]],
+        time=obstime,
+        epoch=2016.0,
+    )[0:2]
+    return ra[0], dec[0]

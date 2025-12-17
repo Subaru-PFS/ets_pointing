@@ -260,6 +260,11 @@ def get_arguments():
         default="S23A-EN16",
         help="Proposal-ID for filler targets (default: S23A-EN16)",
     )
+    parser.add_argument(
+        "--raster",
+        action="store_true",
+        help="filler is used as raster scan (default: False)",
+    )
 
     # sky fibers
     parser.add_argument(
@@ -552,6 +557,13 @@ def reconfigure_multiprocessing(
         observation_date_in_hst = str(
             dict_pointings[pointing.lower()]["observation_date_in_hst"][0]
         )
+        ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
+        if "_L" in ppc_code:
+            rsl_mode = "L"
+        elif "_M" in ppc_code:
+            rsl_mode = "M"
+        if "backup" in ppc_code:
+            ppc_backup = True
 
         # get science targets
         df_sci = dict_pointings[pointing.lower()]["sci"]
@@ -571,7 +583,7 @@ def reconfigure_multiprocessing(
             min_teff=conf["sfa"]["fluxstd_min_teff"],
             max_teff=conf["sfa"]["fluxstd_max_teff"],
             write_csv=False,
-        )      
+        )
 
         # get sky targets
         if conf["sfa"]["n_sky"] == 0:
@@ -606,7 +618,6 @@ def reconfigure_multiprocessing(
             logger.info(f"Fetched sky target DataFrame: \n{df_sky}")
 
         # get filler targets (optional)
-        filler = conf["sfa"]["filler"]
         if conf["sfa"]["filler"] == True:
             """
             df_filler_obs = dbutils.generate_targets_from_gaiadb(
@@ -628,7 +639,7 @@ def reconfigure_multiprocessing(
                 priority=10,
             )
             """
-            df_filler = dbutils.generate_fillers_from_targetdb(
+            df_filler, df_filler_nocut = dbutils.generate_fillers_from_targetdb(
                 dict_pointings[pointing.lower()]["ra_center"],
                 dict_pointings[pointing.lower()]["dec_center"],
                 band_select="total_flux_r",
@@ -639,109 +650,102 @@ def reconfigure_multiprocessing(
             )
             df_filler_obs, df_filler_usr = dbutils.fixcols_filler_targetdb(
                 df_filler,
+                df_filler_nocut,
                 target_type_id=1,  # SCIENCE
                 exptime=dict_pointings[pointing.lower()]["single_exptime"],
                 priority_obs=9999,
-                priority_usr=12,
+                priority_usr=11,
+                dup_obs_filler_remove=conf["sfa"]["dup_obs_filler_remove"],
+                obs_filler_done_remove=conf["sfa"]["obs_filler_done_remove"],
             )
-            
-            # remove duplicates in df_filler_obs with df_filler_usr & df_sci
-            if conf["sfa"]["dup_obs_filler_remove"] == True:
-                n_obs_filler_orig = len(df_filler_obs)
-                # Build SkyCoord for df_filler_obs 
-                coords_obs = SkyCoord(
-                    ra=df_filler_obs["ra"].values * u.deg,
-                    dec=df_filler_obs["dec"].values * u.deg
-                )
-                
-                # Build SkyCoord for df_filler_usr (user-filler) + df_sci (science)
-                coords_usr = SkyCoord(
-                    ra=df_filler_usr["ra"].values * u.deg,
-                    dec=df_filler_usr["dec"].values * u.deg
-                )
-                coords_sci = SkyCoord(
-                    ra=df_sci["ra"].values * u.deg,
-                    dec=df_sci["dec"].values * u.deg
-                )
-
-                # Match df_filler_obs → df_filler_usr
-                idx_usr, sep2d_usr, _ = coords_obs.match_to_catalog_sky(coords_usr)
-                mask_usr = sep2d_usr < (1.0 * u.arcsec)
-                
-                # Match df_filler_obs → df_sci
-                idx_sci, sep2d_sci, _ = coords_obs.match_to_catalog_sky(coords_sci)
-                mask_sci = sep2d_sci < (1.0 * u.arcsec)
-                
-                # Keep only those not duplicated in either catalog
-                mask_keep = ~(mask_usr | mask_sci)
-                df_filler_obs = df_filler_obs.loc[mask_keep].reset_index(drop=True)
-                n_obs_filler_red = len(df_filler_obs)
-                logger.info(f"Duplicates in obs. filler removed: {n_obs_filler_orig} --> {n_obs_filler_red}")
-
-            # combine obs. and usr. fillers
-            df_filler = pd.concat([df_filler_usr, df_filler_obs])
 
             # remove duplicates in df_fluxstds with df_filler_usr & df_sci
             if conf["sfa"]["dup_fluxstd_remove"] == True:
                 n_fluxstd_orig = len(df_fluxstds)
-                # Build SkyCoord for df_filler_obs 
+                # Build SkyCoord for df_filler_fluxstds
                 coords_fluxstds = SkyCoord(
                     ra=df_fluxstds["ra"].values * u.deg,
-                    dec=df_fluxstds["dec"].values * u.deg
-                )
-                
-                # Build SkyCoord for df_filler_usr (user-filler) + df_sci (science)
-                coords_usr = SkyCoord(
-                    ra=df_filler_usr["ra"].values * u.deg,
-                    dec=df_filler_usr["dec"].values * u.deg
-                )
-                coords_sci = SkyCoord(
-                    ra=df_sci["ra"].values * u.deg,
-                    dec=df_sci["dec"].values * u.deg
+                    dec=df_fluxstds["dec"].values * u.deg,
                 )
 
-                # Match df_fluxstds → df_filler_usr
-                idx_usr, sep2d_usr, _ = coords_fluxstds.match_to_catalog_sky(coords_usr)
-                mask_usr = sep2d_usr < (1.0 * u.arcsec)
-                
+                # Build SkyCoord for df_filler_usr (user-filler) + df_sci (science)
+                df_usr_nocut = df_filler_nocut[
+                    df_filler_nocut["grade"].isin(["B", "C", "F"])
+                ]
+
+                coords_usr = SkyCoord(
+                    ra=df_usr_nocut["ra"].values * u.deg,
+                    dec=df_usr_nocut["dec"].values * u.deg,
+                )
+
                 # Match df_fluxstds → df_sci
-                idx_sci, sep2d_sci, _ = coords_fluxstds.match_to_catalog_sky(coords_sci)
+                idx_sci, sep2d_sci, _ = coords_fluxstds.match_to_catalog_sky(coords_usr)
                 mask_sci = sep2d_sci < (1.0 * u.arcsec)
-                
+
                 # Keep only those not duplicated in either catalog
-                mask_keep = ~(mask_usr | mask_sci)
+                mask_keep = ~(mask_sci)
                 df_fluxstds = df_fluxstds.loc[mask_keep].reset_index(drop=True)
                 n_fluxstd_red = len(df_fluxstds)
-                logger.info(f"Duplicates in fluxstds removed: {n_fluxstd_orig} --> {n_fluxstd_red}")
+                logger.info(
+                    f"Duplicates in fluxstds removed: {n_fluxstd_orig} --> {n_fluxstd_red}"
+                )
 
-            ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
-            if "PPC_L" in ppc_code:
-                df_filler = df_filler[
-                    (df_filler["is_medium_resolution"] == "L/M")
-                    | (df_filler["is_medium_resolution"] == False)
+            if rsl_mode == "L":
+                df_filler_usr = df_filler_usr[
+                    (df_filler_usr["is_medium_resolution"] == "L/M")
+                    | (df_filler_usr["is_medium_resolution"] == False)
                 ]
-            elif "PPC_M" in ppc_code:
-                df_filler = df_filler[
-                    (df_filler["is_medium_resolution"] == "L/M")
-                    | (df_filler["is_medium_resolution"] == True)
+                df_filler_obs = df_filler_obs[
+                    (df_filler_obs["is_medium_resolution"] == "L/M")
+                    | (df_filler_obs["is_medium_resolution"] == False)
                 ]
+                if ppc_backup:
+                    df_filler_usr = df_filler_usr[
+                        df_filler_usr["grade"].isin(["G", "F"])
+                    ]
+            elif rsl_mode == "M":
+                df_filler_usr = df_filler_usr[
+                    (df_filler_usr["is_medium_resolution"] == "L/M")
+                    | (df_filler_usr["is_medium_resolution"] == True)
+                ]
+                df_filler_obs = df_filler_obs[
+                    (df_filler_obs["is_medium_resolution"] == "L/M")
+                    | (df_filler_obs["is_medium_resolution"] == True)
+                ]
+                if ppc_backup:
+                    df_filler_usr = df_filler_usr[
+                        df_filler_usr["grade"].isin(["G", "F"])
+                    ]
 
             if conf["sfa"]["reduce_fillers"]:
-                n_fillers = conf["sfa"]["n_fillers_random"]  # this value can be tuned
-                if len(df_filler) > n_fillers:
-                    df_filler = df_filler.sample(
+                n_fillers = conf["sfa"]["n_fillers_random"]
+
+                if len(df_filler_usr) >= n_fillers:
+                    # too many user fillers → sample down to n_fillers
+                    df_filler_usr = df_filler_usr.sample(
                         n_fillers, ignore_index=True, random_state=1
                     )
+                    df_filler_obs = df_filler_obs.iloc[0:0]  # empty
+                else:
+                    # keep all user fillers, fill rest with obs fillers
+                    n_needed = n_fillers - len(df_filler_usr)
+                    if len(df_filler_obs) > n_needed:
+                        df_filler_obs = df_filler_obs.sample(
+                            n_needed, ignore_index=True, random_state=1
+                        )
+
+            # combine obs. and usr. fillers
+            df_filler = pd.concat([df_filler_usr, df_filler_obs])
             logger.info(
                 f"Fetched filler target DataFrame (obs filler = {len(df_filler_obs):.0f}, usr filler = {len(df_filler_usr):.0f}): \n{df_filler}"
             )
+
         else:
             df_filler = None
 
-        ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
-        if "_L" in ppc_code:
+        if rsl_mode == "L":
             arms_ = "brn"
-        elif "_M" in ppc_code:
+        elif rsl_mode == "M":
             arms_ = "bmn"
         logger.info(f"PPC_code = {ppc_code}; the arms in use are {arms_}.")
 
@@ -810,6 +814,118 @@ def reconfigure_multiprocessing(
         except NameError:
             obs_time_ = observation_time
 
+        # 2025.10 fill as many unassigned fibers as possible
+        # Pickup the unassigned cobras (cobra index, 0-start)
+        # And collect ra,dec for assigned targets to check duplication
+        # print(len(vis.keys()))
+        if conf["sfa"]["fill_unassign"]:
+            unassigned = np.array(
+                [cidx for cidx in list(range(0, 2394)) if cidx not in vis.values()]
+            )
+            assigned_ra = np.array([tgt[tidx].ra for tidx, _ in vis.items()])
+            assigned_dec = np.array([tgt[tidx].dec for tidx, _ in vis.items()])
+            logger.warning(
+                f"The number of Unassigned + disabled fibers (n = {len(unassigned)})"
+            )
+
+            # dataframe to store additional targets
+            df_unassigned = pd.DataFrame()
+            for cidx in unassigned:
+                if bench.cobras.isGood[
+                    cidx
+                ]:  # Nothing can be done for broken cobras/broken fibers
+                    ra_un, dec_un = designutils.get_skypos_cobra(
+                        bench.cobras.centers[cidx],
+                        obs_time_,
+                        dict_pointings[pointing.lower()]["ra_center"],
+                        dict_pointings[pointing.lower()]["dec_center"],
+                        dict_pointings[pointing.lower()]["pa_center"],
+                    )
+
+                    # Search for objects around unassigned cobra.
+                    df_gaia_un = dbutils.generate_targets_from_gaiadb(
+                        ra_un,
+                        dec_un,
+                        conf=conf,
+                        search_radius=conf["sfa"][
+                            "fill_unassign_radius"
+                        ],  # 25/3600. ,  # Take patrol region as radius of 25" (~3mm physically) in degree. It is better to make it configurable.
+                        band_select="phot_g_mean_mag",
+                        mag_min=conf["sfa"][
+                            "fill_unassign_gaia_mag"
+                        ],  # 18.0,  # It is better to make it configurable.
+                        mag_max=99.0,
+                        good_astrometry=False,
+                        write_csv=False,
+                    )
+                    df_sky_un = dbutils.generate_skyobjects_from_targetdb(
+                        ra_un,
+                        dec_un,
+                        conf=conf,
+                        tablename="sky",
+                        fp_radius_degree=conf["sfa"][
+                            "fill_unassign_radius"
+                        ],  # Take patrol region as radius of 25" (~3mm physically) in degree. It is better to make it configurable.
+                        fp_fudge_factor=1.0,  # fudge factor for search widths
+                    )
+                    df_gaia_un["source_type"] = "gaia"
+                    df_sky_un["source_type"] = "sky"
+
+                    # --- Combine sky first, then Gaia ---
+                    dfs = [
+                        df
+                        for df in [df_sky_un, df_gaia_un]
+                        if df is not None and not df.empty
+                    ]
+                    if len(dfs) > 0:
+                        df_candidates = pd.concat(dfs, ignore_index=True)
+                    else:
+                        df_candidates = pd.DataFrame()
+
+                    if len(df_candidates) > 0:  # >0 object is found
+                        # Check whether the found object is close to assigned targets and might be duplicated
+                        for row in df_candidates.itertuples():
+                            ra, dec = row.ra, row.dec
+                            diff = np.hypot(
+                                (ra - assigned_ra) * np.cos(np.deg2rad(dec)),
+                                dec - assigned_dec,
+                            )
+                            if any(
+                                diff < 1.1 / 3600.0
+                            ):  # distance is less than one fiber (it should not be if the above query is right..)
+                                logger.error(
+                                    f"Looking for object for {cidx}: ({row.source_type}) {row.obj_id} is already allocated to another."
+                                )
+                                continue
+                            else:
+                                logger.info(
+                                    f"A source ({row.source_type}) found for {cidx}: {row}"
+                                )
+                                df_tmp = df_candidates.iloc[[row.Index]].copy()
+                                df_tmp["cidx"] = cidx
+                                df_tmp["proposal_id"] = conf["sfa"][
+                                    "fill_unassign_pslId"
+                                ]
+                                if df_tmp["source_type"].iloc[0] == "gaia":
+                                    df_tmp = dbutils.fixcols_gaiadb_to_targetdb(
+                                        df_tmp,
+                                        input_catalog_id=4,  # Gaia DR3
+                                    )
+                                if len(df_unassigned) == 0:
+                                    df_unassigned = df_tmp.copy()
+                                else:
+                                    df_unassigned = pd.concat([df_unassigned, df_tmp])
+                                break
+                    else:
+                        logger.warning(f"No object around {cidx}")
+
+            n_sky = (df_unassigned["source_type"] == "sky").sum()
+            n_gaia = (df_unassigned["source_type"] == "gaia").sum()
+            logger.info(
+                f"{len(df_unassigned)}/{len(unassigned)} unassigned fibers filled ({n_sky} sky, {n_gaia} gaia)."
+            )
+        # 2025.10 fill as many unassigned fibers as possible -- end
+
         design = designutils.generate_pfs_design(
             df_sci,
             df_fluxstds,
@@ -826,6 +942,7 @@ def reconfigure_multiprocessing(
             design_name=dict_pointings[pointing.lower()]["pointing_name"],
             pfs_instdata_dir=conf["packages"]["pfs_instdata_dir"],
             obs_time=obs_time_,
+            df_unassigned=df_unassigned,
         )
 
         guidestars = designutils.generate_guidestars_from_gaiadb(
@@ -858,7 +975,8 @@ def reconfigure_multiprocessing(
                 "obj_id": dict_pointings[pointing.lower()]["obj_id"],
                 "obj_id_dummy": dict_pointings[pointing.lower()]["obj_id_dummy"],
             }
-        ).to_csv(
+        )
+        df_obj_id.to_csv(
             os.path.join(design_dir, f"{design.filename}_obj_ids.csv"), index=False
         )
 
@@ -879,6 +997,9 @@ def reconfigure_multiprocessing(
         )
         logger.info(
             "Number of SKY fibers: {:}".format(len(np.where(design.targetType == 2)[0]))
+        )
+        logger.info(
+            "Number of unassigned fibers: {:}".format(len(np.where(design.targetType == 4)[0]))
         )
         logger.info("Number of AG stars: {:}".format(len(guidestars.objId)))
         logger.info(f"Observation Time: {observation_time}")

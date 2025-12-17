@@ -33,8 +33,9 @@ cobra_instrument_region = None
 min_sky_targets_per_instrument_region = None
 instrument_region_penalty = None
 num_reserved_fibers = 0
-fiber_non_allocation_cost = 1.0e+03
-#fiber_non_allocation_cost = 0.0
+fiber_non_allocation_cost = 1.0e03
+# fiber_non_allocation_cost = 0.0
+
 
 def get_arguments():
     parser = argparse.ArgumentParser()
@@ -287,6 +288,11 @@ def get_arguments():
         default="S23A-EN16",
         help="Proposal-ID for filler targets (default: S23A-EN16)",
     )
+    parser.add_argument(
+        "--raster",
+        action="store_true",
+        help="filler is used as raster scan (default: False)",
+    )
 
     # sky fibers
     parser.add_argument(
@@ -426,7 +432,6 @@ def read_conf(conf):
 
 
 def main():
-
     args = get_arguments()
 
     print(args)
@@ -446,7 +451,10 @@ def main():
     if args.disable_force_priority:
         force_priority = None
     df_targets = dbutils.generate_targets_from_targetdb(
-        args.ra, args.dec, conf=conf, arms=args.arms,
+        args.ra,
+        args.dec,
+        conf=conf,
+        arms=args.arms,
         force_priority=force_priority,
         input_catalog=args.input_catalog,
         proposal_id=args.proposal_id,
@@ -457,29 +465,38 @@ def main():
     )
 
     ## FIXME: temporal workaround for GE targets ##
-    if args.input_catalog == [10] and args.proposal_id == ['S23A-QN900', 'S23A-QN901', 'S23A-QN902', 'S23A-QN903']:
+    if args.input_catalog == [10] and args.proposal_id == [
+        "S23A-QN900",
+        "S23A-QN901",
+        "S23A-QN902",
+        "S23A-QN903",
+    ]:
         df_targets.priority[df_targets.priority == 2] = 5
         df_targets.priority[df_targets.priority == 3] = 6
         df_targets.priority[df_targets.priority == 4] = 3
         df_targets.priority[df_targets.priority < 1] = 7
 
     ## FIXME: temporal workaround for M31 bright targets ##
-    if 'S24B-QT948' in args.proposal_id:
-        #logger.info(df_targets.psf_flux_i)
-        idx_bright = [i for i,f in enumerate(df_targets.psf_flux_i) if f>912010.8] # objects brighter than i=16.5 ABmag
-        #logger.info(idx_bright)
-        df_targets = df_targets.drop(index = idx_bright)
-        #logger.info(df_targets.psf_flux_i)
+    if "S24B-QT948" in args.proposal_id:
+        # logger.info(df_targets.psf_flux_i)
+        idx_bright = [
+            i for i, f in enumerate(df_targets.psf_flux_i) if f > 912010.8
+        ]  # objects brighter than i=16.5 ABmag
+        # logger.info(idx_bright)
+        df_targets = df_targets.drop(index=idx_bright)
+        # logger.info(df_targets.psf_flux_i)
 
     ## FIXME: temporal workaround for S24B-QT907 targets ##
-    msk = (df_targets.proposal_id == 'S24B-QT907') * (df_targets.psf_flux_g > 1150)
+    msk = (df_targets.proposal_id == "S24B-QT907") * (df_targets.psf_flux_g > 1150)
     df_targets = df_targets[~msk].reset_index()
 
     # degrade priority of science targets (default: no degradation)
     if args.degrade_priority_proposal == None:
         df_targets.priority += args.degrade_priority
     else:
-        df_targets.priority[df_targets.proposal_id == args.degrade_priority_proposal] += args.degrade_priority
+        df_targets.priority[
+            df_targets.proposal_id == args.degrade_priority_proposal
+        ] += args.degrade_priority
 
     if args.skip_target:
         df_targets = df_targets[:0]
@@ -504,8 +521,8 @@ def main():
         ignore_prob_f_star=args.ignore_prob_f_star,
         select_from_gaia=args.select_from_gaia,
     )
-    
-    df_fluxstds['prob_f_star'] = df_fluxstds['prob_f_star'].fillna(1.0)
+
+    df_fluxstds["prob_f_star"] = df_fluxstds["prob_f_star"].fillna(1.0)
 
     if args.n_sky == 0:
         logger.info("No sky object will be sent to netflow")
@@ -525,10 +542,7 @@ def main():
         if args.reduce_sky_targets:
             n_sky_target = args.n_sky_random  # this value can be tuned
             if len(df_sky) > n_sky_target:
-                df_sky = df_sky.sample(n_sky_target,
-                                       ignore_index=True,
-                                       random_state=1
-                                       )
+                df_sky = df_sky.sample(n_sky_target, ignore_index=True, random_state=1)
         logger.info(f"Fetched sky target DataFrame: \n{df_sky}")
         # df_sky = dbutils.generate_skyobjects_from_targetdb(
         #    args.ra,
@@ -554,18 +568,19 @@ def main():
         df_filler = dbutils.fixcols_gaiadb_to_targetdb(
             df_filler,
             proposal_id=args.filler_propid,
-            target_type_id=1,    # SCIENCE
+            target_type_id=1,  # SCIENCE
             input_catalog_id=4,  # Gaia DR3
             exptime=60.0,
             priority=9999,
         )
+        if args.raster:
+            df_filler["priority"] = 1
         if args.reduce_fillers:
-            n_fillers = args.n_fillers_random 
+            n_fillers = args.n_fillers_random
             if len(df_filler) > n_fillers:
-                df_filler = df_filler.sample(n_fillers,
-                                       ignore_index=True,
-                                       random_state=1
-                                       )
+                df_filler = df_filler.sample(
+                    n_fillers, ignore_index=True, random_state=1
+                )
         logger.info(f"Fetched fillers DataFrame: \n{df_filler}")
     else:
         df_filler = None
@@ -587,7 +602,12 @@ def main():
         cobraRegions_[i] += i
     cobraRegions = np.concatenate(cobraRegions_)
     print(ncobras, cobraRegions)
-       
+
+    try:
+        cobra_safety_margin = conf["netflow"]["cobra_safety_margin"]
+    except:
+        cobra_safety_margin = 0.0
+
     vis, tp, tel, tgt, tgt_class_dict, is_no_target, bench = nfutils.fiber_allocation(
         df_targets,
         df_fluxstds,
@@ -616,11 +636,103 @@ def main():
         fiber_non_allocation_cost=fiber_non_allocation_cost,
         df_filler=df_filler,
         force_exptime=args.exptime,
+        cobraSafetyMargin=cobra_safety_margin,
     )
     # print(vis, tp, tel, tgt, tgt_classdict)
     # print(vis.items())
 
-    # print(is_no_target)
+    # 2025.10 fill as many unassigned fibers as possible
+    # Pickup the unassigned cobras (cobra index, 0-start)
+    # And collect ra,dec for assigned targets to check duplication
+    # print(len(vis.keys()))
+    unassigned = np.array(
+        [cidx for cidx in list(range(0, 2394)) if cidx not in vis.values()]
+    )
+    assigned_ra = np.array([tgt[tidx].ra for tidx, cidx in vis.items()])
+    assigned_dec = np.array([tgt[tidx].dec for tidx, cidx in vis.items()])
+    print(f"The number of Unassigned + disabled fibers: {len(unassigned)} :")
+    print(unassigned)
+
+    # daaframe to store additional targets
+    df_unassigned = pd.DataFrame(
+        None,
+        columns=[
+            "source_id",
+            "ref_epoch",
+            "ra",
+            "dec",
+            "pmra",
+            "pmdec",
+            "parallax",
+            "phot_g_mean_mag",
+            "phot_bp_mean_mag",
+            "phot_rp_mean_mag",
+            "phot_g_mean_flux_over_error",
+            "phot_bp_mean_flux_over_error",
+            "phot_rp_mean_flux_over_error",
+            "cidx",
+        ],
+    )
+    for cidx in unassigned:
+        # print(bench.cobras.centers[cidx], bench.cobras.centers[cidx], bench.cobras.isGood[cidx])
+        if bench.cobras.isGood[
+            cidx
+        ]:  # Nothing can be done for broken cobras/broken fibers
+            ra_un, dec_un = designutils.get_skypos_cobra(
+                bench.cobras.centers[cidx],
+                args.observation_time,
+                args.ra,
+                args.dec,
+                args.pa,
+            )
+            # print(ra_un, dec_un)
+            # Search for objects around unassigned cobra.
+            df_gaia_un = dbutils.generate_targets_from_gaiadb(
+                ra_un,
+                dec_un,
+                conf=conf,
+                search_radius=25
+                / 3600.0,  # Take patrol region as radius of 25" (~3mm physically) in degree. It is better to make it configurable.
+                band_select="phot_g_mean_mag",
+                mag_min=18.0,  # It is better to make it configurable.
+                mag_max=99.0,
+                good_astrometry=False,
+                write_csv=False,
+            )
+
+            if len(df_gaia_un) > 0:  # >0 object is found
+                # print(df_gaia_un.columns)
+                # Check whether the found object is close to assigned targets and might be duplicated
+                for row in df_gaia_un.itertuples():
+                    diff = np.hypot(
+                        (row[3] - assigned_ra) * np.cos(np.deg2rad(row[4])),
+                        row[4] - assigned_dec,
+                    )
+                    if any(
+                        diff < 1.1 / 3600.0
+                    ):  # distance is less than one fiber (it should not be if the above query is right..)
+                        print(
+                            f"Looking for onject for {cidx}: {row[1]} is already allocated to another."
+                        )
+                        continue
+                    else:
+                        print(
+                            f"I found a source for {cidx}: {row[1]} (df index is {row[0]})."
+                        )
+                        df_tmp = df_gaia_un[row[0] : row[0] + 1]
+                        df_tmp["cidx"] = cidx
+                        df_unassigned = pd.concat([df_unassigned, df_tmp])
+                        break
+            else:
+                print(f"No gaia object around {cidx}")
+
+    # modify the columns
+    df_unassigned = dbutils.fixcols_gaiadb_to_targetdb(
+        df_unassigned,
+        input_catalog_id=4,  # Gaia DR3
+    )
+    print(f"{len(df_unassigned)} targets were found.")
+    # 2025.10 fill as many unassigned fibers as possible -- end
 
     # generate pfsDesign
     design = designutils.generate_pfs_design(
@@ -638,6 +750,7 @@ def main():
         is_no_target=is_no_target,
         design_name=args.design_name,
         obs_time=args.observation_time,
+        df_unassigned=df_unassigned,
     )
 
     # set guideStars
