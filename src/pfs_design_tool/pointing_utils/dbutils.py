@@ -113,6 +113,40 @@ def generate_targets_from_targetdb(
     if force_priority is not None:
         df["priority"] = force_priority
 
+    # convert mag limits to flux (nJy)
+    flux_max = (mag_min * u.ABmag).to(u.nJy).value
+    flux_min = (mag_max * u.ABmag).to(u.nJy).value
+    flux_limit_17mag = (17.0 * u.ABmag).to(u.nJy).value
+    
+    # --- build mask ---
+    # case 1: grade == "G"  → flux in desired range
+    mask_g = (df["grade"] == "G") & df[mag_filter].between(flux_min, flux_max)
+    
+    # case 2: grade != "G" → none of the bands brighter than 17 mag
+    flux_cols = ["total_flux_g", "total_flux_r", "total_flux_i", "total_flux_z", "total_flux_y"]
+    
+    # --- case 2: grade != "G" ---
+    # we build a per-row mask that depends on proposal_id
+    mask_not_g = np.zeros(len(df), dtype=bool)
+    
+    for i, (_, row) in enumerate(df.iterrows()):
+        if row["proposal_id"] == "S25A-119QF":
+            # interpret as magnitudes → keep if all bands ≥ 17.0
+            if not np.any([row[col] < 17.0 for col in flux_cols]):
+                mask_not_g[i] = True
+        elif row["grade"] in ["B", "C", "F"]:
+            # interpret as fluxes → keep if all bands ≤ flux_limit_17mag
+            if not np.any([
+                (row[col] is not None) and np.isfinite(row[col]) and (row[col] > flux_limit_17mag)
+                for col in flux_cols
+            ]):
+                mask_not_g[i] = True
+        else:
+            continue
+                
+    # --- combine both ---
+    df = df[mask_g | mask_not_g].reset_index(drop=True)
+
     db.close()
 
     return df
@@ -521,9 +555,6 @@ def generate_fillers_from_targetdb(
     if search_radius is None:
         search_radius = fp_radius_degree * fp_fudge_factor
 
-    flux_max = (mag_min * u.ABmag).to(u.nJy).value
-    flux_min = (mag_max * u.ABmag).to(u.nJy).value
-
     query_string = f"""SELECT
     ob_code,obj_id,epoch,ra,dec,pmra,pmdec,parallax,
     psf_flux_g,psf_flux_r,psf_flux_i,psf_flux_z,psf_flux_y,
@@ -584,9 +615,39 @@ def generate_fillers_from_targetdb(
         ],
     )
 
-    df_res_magcut = df_res[
-        (df_res[band_select] >= flux_min) & (df_res[band_select] <= flux_max)
-    ].reset_index(drop=True)
+    #df_res = df_res[df_res["grade"] != "G"] # do not include obs. fillers
+
+    # convert mag limits to flux (nJy)
+    flux_max = (mag_min * u.ABmag).to(u.nJy).value
+    flux_min = (mag_max * u.ABmag).to(u.nJy).value
+    flux_limit_17mag = (17.0 * u.ABmag).to(u.nJy).value
+    
+    # --- build mask ---
+    # case 1: grade == "G"  → flux in desired range
+    mask_g = (df_res["grade"] == "G") & df_res[band_select].between(flux_min, flux_max)
+    
+    # case 2: grade != "G" → none of the bands brighter than 17 mag
+    flux_cols = ["total_flux_g", "total_flux_r", "total_flux_i", "total_flux_z", "total_flux_y"]
+    
+    # --- case 2: grade != "G" ---
+    # we build a per-row mask that depends on proposal_id
+    mask_not_g = np.zeros(len(df_res), dtype=bool)
+    
+    for i, (_, row) in enumerate(df_res.iterrows()):
+        if row["proposal_id"] == "S25A-119QF":
+            # interpret as magnitudes → keep if all bands ≥ 17.0
+            if not np.any([row[col] < 17.0 for col in flux_cols]):
+                mask_not_g[i] = True
+        else:
+            # interpret as fluxes → keep if all bands ≤ flux_limit_17mag
+            if not np.any([
+                (row[col] is not None) and np.isfinite(row[col]) and (row[col] > flux_limit_17mag)
+                for col in flux_cols
+            ]):
+                mask_not_g[i] = True
+                
+    # --- combine both ---
+    df_res_magcut = df_res[mask_g | mask_not_g].reset_index(drop=True)
 
     db.close()
 
@@ -753,5 +814,5 @@ def fixcols_filler_targetdb(
         priority_usr_done,
         priority_usr
     )
-
+    
     return df_filler_obs, df_filler_usr
