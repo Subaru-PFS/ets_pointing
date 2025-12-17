@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 
-# import configparser
-# import tempfile
 import time
+import os
 
 import numpy as np
 import pandas as pd
@@ -13,7 +12,8 @@ from astropy.coordinates import SkyCoord
 from astropy.table import Table
 from logzero import logger
 from targetdb import targetdb
-
+from glob import glob
+from astropy.io import fits
 
 def connect_subaru_gaiadb(conf=None):
     conn = psycopg2.connect(**dict(conf["gaiadb"]))
@@ -26,8 +26,8 @@ def connect_targetdb(conf=None):
     return db
 
 
-def connect_qdb(conf=None):
-    conn = psycopg2.connect(**dict(conf["qdb"]))
+def connect_qadb(conf=None):
+    conn = psycopg2.connect(**dict(conf["qadb"]))
     return conn
 
 
@@ -595,12 +595,16 @@ def generate_fillers_from_targetdb(
 def fixcols_filler_targetdb(
     df,
     df_no_mag_cut,
+    conf=None,
     target_type_id=None,
     exptime=900.0,
     priority_obs=1,
     priority_usr=1,
+    priority_obs_done=1,
+    priority_usr_done=1,
     dup_obs_filler_remove=False,
     obs_filler_done_remove=False,
+    workDir=None,
 ):
     """
     # only for gaia
@@ -631,6 +635,9 @@ def fixcols_filler_targetdb(
     ]
     df_sci = df_no_mag_cut[df_no_mag_cut["grade"].isin(["B", "C", "F"])]
 
+    df_filler_obs["observed"] = False  # ensure column exists
+    df_filler_usr["observed"] = False  # ensure column exists
+
     if dup_obs_filler_remove:
         n_obs_filler_orig = len(df_filler_obs)
         # Build SkyCoord for df_filler_obs
@@ -656,7 +663,90 @@ def fixcols_filler_targetdb(
             f"Duplicates in obs. filler removed: {n_obs_filler_orig} --> {n_obs_filler_red}"
         )
 
-    df_filler_obs["priority"] = priority_obs
-    df_filler_usr["priority"] = priority_usr
+    if obs_filler_done_remove:
+        # check observed obs filler
+        try:
+            df_obs_filler_done = pd.read_csv(os.path.join(workDir, "ppp/df_obsfiller_done.csv"))
+        except:
+            # query qaDB to get executed pfsdesign
+            conn = connect_qadb(conf)
+            cur = conn.cursor()
+        
+            sql = f'''
+            SELECT pfs_design_id 
+            FROM exposure_time 
+                JOIN pfs_visit ON exposure_time.pfs_visit_id = pfs_visit.pfs_visit_id 
+                JOIN onsite_processing_status ON onsite_processing_status.pfs_visit_id = pfs_visit.pfs_visit_id
+            WHERE pfs_visit.pfs_visit_id >=129587
+            ORDER BY pfs_visit.pfs_visit_id DESC;
+            '''
+        
+            cur.execute(sql)
+        
+            df_design_done = pd.DataFrame(
+                cur.fetchall(),
+                columns=["pfs_design_id"],
+            )
+        
+            cur.close()
+            conn.close()
+
+            # search for design files under /work/wanqqq/ and make a df of observed obs filler
+            df_list_obs_filler = []
+            cols = ["ra", "dec", "catId", "objId", "targetType", "proposalId", "obcode"]
+
+            for design_id in set(df_design_done["pfs_design_id"]):
+                # construct expected filename
+                fname = f"pfsDesign-0x{design_id:016x}.fits"
+            
+                base_dir = "/work/wanqqq/"
+                
+                for root, dirs, files in os.walk(base_dir):
+                    if fname in files:
+                        filepath = os.path.join(root, fname)
+            
+                        with fits.open(filepath) as hdul:
+                            data = hdul[1].data
+                            mask_obs_filler = (data["targetType"] == 1) & (np.in1d(data["proposalId"], conf["sfa"]["proposalIds_obsFiller"]))
+                            if sum(mask_obs_filler) > 0:
+                                df_obs_filler_ = pd.DataFrame({col: data[mask_obs_filler][col] for col in cols})
+                                df_list_obs_filler.append(df_obs_filler_)
+    
+            df_obs_filler_done = pd.concat(df_list_obs_filler, ignore_index=True).drop_duplicates(subset=["objId", "obcode"])
+            df_obs_filler_done.to_csv(os.path.join(workDir, "ppp/df_obsfiller_done.csv"))
+
+        # match observed obs filler with df_filler_obs, and set the observed ones to be true
+        mask = df_filler_obs.set_index(["obj_id", "ob_code"]).index.isin(
+            df_obs_filler_done.set_index(["objId", "obcode"]).index
+        )
+        df_filler_obs.loc[mask, "observed"] = True
+
+        logger.info(f"There are {sum(df_filler_obs['observed'])} / {len(df_filler_obs)} observed")
+
+        # check observed user filler (including grade C)
+        base_dir = os.path.join(workDir, "ppp")
+        file_path = glob(os.path.join(base_dir, "tgt_queueDB*.csv"))
+
+        if file_path:
+            df_usr_filler_done = pd.read_csv(file_path[0])
+
+        mask = df_filler_usr.set_index(["proposal_id", "ob_code"]).index.isin(
+            df_usr_filler_done.set_index(["psl_id", "ob_code"]).index
+        )
+        df_filler_usr.loc[mask, "observed"] = True
+
+        logger.info(f"There are {sum(df_filler_usr['observed'])} / {len(df_filler_usr)} observed")
+
+    df_filler_obs["priority"] = np.where(
+        df_filler_obs["observed"],
+        priority_obs_done,
+        priority_obs
+    )
+    
+    df_filler_usr["priority"] = np.where(
+        df_filler_usr["observed"],
+        priority_usr_done,
+        priority_usr
+    )
 
     return df_filler_obs, df_filler_usr

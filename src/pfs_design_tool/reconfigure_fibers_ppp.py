@@ -651,12 +651,16 @@ def reconfigure_multiprocessing(
             df_filler_obs, df_filler_usr = dbutils.fixcols_filler_targetdb(
                 df_filler,
                 df_filler_nocut,
+                conf=conf,
                 target_type_id=1,  # SCIENCE
                 exptime=dict_pointings[pointing.lower()]["single_exptime"],
-                priority_obs=9999,
+                priority_obs=12,
                 priority_usr=11,
+                priority_obs_done=9999,
+                priority_usr_done=13,
                 dup_obs_filler_remove=conf["sfa"]["dup_obs_filler_remove"],
                 obs_filler_done_remove=conf["sfa"]["obs_filler_done_remove"],
+                workDir=workDir,
             )
 
             # remove duplicates in df_fluxstds with df_filler_usr & df_sci
