@@ -558,6 +558,7 @@ def reconfigure_multiprocessing(
             dict_pointings[pointing.lower()]["observation_date_in_hst"][0]
         )
         ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
+        ppc_backup = False
         if "_L" in ppc_code:
             rsl_mode = "L"
         elif "_M" in ppc_code:
@@ -618,7 +619,48 @@ def reconfigure_multiprocessing(
             logger.info(f"Fetched sky target DataFrame: \n{df_sky}")
 
         # get filler targets (optional)
-        if conf["sfa"]["filler"] == True:
+        if conf["sfa"]["filler"] == False:
+            df_filler = None
+            if conf["sfa"]["dup_fluxstd_remove"] == True:
+                _, df_filler_nocut = dbutils.generate_fillers_from_targetdb(
+                    dict_pointings[pointing.lower()]["ra_center"],
+                    dict_pointings[pointing.lower()]["dec_center"],
+                    band_select="total_flux_r",
+                    mag_min=conf["sfa"]["filler_mag_min"],
+                    mag_max=conf["sfa"]["filler_mag_max"],
+                    conf=conf,
+                    write_csv=False,
+                )
+                
+                n_fluxstd_orig = len(df_fluxstds)
+                # Build SkyCoord for df_filler_fluxstds
+                coords_fluxstds = SkyCoord(
+                    ra=df_fluxstds["ra"].values * u.deg,
+                    dec=df_fluxstds["dec"].values * u.deg,
+                )
+
+                # Build SkyCoord for df_filler_usr (user-filler) + df_sci (science)
+                df_usr_nocut = df_filler_nocut[
+                    df_filler_nocut["grade"].isin(["B", "C", "F"])
+                ]
+
+                coords_usr = SkyCoord(
+                    ra=df_usr_nocut["ra"].values * u.deg,
+                    dec=df_usr_nocut["dec"].values * u.deg,
+                )
+
+                # Match df_fluxstds → df_sci
+                idx_sci, sep2d_sci, _ = coords_fluxstds.match_to_catalog_sky(coords_usr)
+                mask_sci = sep2d_sci < (1.0 * u.arcsec)
+
+                # Keep only those not duplicated in either catalog
+                mask_keep = ~(mask_sci)
+                df_fluxstds = df_fluxstds.loc[mask_keep].reset_index(drop=True)
+                n_fluxstd_red = len(df_fluxstds)
+                logger.info(
+                    f"Duplicates in fluxstds removed: {n_fluxstd_orig} --> {n_fluxstd_red}"
+                )            
+        elif conf["sfa"]["filler"] == True:
             """
             df_filler_obs = dbutils.generate_targets_from_gaiadb(
                 dict_pointings[pointing.lower()]["ra_center"],
@@ -651,12 +693,16 @@ def reconfigure_multiprocessing(
             df_filler_obs, df_filler_usr = dbutils.fixcols_filler_targetdb(
                 df_filler,
                 df_filler_nocut,
+                conf=conf,
                 target_type_id=1,  # SCIENCE
                 exptime=dict_pointings[pointing.lower()]["single_exptime"],
-                priority_obs=9999,
+                priority_obs=12,
                 priority_usr=11,
+                priority_obs_done=9999,
+                priority_usr_done=13,
                 dup_obs_filler_remove=conf["sfa"]["dup_obs_filler_remove"],
                 obs_filler_done_remove=conf["sfa"]["obs_filler_done_remove"],
+                workDir=workDir,
             )
 
             # remove duplicates in df_fluxstds with df_filler_usr & df_sci
@@ -720,28 +766,44 @@ def reconfigure_multiprocessing(
             if conf["sfa"]["reduce_fillers"]:
                 n_fillers = conf["sfa"]["n_fillers_random"]
 
+                # --- case 1: too many user fillers → downsample user fillers only ---
                 if len(df_filler_usr) >= n_fillers:
-                    # too many user fillers → sample down to n_fillers
-                    df_filler_usr = df_filler_usr.sample(
-                        n_fillers, ignore_index=True, random_state=1
-                    )
+                    unobs_usr = df_filler_usr[df_filler_usr["observed"] == False]
+                    obs_usr = df_filler_usr[df_filler_usr["observed"] == True]
+            
+                    if len(unobs_usr) >= n_fillers:
+                        df_filler_usr = unobs_usr.sample(n_fillers, random_state=1, ignore_index=True)
+                    else:
+                        n_extra = n_fillers - len(unobs_usr)
+                        df_filler_usr = pd.concat([
+                            unobs_usr,
+                            obs_usr.sample(min(n_extra, len(obs_usr)), random_state=1)
+                        ], ignore_index=True)
+            
                     df_filler_obs = df_filler_obs.iloc[0:0]  # empty
+            
+                # --- case 2: need fillers from both usr + obs ---
                 else:
-                    # keep all user fillers, fill rest with obs fillers
                     n_needed = n_fillers - len(df_filler_usr)
-                    if len(df_filler_obs) > n_needed:
-                        df_filler_obs = df_filler_obs.sample(
-                            n_needed, ignore_index=True, random_state=1
-                        )
+            
+                    # fill df_filler_obs using the same unobs-first rule
+                    unobs_obs = df_filler_obs[df_filler_obs["observed"] == False]
+                    obs_obs = df_filler_obs[df_filler_obs["observed"] == True]
+            
+                    if len(unobs_obs) >= n_needed:
+                        df_filler_obs = unobs_obs.sample(n_needed, random_state=1, ignore_index=True)
+                    else:
+                        n_extra = n_needed - len(unobs_obs)
+                        df_filler_obs = pd.concat([
+                            unobs_obs,
+                            obs_obs.sample(min(n_extra, len(obs_obs)), random_state=1)
+                        ], ignore_index=True)
 
             # combine obs. and usr. fillers
             df_filler = pd.concat([df_filler_usr, df_filler_obs])
             logger.info(
                 f"Fetched filler target DataFrame (obs filler = {len(df_filler_obs):.0f}, usr filler = {len(df_filler_usr):.0f}): \n{df_filler}"
             )
-
-        else:
-            df_filler = None
 
         if rsl_mode == "L":
             arms_ = "brn"
@@ -818,6 +880,7 @@ def reconfigure_multiprocessing(
         # Pickup the unassigned cobras (cobra index, 0-start)
         # And collect ra,dec for assigned targets to check duplication
         # print(len(vis.keys()))
+        df_unassigned = pd.DataFrame()
         if conf["sfa"]["fill_unassign"]:
             unassigned = np.array(
                 [cidx for cidx in list(range(0, 2394)) if cidx not in vis.values()]
@@ -829,7 +892,6 @@ def reconfigure_multiprocessing(
             )
 
             # dataframe to store additional targets
-            df_unassigned = pd.DataFrame()
             for cidx in unassigned:
                 if bench.cobras.isGood[
                     cidx
@@ -843,6 +905,29 @@ def reconfigure_multiprocessing(
                     )
 
                     # Search for objects around unassigned cobra.
+                    #"""
+                    if conf["ppp"]["mode"] == "classic":
+                        pslId_ = conf["ppp"]["proposalIds"] + conf["sfa"]["proposalIds_obsFiller"]
+                    else:
+                        pslId_ = None
+                    df_sci_un = dbutils.generate_targets_from_targetdb(
+                        ra_un,
+                        dec_un,
+                        conf=conf,
+                        arms=arms_,
+                        tablename="target",
+                        fp_radius_degree=conf["sfa"]["fill_unassign_radius"],  # "Radius" of PFS FoV in degree (?)
+                        fp_fudge_factor=1.0,  # fudge factor for search widths
+                        proposal_id=pslId_,
+                        mag_filter="total_flux_g",
+                        mag_min=conf["sfa"]["filler_mag_min"],
+                        mag_max=conf["sfa"]["filler_mag_max"],
+                    )
+                    if not df_sci_un.empty:
+                        df_sci_un = df_sci_un[df_sci_un["is_medium_resolution"] == (rsl_mode == "M")].sort_values(by=["rank", "priority"], ascending=[False, True]).reset_index(drop=True)
+                        #print(df_sci_un[["ob_code", "rank", "priority"]])
+                    #"""
+
                     df_gaia_un = dbutils.generate_targets_from_gaiadb(
                         ra_un,
                         dec_un,
@@ -858,6 +943,8 @@ def reconfigure_multiprocessing(
                         good_astrometry=False,
                         write_csv=False,
                     )
+                    df_gaia_un = df_gaia_un[df_gaia_un["phot_bp_mean_mag"].notna()]
+
                     df_sky_un = dbutils.generate_skyobjects_from_targetdb(
                         ra_un,
                         dec_un,
@@ -868,13 +955,14 @@ def reconfigure_multiprocessing(
                         ],  # Take patrol region as radius of 25" (~3mm physically) in degree. It is better to make it configurable.
                         fp_fudge_factor=1.0,  # fudge factor for search widths
                     )
+                    df_sci_un["source_type"] = "sci"
                     df_gaia_un["source_type"] = "gaia"
                     df_sky_un["source_type"] = "sky"
 
                     # --- Combine sky first, then Gaia ---
                     dfs = [
                         df
-                        for df in [df_sky_un, df_gaia_un]
+                        for df in [df_sci_un, df_sky_un, df_gaia_un]
                         if df is not None and not df.empty
                     ]
                     if len(dfs) > 0:
@@ -898,19 +986,21 @@ def reconfigure_multiprocessing(
                                 )
                                 continue
                             else:
-                                logger.info(
-                                    f"A source ({row.source_type}) found for {cidx}: {row}"
-                                )
+                                #logger.info(
+                                #    f"A source ({row.source_type}) found for {cidx}: {row}"
+                                #)
                                 df_tmp = df_candidates.iloc[[row.Index]].copy()
                                 df_tmp["cidx"] = cidx
-                                df_tmp["proposal_id"] = conf["sfa"][
-                                    "fill_unassign_pslId"
-                                ]
+                                df_tmp["ppc_code"] = ppc_code
                                 if df_tmp["source_type"].iloc[0] == "gaia":
+                                    df_tmp["proposal_id"] = conf["sfa"][
+                                        "fill_unassign_pslId"
+                                    ]
                                     df_tmp = dbutils.fixcols_gaiadb_to_targetdb(
                                         df_tmp,
                                         input_catalog_id=4,  # Gaia DR3
                                     )
+                                    df_tmp["ob_code"] = "gaiafiller_" + df_gaia_un["source_id"].astype(str) + f"_{rsl_mode}" # rename ob_code of gaia fillers
                                 if len(df_unassigned) == 0:
                                     df_unassigned = df_tmp.copy()
                                 else:
@@ -919,11 +1009,23 @@ def reconfigure_multiprocessing(
                     else:
                         logger.warning(f"No object around {cidx}")
 
-            n_sky = (df_unassigned["source_type"] == "sky").sum()
-            n_gaia = (df_unassigned["source_type"] == "gaia").sum()
+            if not df_unassigned.empty:
+                n_sci = (df_unassigned["source_type"] == "sci").sum()
+                n_sky = (df_unassigned["source_type"] == "sky").sum()
+                n_gaia = (df_unassigned["source_type"] == "gaia").sum()
+            else:
+                n_sci, n_sky, n_gaia = (0, 0, 0)
             logger.info(
-                f"{len(df_unassigned)}/{len(unassigned)} unassigned fibers filled ({n_sky} sky, {n_gaia} gaia)."
+                f"{len(df_unassigned)}/{len(unassigned)} unassigned fibers filled ({n_sci} sci, {n_sky} sky, {n_gaia} gaia)."
             )
+
+            if len(df_unassigned) > 0:
+                validation_dir = os.path.join(workDir, "figure_pfsDesign_validation/")
+                out_path = os.path.join(validation_dir, f"manual_assigned_{ppc_code}.csv")
+                df_unassigned.to_csv(out_path, index=False)
+                logger.info(
+                    f"Unassigned fibers saved to {out_path}"
+                )
         # 2025.10 fill as many unassigned fibers as possible -- end
 
         design = designutils.generate_pfs_design(
