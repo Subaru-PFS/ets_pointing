@@ -297,6 +297,55 @@ def generate_fluxstds_from_targetdb(
 
     db.close()
 
+    n_fluxstd_ori = len(df)
+
+    # check if there is cluster
+    ra = df["ra"].values
+    dec = df["dec"].values
+
+    bins = 7  # adjust for resolution (7×7 works well)
+    H, ra_edges, dec_edges = np.histogram2d(ra, dec, bins=bins)
+    d_ra = ra_edges[1] - ra_edges[0]
+    d_dec = dec_edges[1] - dec_edges[0]
+    local_density = H / (d_ra * d_dec)
+
+    density_global = np.mean(local_density)
+    print(f"Average density ≈ {density_global:.2f} / deg²")
+
+    threshold = 5.0 * density_global  # keep regions up to 5.0 × mean
+    overdense = local_density > threshold
+
+    valid_densities = local_density[~overdense]
+    density_global_clean = np.mean(valid_densities[valid_densities > 0])
+
+    if np.any(overdense):
+        logger.warning("There may be clusters of fluxstds")
+
+        keep_idx = []
+    
+        for i in range(bins):
+            for j in range(bins):
+                # points inside bin
+                in_bin = (
+                    (ra >= ra_edges[i]) & (ra < ra_edges[i+1]) &
+                    (dec >= dec_edges[j]) & (dec < dec_edges[j+1])
+                )
+                idx = np.where(in_bin)[0]
+                if len(idx) == 0:
+                    continue
+        
+                # expected count per bin given global density
+                expected = density_global_clean * d_ra * d_dec
+                n_expected = int(round(expected))
+        
+                if len(idx) > n_expected:
+                    keep_idx.extend(np.random.choice(idx, n_expected, replace=False))
+                else:
+                    keep_idx.extend(idx)
+        
+        df = df.iloc[keep_idx].reset_index(drop=True)
+        print(f"Kept {len(df)} / {n_fluxstd_ori} flux standards")
+
     if write_csv:
         df.to_csv("fluxstd.csv")
 
@@ -814,5 +863,5 @@ def fixcols_filler_targetdb(
         priority_usr_done,
         priority_usr
     )
-    
+
     return df_filler_obs, df_filler_usr
