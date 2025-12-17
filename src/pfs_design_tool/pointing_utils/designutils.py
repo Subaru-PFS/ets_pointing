@@ -549,14 +549,21 @@ def generate_pfs_design(
             )
 
         # 2025.10 Additional targets for unassigned fiber
-        if df_unassigned is not None:
+        if df_unassigned is not None and not df_unassigned.empty:
             # calculate the pfi position.
             xyin = df_unassigned[["ra", "dec"]].values.T
             pm = df_unassigned[["pmra", "pmdec"]].values.T
             par = df_unassigned["parallax"].values
+            
+            pm = np.array(pm, dtype=float)  # converts None → nan
+            pm[np.isnan(pm)] = 0.0 
+
+            par = np.array(par, dtype=float)  # converts None → nan
+            par[np.isnan(par)] = 1.0e-7
+
             xout, yout = ctrans(
                 xyin,
-                "sky_pfi_ag",
+                "sky_pfi",
                 pa=tel._posang,
                 cent=[[tel._ra], [tel._dec]],
                 pm=pm,
@@ -582,11 +589,6 @@ def generate_pfs_design(
                 dec[i_fiber] = row.dec
                 obj_id[i_fiber] = row.obj_id
                 pfi_nominal[i_fiber] = row.x, row.y
-                ob_code[i_fiber] = row.ob_code
-                epoch[i_fiber] = row.epoch
-                pmRa[i_fiber] = row.pmra
-                pmDec[i_fiber] = row.pmdec
-                parallax[i_fiber] = row.parallax
                 cat_id[i_fiber] = row.input_catalog_id
 
                 if row.source_type == "sky":
@@ -630,7 +632,12 @@ def generate_pfs_design(
                         "none",
                     ]
 
-                elif row.source_type == "gaia":
+                elif row.source_type in ["gaia", "sci"]:
+                    ob_code[i_fiber] = row.ob_code
+                    epoch[i_fiber] = row.epoch
+                    pmRa[i_fiber] = row.pmra
+                    pmDec[i_fiber] = row.pmdec
+                    parallax[i_fiber] = row.parallax
                     target_type[i_fiber] = 1 #TargetType.SCIENCE = 1
                     proposal_id[i_fiber] = row.proposal_id
                     try:

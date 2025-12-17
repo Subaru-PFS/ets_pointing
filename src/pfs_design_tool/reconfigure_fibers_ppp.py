@@ -558,6 +558,7 @@ def reconfigure_multiprocessing(
             dict_pointings[pointing.lower()]["observation_date_in_hst"][0]
         )
         ppc_code = dict_pointings[pointing.lower()]["pointing_name"]
+        ppc_backup = False
         if "_L" in ppc_code:
             rsl_mode = "L"
         elif "_M" in ppc_code:
@@ -822,6 +823,7 @@ def reconfigure_multiprocessing(
         # Pickup the unassigned cobras (cobra index, 0-start)
         # And collect ra,dec for assigned targets to check duplication
         # print(len(vis.keys()))
+        df_unassigned = pd.DataFrame()
         if conf["sfa"]["fill_unassign"]:
             unassigned = np.array(
                 [cidx for cidx in list(range(0, 2394)) if cidx not in vis.values()]
@@ -833,7 +835,6 @@ def reconfigure_multiprocessing(
             )
 
             # dataframe to store additional targets
-            df_unassigned = pd.DataFrame()
             for cidx in unassigned:
                 if bench.cobras.isGood[
                     cidx
@@ -847,6 +848,29 @@ def reconfigure_multiprocessing(
                     )
 
                     # Search for objects around unassigned cobra.
+                    #"""
+                    if conf["ppp"]["mode"] == "classic":
+                        pslId_ = conf["ppp"]["proposalIds"] + conf["sfa"]["proposalIds_obsFiller"]
+                    else:
+                        pslId_ = None
+                    df_sci_un = dbutils.generate_targets_from_targetdb(
+                        ra_un,
+                        dec_un,
+                        conf=conf,
+                        arms=arms_,
+                        tablename="target",
+                        fp_radius_degree=conf["sfa"]["fill_unassign_radius"],  # "Radius" of PFS FoV in degree (?)
+                        fp_fudge_factor=1.0,  # fudge factor for search widths
+                        proposal_id=pslId_,
+                        mag_filter="total_flux_g",
+                        mag_min=conf["sfa"]["filler_mag_min"],
+                        mag_max=conf["sfa"]["filler_mag_max"],
+                    )
+                    if not df_sci_un.empty:
+                        df_sci_un = df_sci_un[df_sci_un["is_medium_resolution"] == (rsl_mode == "M")].sort_values(by=["rank", "priority"], ascending=[False, True]).reset_index(drop=True)
+                        #print(df_sci_un[["ob_code", "rank", "priority"]])
+                    #"""
+
                     df_gaia_un = dbutils.generate_targets_from_gaiadb(
                         ra_un,
                         dec_un,
@@ -862,6 +886,8 @@ def reconfigure_multiprocessing(
                         good_astrometry=False,
                         write_csv=False,
                     )
+                    df_gaia_un = df_gaia_un[df_gaia_un["phot_bp_mean_mag"].notna()]
+
                     df_sky_un = dbutils.generate_skyobjects_from_targetdb(
                         ra_un,
                         dec_un,
@@ -872,13 +898,14 @@ def reconfigure_multiprocessing(
                         ],  # Take patrol region as radius of 25" (~3mm physically) in degree. It is better to make it configurable.
                         fp_fudge_factor=1.0,  # fudge factor for search widths
                     )
+                    df_sci_un["source_type"] = "sci"
                     df_gaia_un["source_type"] = "gaia"
                     df_sky_un["source_type"] = "sky"
 
                     # --- Combine sky first, then Gaia ---
                     dfs = [
                         df
-                        for df in [df_sky_un, df_gaia_un]
+                        for df in [df_sci_un, df_sky_un, df_gaia_un]
                         if df is not None and not df.empty
                     ]
                     if len(dfs) > 0:
@@ -902,19 +929,21 @@ def reconfigure_multiprocessing(
                                 )
                                 continue
                             else:
-                                logger.info(
-                                    f"A source ({row.source_type}) found for {cidx}: {row}"
-                                )
+                                #logger.info(
+                                #    f"A source ({row.source_type}) found for {cidx}: {row}"
+                                #)
                                 df_tmp = df_candidates.iloc[[row.Index]].copy()
                                 df_tmp["cidx"] = cidx
-                                df_tmp["proposal_id"] = conf["sfa"][
-                                    "fill_unassign_pslId"
-                                ]
+                                df_tmp["ppc_code"] = ppc_code
                                 if df_tmp["source_type"].iloc[0] == "gaia":
+                                    df_tmp["proposal_id"] = conf["sfa"][
+                                        "fill_unassign_pslId"
+                                    ]
                                     df_tmp = dbutils.fixcols_gaiadb_to_targetdb(
                                         df_tmp,
                                         input_catalog_id=4,  # Gaia DR3
                                     )
+                                    df_tmp["ob_code"] = "gaiafiller_" + df_gaia_un["source_id"].astype(str) + f"_{rsl_mode}" # rename ob_code of gaia fillers
                                 if len(df_unassigned) == 0:
                                     df_unassigned = df_tmp.copy()
                                 else:
@@ -923,11 +952,16 @@ def reconfigure_multiprocessing(
                     else:
                         logger.warning(f"No object around {cidx}")
 
-            n_sky = (df_unassigned["source_type"] == "sky").sum()
-            n_gaia = (df_unassigned["source_type"] == "gaia").sum()
+            if not df_unassigned.empty:
+                n_sci = (df_unassigned["source_type"] == "sci").sum()
+                n_sky = (df_unassigned["source_type"] == "sky").sum()
+                n_gaia = (df_unassigned["source_type"] == "gaia").sum()
+            else:
+                n_sci, n_sky, n_gaia = (0, 0, 0)
             logger.info(
-                f"{len(df_unassigned)}/{len(unassigned)} unassigned fibers filled ({n_sky} sky, {n_gaia} gaia)."
+                f"{len(df_unassigned)}/{len(unassigned)} unassigned fibers filled ({n_sci} sci, {n_sky} sky, {n_gaia} gaia)."
             )
+
         # 2025.10 fill as many unassigned fibers as possible -- end
 
         design = designutils.generate_pfs_design(
