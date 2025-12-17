@@ -129,23 +129,23 @@ def generate_pfs_design(
 
             idx_target = np.logical_and(
                 # df_targets["obj_id"] == np.int64(tgt[tidx].ID),
-                df_targets["obj_id"].map(str)
+                df_targets["obj_id"].astype(str)
                 + "_"
-                + df_targets["input_catalog_id"].map(str)
+                + df_targets["input_catalog_id"].astype(str)
                 == tgt[tidx].ID,
                 df_targets["target_type_id"] == tgt_class_dict[tgt[tidx].targetclass],
             )
             idx_fluxstd = np.logical_and(
                 # df_fluxstds["obj_id"] == np.int64(tgt[tidx].ID),
-                df_fluxstds["obj_id"].map(str)
+                df_fluxstds["obj_id"].astype(str)
                 + "_"
-                + df_fluxstds["input_catalog_id"].map(str)
+                + df_fluxstds["input_catalog_id"].astype(str)
                 == tgt[tidx].ID,
                 df_fluxstds["target_type_id"] == tgt_class_dict[tgt[tidx].targetclass],
             )
             idx_sky = np.logical_and(
                 # df_sky["obj_id"] == np.int64(tgt[tidx].ID),
-                df_sky["obj_id"].map(str) + "_" + df_sky["input_catalog_id"].map(str)
+                df_sky["obj_id"].astype(str) + "_" + df_sky["input_catalog_id"].astype(str)
                 == tgt[tidx].ID,
                 df_sky["target_type_id"] == tgt_class_dict[tgt[tidx].targetclass],
             )
@@ -390,9 +390,9 @@ def generate_pfs_design(
                 ]
             if is_filler:
                 idx_filler = np.logical_and(
-                    df_filler["obj_id"].map(str)
+                    df_filler["obj_id"].astype(str)
                     + "_"
-                    + df_filler["input_catalog_id"].map(str)
+                    + df_filler["input_catalog_id"].astype(str)
                     == tgt[tidx].ID,
                     df_filler["target_type_id"]
                     == tgt_class_dict[tgt[tidx].targetclass],

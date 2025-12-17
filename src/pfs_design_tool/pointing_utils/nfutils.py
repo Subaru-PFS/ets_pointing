@@ -106,7 +106,7 @@ def getBench(
 
 
 def register_objects(df, target_class=None, force_priority=None, force_exptime=None):
-    df["netflow_id"] = df["obj_id"].map(str) + "_" + df["input_catalog_id"].map(str)
+    df["netflow_id"] = df["obj_id"].astype(str) + "_" + df["input_catalog_id"].astype(str)
 
     if target_class == "sci":
         res = []
