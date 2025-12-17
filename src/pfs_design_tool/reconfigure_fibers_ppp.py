@@ -766,19 +766,38 @@ def reconfigure_multiprocessing(
             if conf["sfa"]["reduce_fillers"]:
                 n_fillers = conf["sfa"]["n_fillers_random"]
 
+                # --- case 1: too many user fillers → downsample user fillers only ---
                 if len(df_filler_usr) >= n_fillers:
-                    # too many user fillers → sample down to n_fillers
-                    df_filler_usr = df_filler_usr.sample(
-                        n_fillers, ignore_index=True, random_state=1
-                    )
+                    unobs_usr = df_filler_usr[df_filler_usr["observed"] == False]
+                    obs_usr = df_filler_usr[df_filler_usr["observed"] == True]
+            
+                    if len(unobs_usr) >= n_fillers:
+                        df_filler_usr = unobs_usr.sample(n_fillers, random_state=1, ignore_index=True)
+                    else:
+                        n_extra = n_fillers - len(unobs_usr)
+                        df_filler_usr = pd.concat([
+                            unobs_usr,
+                            obs_usr.sample(min(n_extra, len(obs_usr)), random_state=1)
+                        ], ignore_index=True)
+            
                     df_filler_obs = df_filler_obs.iloc[0:0]  # empty
+            
+                # --- case 2: need fillers from both usr + obs ---
                 else:
-                    # keep all user fillers, fill rest with obs fillers
                     n_needed = n_fillers - len(df_filler_usr)
-                    if len(df_filler_obs) > n_needed:
-                        df_filler_obs = df_filler_obs.sample(
-                            n_needed, ignore_index=True, random_state=1
-                        )
+            
+                    # fill df_filler_obs using the same unobs-first rule
+                    unobs_obs = df_filler_obs[df_filler_obs["observed"] == False]
+                    obs_obs = df_filler_obs[df_filler_obs["observed"] == True]
+            
+                    if len(unobs_obs) >= n_needed:
+                        df_filler_obs = unobs_obs.sample(n_needed, random_state=1, ignore_index=True)
+                    else:
+                        n_extra = n_needed - len(unobs_obs)
+                        df_filler_obs = pd.concat([
+                            unobs_obs,
+                            obs_obs.sample(min(n_extra, len(obs_obs)), random_state=1)
+                        ], ignore_index=True)
 
             # combine obs. and usr. fillers
             df_filler = pd.concat([df_filler_usr, df_filler_obs])
