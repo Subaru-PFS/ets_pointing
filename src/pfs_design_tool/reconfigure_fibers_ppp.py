@@ -1019,6 +1019,13 @@ def reconfigure_multiprocessing(
                 f"{len(df_unassigned)}/{len(unassigned)} unassigned fibers filled ({n_sci} sci, {n_sky} sky, {n_gaia} gaia)."
             )
 
+            if len(df_unassigned) > 0:
+                validation_dir = os.path.join(workDir, "figure_pfsDesign_validation/")
+                out_path = os.path.join(validation_dir, f"manual_assigned_{ppc_code}.csv")
+                df_unassigned.to_csv(out_path, index=False)
+                logger.info(
+                    f"Unassigned fibers saved to {out_path}"
+                )
         # 2025.10 fill as many unassigned fibers as possible -- end
 
         design = designutils.generate_pfs_design(
