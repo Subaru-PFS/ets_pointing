@@ -619,7 +619,48 @@ def reconfigure_multiprocessing(
             logger.info(f"Fetched sky target DataFrame: \n{df_sky}")
 
         # get filler targets (optional)
-        if conf["sfa"]["filler"] == True:
+        if conf["sfa"]["filler"] == False:
+            df_filler = None
+            if conf["sfa"]["dup_fluxstd_remove"] == True:
+                _, df_filler_nocut = dbutils.generate_fillers_from_targetdb(
+                    dict_pointings[pointing.lower()]["ra_center"],
+                    dict_pointings[pointing.lower()]["dec_center"],
+                    band_select="total_flux_r",
+                    mag_min=conf["sfa"]["filler_mag_min"],
+                    mag_max=conf["sfa"]["filler_mag_max"],
+                    conf=conf,
+                    write_csv=False,
+                )
+                
+                n_fluxstd_orig = len(df_fluxstds)
+                # Build SkyCoord for df_filler_fluxstds
+                coords_fluxstds = SkyCoord(
+                    ra=df_fluxstds["ra"].values * u.deg,
+                    dec=df_fluxstds["dec"].values * u.deg,
+                )
+
+                # Build SkyCoord for df_filler_usr (user-filler) + df_sci (science)
+                df_usr_nocut = df_filler_nocut[
+                    df_filler_nocut["grade"].isin(["B", "C", "F"])
+                ]
+
+                coords_usr = SkyCoord(
+                    ra=df_usr_nocut["ra"].values * u.deg,
+                    dec=df_usr_nocut["dec"].values * u.deg,
+                )
+
+                # Match df_fluxstds → df_sci
+                idx_sci, sep2d_sci, _ = coords_fluxstds.match_to_catalog_sky(coords_usr)
+                mask_sci = sep2d_sci < (1.0 * u.arcsec)
+
+                # Keep only those not duplicated in either catalog
+                mask_keep = ~(mask_sci)
+                df_fluxstds = df_fluxstds.loc[mask_keep].reset_index(drop=True)
+                n_fluxstd_red = len(df_fluxstds)
+                logger.info(
+                    f"Duplicates in fluxstds removed: {n_fluxstd_orig} --> {n_fluxstd_red}"
+                )            
+        elif conf["sfa"]["filler"] == True:
             """
             df_filler_obs = dbutils.generate_targets_from_gaiadb(
                 dict_pointings[pointing.lower()]["ra_center"],
@@ -744,9 +785,6 @@ def reconfigure_multiprocessing(
             logger.info(
                 f"Fetched filler target DataFrame (obs filler = {len(df_filler_obs):.0f}, usr filler = {len(df_filler_usr):.0f}): \n{df_filler}"
             )
-
-        else:
-            df_filler = None
 
         if rsl_mode == "L":
             arms_ = "brn"
