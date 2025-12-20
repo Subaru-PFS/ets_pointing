@@ -490,7 +490,7 @@ def generate_targets_from_gaiadb(
 
     query_string += ";"
 
-    logger.info(query_string)
+    #logger.info(query_string)
 
     cur.execute(query_string)
 
