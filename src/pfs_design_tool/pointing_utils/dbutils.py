@@ -490,7 +490,7 @@ def generate_targets_from_gaiadb(
 
     query_string += ";"
 
-    logger.info(query_string)
+    #logger.info(query_string)
 
     cur.execute(query_string)
 
@@ -683,6 +683,7 @@ def generate_fillers_from_targetdb(
     mask_not_g = np.zeros(len(df_res), dtype=bool)
     
     for i, (_, row) in enumerate(df_res.iterrows()):
+        if row["grade"] == "G": continue
         if row["proposal_id"] == "S25A-119QF":
             # interpret as magnitudes → keep if all bands ≥ 17.0
             if not np.any([row[col] < 17.0 for col in flux_cols]):
@@ -788,7 +789,7 @@ def fixcols_filler_targetdb(
             cur = conn.cursor()
         
             sql = f'''
-            SELECT pfs_design_id 
+            SELECT *
             FROM exposure_time 
                 JOIN pfs_visit ON exposure_time.pfs_visit_id = pfs_visit.pfs_visit_id 
                 JOIN onsite_processing_status ON onsite_processing_status.pfs_visit_id = pfs_visit.pfs_visit_id
@@ -800,34 +801,58 @@ def fixcols_filler_targetdb(
         
             df_design_done = pd.DataFrame(
                 cur.fetchall(),
-                columns=["pfs_design_id"],
+                columns = [
+                    'pfs_visit_id', 'nominal_exposure_time', 'effective_exposure_time_r',
+                    'effective_exposure_time_b', 'effective_exposure_time_n',
+                    'effective_exposure_time_m', 'pfs_visit_id', 'pfs_visit_description',
+                    'pfs_design_id', 'issued_at', 'pfs_visit_id', 'status', 'started_at',
+                    'updated_at'
+                ],
             )
         
             cur.close()
             conn.close()
 
             # search for design files under /work/wanqqq/ and make a df of observed obs filler
+            base_dir = "/work/wanqqq/"
+            design_path_map = {}
+            
+            for root, _, files in os.walk(base_dir):
+                for f in files:
+                    if f.startswith("pfsDesign-0x") and f.endswith(".fits"):
+                        design_path_map[f] = os.path.join(root, f)
+
             df_list_obs_filler = []
             cols = ["ra", "dec", "catId", "objId", "targetType", "proposalId", "obcode"]
-
-            for design_id in set(df_design_done["pfs_design_id"]):
-                # construct expected filename
+            
+            for _, row in df_design_done.iterrows():
+                design_id = row["pfs_design_id"]
                 fname = f"pfsDesign-0x{design_id:016x}.fits"
             
-                base_dir = "/work/wanqqq/"
-                
-                for root, dirs, files in os.walk(base_dir):
-                    if fname in files:
-                        filepath = os.path.join(root, fname)
+                filepath = design_path_map.get(fname)
+                if filepath is None:
+                    continue
             
-                        with fits.open(filepath) as hdul:
-                            data = hdul[1].data
-                            mask_obs_filler = (data["targetType"] == 1) & (np.in1d(data["proposalId"], conf["sfa"]["proposalIds_obsFiller"]))
-                            if sum(mask_obs_filler) > 0:
-                                df_obs_filler_ = pd.DataFrame({col: data[mask_obs_filler][col] for col in cols})
-                                df_list_obs_filler.append(df_obs_filler_)
-    
-            df_obs_filler_done = pd.concat(df_list_obs_filler, ignore_index=True).drop_duplicates(subset=["objId", "obcode"])
+                with fits.open(filepath, memmap=True) as hdul:
+                    data = hdul[1].data
+            
+                    mask_obs_filler = (
+                        (data["targetType"] == 1) &
+                        (data["proposalId"] == "S25A-000QF")
+                    )
+            
+                    if not np.any(mask_obs_filler):
+                        continue
+            
+                    df_obs_filler_ = pd.DataFrame({c: data[c][mask_obs_filler] for c in cols})
+                    df_obs_filler_["pfs_design_id"] = design_id
+                    for band in ["b", "r", "n", "m"]:
+                        df_obs_filler_[f"effective_exposure_time_{band}"] = row[f"effective_exposure_time_{band}"]
+                    df_obs_filler_["nominal_exposure_time"] = row["nominal_exposure_time"]
+            
+                    df_list_obs_filler.append(df_obs_filler_)
+            
+            df_obs_filler_done = pd.concat(df_list_obs_filler, ignore_index=True)
             df_obs_filler_done.to_csv(os.path.join(workDir, "ppp/df_obsfiller_done.csv"))
 
         # match observed obs filler with df_filler_obs, and set the observed ones to be true

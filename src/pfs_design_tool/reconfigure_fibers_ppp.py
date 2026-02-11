@@ -612,6 +612,7 @@ def reconfigure_multiprocessing(
             )
             if conf["sfa"]["reduce_sky_targets"]:
                 n_sky_target = conf["sfa"]["n_sky_random"]  # this value can be tuned
+                if "CFHTLS" in ppc_code: n_sky_target=4000
                 if len(df_sky) > n_sky_target:
                     df_sky = df_sky.sample(
                         n_sky_target, ignore_index=True, random_state=1
