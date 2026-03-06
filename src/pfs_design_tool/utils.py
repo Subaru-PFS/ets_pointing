@@ -57,7 +57,12 @@ def get_pfs_utils_path():
 
             p = Path(pfs.utils.__path__[0])
             p_fiberdata = p.parent.parent.parent / "data" / "fiberids"
-            if p_fiberdata.exists():
+            if (p / "data" / "fiberids").exists():
+                logger.info(
+                    f"pfs.utils's fiber data directory {p / 'data' / 'fiberids'} was found and will be used."
+                )
+                return p / "data" / "fiberids"
+            elif p_fiberdata.exists():
                 logger.info(
                     f"pfs.utils's fiber data directory {p_fiberdata} was found and will be used."
                 )
