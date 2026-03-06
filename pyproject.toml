@@ -36,9 +36,6 @@ dev = ["black>=23.7.0", "ruff>=0.5.0", "ty"]
 requires = ["pybind11", "setuptools", "setuptools_scm", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools_scm]
-write_to = "src/pfs_design_tool/_version.py"
-
 [tool.black]
 line-length = 88
 target-version = ["py312"]
@@ -66,6 +63,9 @@ ignore = [
 [tool.setuptools]
 package-dir = { "" = "src" }
 include-package-data = true
+
+[tool.setuptools_scm]
+version_file = "src/pfs_design_tool/_version.py"
 
 [tool.uv]
 override-dependencies = [
