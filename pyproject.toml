@@ -10,7 +10,7 @@ authors = [
   { name = "Masato Onodera", email = "monodera@naoj.org" },
 ]
 dependencies = [
-  "astroplan>=0.9.1",
+  "astroplan>=0.10.0",
   "astropy>=7.0",
   "ets-fiber-assigner @ git+https://github.com/Subaru-PFS/ets_fiberalloc.git",
   "ets-shuffle @ git+https://github.com/Subaru-PFS/ets_shuffle.git",
@@ -19,9 +19,9 @@ dependencies = [
   "ics-cobraOps @ git+https://github.com/Subaru-PFS/ics_cobraOps.git",
   "ipython>=8.14.0",
   "loguru>=0.7.0",
-  "matplotlib>=3.8.0",
+  "matplotlib>=3.9.0",
   "numpy>=2.0.0",
-  "pandas>=2.1.0",
+  "pandas>=2.2.0",
   "pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git",
   "pfs-utils",
   "psycopg2-binary>=2.9.8",
