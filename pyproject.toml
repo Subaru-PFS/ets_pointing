@@ -11,7 +11,7 @@ authors = [
 ]
 dependencies = [
   "astroplan>=0.9.1",
-  "astropy>=5.3",
+  "astropy>=7.0",
   "ets-fiber-assigner @ git+https://github.com/Subaru-PFS/ets_fiberalloc.git",
   "ets-shuffle @ git+https://github.com/Subaru-PFS/ets_shuffle.git@tickets/FIBERALLOC-57",
   "ets_target_database @ git+https://github.com/Subaru-PFS/ets_target_database.git",
@@ -23,7 +23,7 @@ dependencies = [
   "numpy>=2.0.0",
   "pandas>=2.1.0",
   "pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git",
-  "pfs-utils @ git+https://github.com/Subaru-PFS/pfs_utils.git",
+  "pfs-utils",
   "psycopg2-binary>=2.9.8",
 ]
 requires-python = ">=3.12"
@@ -59,6 +59,14 @@ ignore = [
   "EM101",  # use 'isinstance()' instead of comparing types directly
   "TRY003",  # unnecessary except block
 ]
+
+[tool.uv]
+override-dependencies = [
+  "pfs-utils @ git+https://github.com/Subaru-PFS/pfs_utils.git@u/monodera/symlink-data",
+]
+
+[tool.uv.sources]
+pfs-utils = { git = "https://github.com/Subaru-PFS/pfs_utils.git", branch = "u/monodera/symlink-data" }
 
 [tool.setuptools]
 package-dir = { "" = "src" }
