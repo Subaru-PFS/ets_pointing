@@ -31,7 +31,7 @@ from ics.cobraOps.TargetGroup import TargetGroup
 # import tempfile
 # import time
 # from targetdb import targetdb
-from logzero import logger
+from loguru import logger
 from pfs.utils.fiberids import FiberIds
 from ics.cobraCharmer.cobraCoach.cobraCoach import CobraCoach
 

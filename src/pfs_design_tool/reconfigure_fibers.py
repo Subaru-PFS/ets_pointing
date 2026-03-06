@@ -9,7 +9,7 @@ import pandas as pd
 import tomllib
 from astropy.time import Time
 from astropy.utils import iers
-from logzero import logger
+from loguru import logger
 from pfs.datamodel import PfsDesign
 from pfs.datamodel import TargetType
 

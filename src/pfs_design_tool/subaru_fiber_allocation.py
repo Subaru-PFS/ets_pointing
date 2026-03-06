@@ -18,7 +18,7 @@ from pfs_design_tool.pointing_utils import dbutils, designutils, nfutils
 import tomllib
 from astropy.time import Time
 from astropy.utils import iers
-from logzero import logger
+from loguru import logger
 
 # The following line seems to be needed to avoid IERS errors,
 # though the default config is already `auto_download=True`.

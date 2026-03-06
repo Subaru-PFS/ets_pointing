@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from astropy.utils import iers
-from logzero import logger
+from loguru import logger
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Circle
 from pfs.datamodel import PfsDesign, TargetType

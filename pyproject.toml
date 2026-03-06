@@ -18,7 +18,7 @@ dependencies = [
   "ics-cobraCharmer @ git+https://github.com/Subaru-PFS/ics_cobraCharmer.git",
   "ics-cobraOps @ git+https://github.com/Subaru-PFS/ics_cobraOps.git",
   "ipython>=8.14.0",
-  "logzero>=1.7.0",
+  "loguru>=0.7.0",
   "matplotlib>=3.8.0",
   "numpy>=2.0.0",
   "pandas>=2.1.0",

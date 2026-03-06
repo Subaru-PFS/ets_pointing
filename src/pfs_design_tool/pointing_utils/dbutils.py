@@ -10,7 +10,7 @@ import psycopg2.extras
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.table import Table
-from logzero import logger
+from loguru import logger
 from targetdb import targetdb
 from glob import glob
 from astropy.io import fits
