@@ -13,7 +13,7 @@ dependencies = [
   "astroplan>=0.9.1",
   "astropy>=7.0",
   "ets-fiber-assigner @ git+https://github.com/Subaru-PFS/ets_fiberalloc.git",
-  "ets-shuffle @ git+https://github.com/Subaru-PFS/ets_shuffle.git@tickets/FIBERALLOC-57",
+  "ets-shuffle @ git+https://github.com/Subaru-PFS/ets_shuffle.git",
   "ets_target_database @ git+https://github.com/Subaru-PFS/ets_target_database.git",
   "ics-cobraCharmer @ git+https://github.com/Subaru-PFS/ics_cobraCharmer.git",
   "ics-cobraOps @ git+https://github.com/Subaru-PFS/ics_cobraOps.git",
@@ -60,6 +60,10 @@ ignore = [
   "TRY003",  # unnecessary except block
 ]
 
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = true
+
 [tool.uv]
 override-dependencies = [
   "pfs-utils @ git+https://github.com/Subaru-PFS/pfs_utils.git@u/monodera/symlink-data",
@@ -67,10 +71,6 @@ override-dependencies = [
 
 [tool.uv.sources]
 pfs-utils = { git = "https://github.com/Subaru-PFS/pfs_utils.git", branch = "u/monodera/symlink-data" }
-
-[tool.setuptools]
-package-dir = { "" = "src" }
-include-package-data = true
 
 # [tool.pdm.dev-dependencies]
 # dev = [
