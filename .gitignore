@@ -141,3 +141,6 @@ cython_debug/
 # added by M. Onodera
 
 .DS_Store
+
+# setuptools_scm generated version file
+src/pfs_design_tool/_version.py
