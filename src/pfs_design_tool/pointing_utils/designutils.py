@@ -8,7 +8,7 @@ from astroplan import FixedTarget, Observer
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from ets_shuffle.convenience import flag_close_pairs, guidecam_geometry
-from logzero import logger
+from loguru import logger
 from pfs.utils.coordinates.CoordTransp import CoordinateTransform as ctrans
 from pfs.utils.coordinates.CoordTransp import ag_pfimm_to_pixel
 from pfs.utils.fiberids import FiberIds
