@@ -806,40 +806,39 @@ def get_gs_flag(df, gs_snr_thresh):
     snr[np.isnan(snr)] = 0.0
     flags["PMDEC_SIG"][snr > gs_snr_thresh] = 1
 
-    para = df.pmdec.to_numpy()
-    pmdec_error = df.pmdec_error.to_numpy()
+    para = df.parallax.to_numpy()
     msk = np.isnan(para)
     flags["PARA"][~msk] = 1
 
-    parallax_over_error = df.parallax_over_error.to_numpy()
+    parallax_over_error = df.parallax_over_error.to_numpy().copy()
     parallax_over_error[np.isnan(parallax_over_error)] = 0.0
     flags["PARA_SIG"][parallax_over_error**2 > gs_snr_thresh**2] = 1
 
-    astrometric_excess_noise = df.astrometric_excess_noise.to_numpy()
+    astrometric_excess_noise = df.astrometric_excess_noise.to_numpy().copy()
     astrometric_excess_noise[np.isnan(astrometric_excess_noise)] = 9999
     msk = astrometric_excess_noise < 1.0
     flags["ASTROMETRIC"][msk] = 1
 
-    astrometric_excess_noise_sig = df.astrometric_excess_noise_sig.to_numpy()
+    astrometric_excess_noise_sig = df.astrometric_excess_noise_sig.to_numpy().copy()
     astrometric_excess_noise_sig[np.isnan(astrometric_excess_noise_sig)] = 0
     msk = astrometric_excess_noise_sig > 2.0
     flags["ASTROMETRIC_SIG"][msk] = 1
 
-    ruwe = df.ruwe.to_numpy()
+    ruwe = df.ruwe.to_numpy().copy()
     ruwe[np.isnan(ruwe)] = 9999
     msk = ruwe < 1.4
     flags["NON_BINARY"][msk] = 1
 
     mag = np.zeros(len(df))
-    phot_g_mean_mag = df.phot_g_mean_mag.to_numpy()
+    phot_g_mean_mag = df.phot_g_mean_mag.to_numpy().copy()
     phot_g_mean_mag[np.isnan(phot_g_mean_mag)] = 0.0
     mag += phot_g_mean_mag
-    r_cmodel_mag = df.r_cmodel_mag.to_numpy()
+    r_cmodel_mag = df.r_cmodel_mag.to_numpy().copy()
     r_cmodel_mag[np.isnan(r_cmodel_mag)] = 0.0
     mag += r_cmodel_mag
 
     snr = np.zeros(len(df))
-    phot_g_mean_flux_over_error = df.phot_g_mean_flux_over_error.to_numpy()
+    phot_g_mean_flux_over_error = df.phot_g_mean_flux_over_error.to_numpy().copy()
     phot_g_mean_flux_over_error[np.isnan(phot_g_mean_flux_over_error)] = 0.0
     snr += phot_g_mean_flux_over_error
     r_cmodel_mag = df.r_cmodel_mag.to_numpy()
@@ -854,10 +853,10 @@ def get_gs_flag(df, gs_snr_thresh):
     flags["PHOTO_SIG"][msk] = 1
 
     classification = np.zeros(len(df))
-    in_galaxy_candidates = df.in_galaxy_candidates.to_numpy()
+    in_galaxy_candidates = df.in_galaxy_candidates.to_numpy().copy()
     in_galaxy_candidates[np.isnan(in_galaxy_candidates)] = 0
     classification += in_galaxy_candidates
-    r_extendedness_value = df.r_extendedness_value.to_numpy()
+    r_extendedness_value = df.r_extendedness_value.to_numpy().copy()
     r_extendedness_value[np.isnan(r_extendedness_value)] = 0
     classification += r_extendedness_value
 

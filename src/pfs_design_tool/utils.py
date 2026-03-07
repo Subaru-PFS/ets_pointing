@@ -291,7 +291,7 @@ def get_num_targets_in_patrol_region(bench, pfsDesign, gaia_info, cobra_ids_use)
     gaia_all_in_fov_x = np.unique(np.array(gaia_all_in_fov_x))
     gaia_all_in_fov_y = np.unique(np.array(gaia_all_in_fov_y))
 
-    # get all gaia sources in patrol area of interested SMs
+    # get all gaia sources in patrol area of interested SMs 
     gaia_all_in_sms_id = []
     gaia_all_in_sms_x = []
     gaia_all_in_sms_y = []
@@ -404,23 +404,15 @@ class CheckDesign(object):
             calibrationProduct.phiOut[wrongAngles] = 0
             calibrationProduct.tht0[wrongAngles] = 0
             calibrationProduct.tht1[wrongAngles] = (2.1 * np.pi) % (2 * np.pi)
-            print(
-                f"Number of cobras with wrong phi and tht angles: {np.sum(wrongAngles)}"
-            )
+            print(f"Number of cobras with wrong phi and tht angles: {np.sum(wrongAngles)}")
 
             # Check if there is any cobra with too short or too long link lengths
             tooShortLinks = np.logical_or(
-                calibrationProduct.L1 < 1, calibrationProduct.L2 < 1
-            )
+                calibrationProduct.L1 < 1, calibrationProduct.L2 < 1)
             tooLongLinks = np.logical_or(
-                calibrationProduct.L1 > 5, calibrationProduct.L2 > 5
-            )
-            print(
-                f"Number of cobras with too short link lenghts: {np.sum(tooShortLinks)}"
-            )
-            print(
-                f"Number of cobras with too long link lenghts: {np.sum(tooLongLinks)}"
-            )
+                calibrationProduct.L1 > 5, calibrationProduct.L2 > 5)
+            print(f"Number of cobras with too short link lenghts: {np.sum(tooShortLinks)}")
+            print(f"Number of cobras with too long link lenghts: {np.sum(tooLongLinks)}")
 
             # Limit spectral modules
             gfm = FiberIds()  # 2604
@@ -510,7 +502,7 @@ class CheckDesign(object):
     def check_statistics(self):
         # check pfsDesign statistics
 
-        # check target types
+        # check target types 
         isSm1 = is_smx(self.pfsDesign, moduleIds=[1])
         isSm2 = is_smx(self.pfsDesign, moduleIds=[2])
         isSm3 = is_smx(self.pfsDesign, moduleIds=[3])
@@ -616,6 +608,7 @@ class CheckDesign(object):
             % (len(self.pfsDesign[isUna * isSm4]))
         )
         print("=====================================")
+
 
         # check number of guide stars
         num_gs = []
