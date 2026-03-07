@@ -17,6 +17,7 @@ import pandas as pd
 from pfs_design_tool.pointing_utils import dbutils, designutils, nfutils
 import tomllib
 from astropy.time import Time
+from pfs.datamodel.pfsConfig import TargetType
 from astropy.utils import iers
 from loguru import logger
 
@@ -465,6 +466,8 @@ def main():
         max_priority=args.target_priority_max,
     )
 
+    df_targets["target_type_id"] = TargetType.SCIENCE
+
     ## FIXME: temporal workaround for GE targets ##
     if args.input_catalog == [10] and args.proposal_id == [
         "S23A-QN900",
@@ -642,6 +645,8 @@ def main():
     # print(vis, tp, tel, tgt, tgt_classdict)
     # print(vis.items())
 
+    df_unassigned = None
+    """
     # 2025.10 fill as many unassigned fibers as possible
     # Pickup the unassigned cobras (cobra index, 0-start)
     # And collect ra,dec for assigned targets to check duplication
@@ -728,12 +733,16 @@ def main():
                 print(f"No gaia object around {cidx}")
 
     # modify the columns
-    df_unassigned = dbutils.fixcols_gaiadb_to_targetdb(
-        df_unassigned,
-        input_catalog_id=4,  # Gaia DR3
-    )
+    if len(df_unassigned) > 0:
+        df_unassigned = dbutils.fixcols_gaiadb_to_targetdb(
+            df_unassigned,
+            input_catalog_id=4,  # Gaia DR3
+        )
+    else:
+        df_unassigned = None
     print(f"{len(df_unassigned)} targets were found.")
     # 2025.10 fill as many unassigned fibers as possible -- end
+    """
 
     # generate pfsDesign
     design = designutils.generate_pfs_design(
