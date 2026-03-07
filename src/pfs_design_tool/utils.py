@@ -78,6 +78,46 @@ def get_pfs_utils_path():
             return None
 
 
+def get_pfs_instdata_path():
+    env_path = os.environ.get("PFS_INSTDATA_DIR")
+    if env_path:
+        logger.info(f"PFS_INSTDATA_DIR is already set to {env_path}.")
+        return env_path
+
+    try:
+        import eups
+
+        logger.info(
+            "eups was found. "
+            "No attempt to find a pfs_instdata directory is made. "
+            "Please set an appropriate PFS_INSTDATA_DIR"
+        )
+        return None
+
+    except ModuleNotFoundError:
+        try:
+            from pathlib import Path
+
+            import pfs.instdata
+
+            p = Path(pfs.instdata.__path__[0])
+            if (p / "data" / "pfi" / "dot" / "black_dots_mm.csv").exists():
+                logger.info(
+                    f"pfs_instdata directory {p} was found and will be used."
+                )
+                return str(p)
+            else:
+                raise FileNotFoundError(
+                    f"black_dots_mm.csv not found under {p}"
+                )
+        except ModuleNotFoundError as e:
+            logger.exception(e)
+            return None
+        except FileNotFoundError as e:
+            logger.exception(e)
+            return None
+
+
 sm = [1, 3]
 gfm = FiberIds(get_pfs_utils_path())
 

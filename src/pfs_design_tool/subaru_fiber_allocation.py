@@ -338,8 +338,8 @@ def get_arguments():
     parser.add_argument(
         "--pfs_instdata_dir",
         type=str,
-        default="/Users/monodera/Dropbox/NAOJ/PFS/Subaru-PFS/pfs_instdata/",
-        help="Location of pfs_instdata (default: /Users/monodera/Dropbox/NAOJ/PFS/Subaru-PFS/pfs_instdata/)",
+        default=None,
+        help="Location of pfs_instdata (default: None, auto-detected from PFS_INSTDATA_DIR env var or installed pfs.instdata package)",
     )
     parser.add_argument(
         "--cobra_coach_module_version",

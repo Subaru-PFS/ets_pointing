@@ -40,7 +40,7 @@ from ics.cobraCharmer.cobraCoach.cobraCoach import CobraCoach
 #
 # NOTE: Do we still need the getBench function?
 #
-from ..utils import get_pfs_utils_path
+from ..utils import get_pfs_instdata_path, get_pfs_utils_path
 
 
 def getBench(
@@ -50,6 +50,13 @@ def getBench(
     sm,
     black_dot_radius_margin,
 ):
+    if pfs_instdata_dir is None:
+        pfs_instdata_dir = get_pfs_instdata_path()
+    if pfs_instdata_dir is None:
+        raise ValueError(
+            "pfs_instdata_dir could not be determined automatically. "
+            "Please set PFS_INSTDATA_DIR or use --pfs_instdata_dir."
+        )
     os.environ["PFS_INSTDATA_DIR"] = pfs_instdata_dir
     cobraCoach = CobraCoach(
         loadModel=True, trajectoryMode=True, rootDir=cobra_coach_dir
