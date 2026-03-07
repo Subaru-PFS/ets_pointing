@@ -11,15 +11,16 @@
 
 import argparse
 import os
+import tomllib
 
 import numpy as np
 import pandas as pd
-from pfs_design_tool.pointing_utils import dbutils, designutils, nfutils
-import tomllib
 from astropy.time import Time
-from pfs.datamodel.pfsConfig import TargetType
 from astropy.utils import iers
 from loguru import logger
+from pfs.datamodel.pfsConfig import TargetType
+
+from pfs_design_tool.pointing_utils import dbutils, designutils, nfutils
 
 # The following line seems to be needed to avoid IERS errors,
 # though the default config is already `auto_download=True`.
@@ -34,8 +35,9 @@ cobra_instrument_region = None
 min_sky_targets_per_instrument_region = None
 instrument_region_penalty = None
 num_reserved_fibers = 0
-fiber_non_allocation_cost = 1.0e+03
-#fiber_non_allocation_cost = 0.0
+fiber_non_allocation_cost = 1.0e03
+# fiber_non_allocation_cost = 0.0
+
 
 def get_arguments():
     parser = argparse.ArgumentParser()
@@ -470,9 +472,9 @@ def main():
 
     ## FIXME: temporal workaround for GE targets ##
     if args.input_catalog == [10] and args.proposal_id == [
-        "S23A-QN900", 
-        "S23A-QN901", 
-        "S23A-QN902", 
+        "S23A-QN900",
+        "S23A-QN901",
+        "S23A-QN902",
         "S23A-QN903",
     ]:
         df_targets.priority[df_targets.priority == 2] = 5
@@ -485,10 +487,10 @@ def main():
         # logger.info(df_targets.psf_flux_i)
         idx_bright = [
             i for i, f in enumerate(df_targets.psf_flux_i) if f > 912010.8
-        ] # objects brighter than i=16.5 ABmag
-        #logger.info(idx_bright)
-        df_targets = df_targets.drop(index = idx_bright)
-        #logger.info(df_targets.psf_flux_i)
+        ]  # objects brighter than i=16.5 ABmag
+        # logger.info(idx_bright)
+        df_targets = df_targets.drop(index=idx_bright)
+        # logger.info(df_targets.psf_flux_i)
 
     ## FIXME: temporal workaround for S24B-QT907 targets ##
     msk = (df_targets.proposal_id == "S24B-QT907") * (df_targets.psf_flux_g > 1150)
@@ -525,15 +527,15 @@ def main():
         ignore_prob_f_star=args.ignore_prob_f_star,
         select_from_gaia=args.select_from_gaia,
     )
-    
-    df_fluxstds['prob_f_star'] = df_fluxstds['prob_f_star'].fillna(1.0)
+
+    df_fluxstds["prob_f_star"] = df_fluxstds["prob_f_star"].fillna(1.0)
 
     """ 2025.11.29
     if args.n_fluxstd == 0:
         logger.info("No fluxstd object will be sent to netflow")
         df_fluxstds = df_fluxstds[:0]
    """
-    
+
     if args.n_sky == 0:
         logger.info("No sky object will be sent to netflow")
         df_sky = pd.DataFrame()
@@ -552,10 +554,7 @@ def main():
         if args.reduce_sky_targets:
             n_sky_target = args.n_sky_random  # this value can be tuned
             if len(df_sky) > n_sky_target:
-                df_sky = df_sky.sample(n_sky_target,
-                                       ignore_index=True,
-                                       random_state=1
-                                       )
+                df_sky = df_sky.sample(n_sky_target, ignore_index=True, random_state=1)
         logger.info(f"Fetched sky target DataFrame: \n{df_sky}")
         # df_sky = dbutils.generate_skyobjects_from_targetdb(
         #    args.ra,
@@ -581,7 +580,7 @@ def main():
         df_filler = dbutils.fixcols_gaiadb_to_targetdb(
             df_filler,
             proposal_id=args.filler_propid,
-            target_type_id=1,    # SCIENCE
+            target_type_id=1,  # SCIENCE
             input_catalog_id=4,  # Gaia DR3
             exptime=60.0,
             priority=9999,
@@ -589,13 +588,11 @@ def main():
         if args.raster:
             df_filler["priority"] = 1
         if args.reduce_fillers:
-            n_fillers = args.n_fillers_random 
+            n_fillers = args.n_fillers_random
             if len(df_filler) > n_fillers:
                 df_filler = df_filler.sample(
-                                       n_fillers,
-                                       ignore_index=True,
-                                       random_state=1
-                                       )
+                    n_fillers, ignore_index=True, random_state=1
+                )
         logger.info(f"Fetched fillers DataFrame: \n{df_filler}")
     else:
         df_filler = None
@@ -656,21 +653,19 @@ def main():
     # print(vis, tp, tel, tgt, tgt_classdict)
     # print(vis.items())
 
-    df_unassigned = None
-    """
     # 2025.10 fill as many unassigned fibers as possible
     # Pickup the unassigned cobras (cobra index, 0-start)
     # And collect ra,dec for assigned targets to check duplication
-    #print(len(vis.keys()))
+    # print(len(vis.keys()))
     unassigned = np.array(
-        [cidx for cidx in list(range(0,2394)) if cidx not in vis.values()]
+        [cidx for cidx in list(range(0, 2394)) if cidx not in vis.values()]
     )
     assigned_ra = np.array([tgt[tidx].ra for tidx, cidx in vis.items()])
     assigned_dec = np.array([tgt[tidx].dec for tidx, cidx in vis.items()])
     print(f"The number of Unassigned + disabled fibers: {len(unassigned)} :")
     print(unassigned)
 
-    df_unassigned=None
+    df_unassigned = None
     """
     # daaframe to store additional targets
     df_unassigned = pd.DataFrame(
