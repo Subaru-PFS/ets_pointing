@@ -29,6 +29,11 @@ dependencies = [
 requires-python = ">=3.12"
 readme = "README.md"
 
+[project.scripts]
+pfs-fiber-allocation = "pfs_design_tool.subaru_fiber_allocation:main"
+pfs-reconfigure-fibers = "pfs_design_tool.reconfigure_fibers:main"
+pfs-reconfigure-fibers-ppp = "pfs_design_tool.reconfigure_fibers_ppp:main"
+
 [project.optional-dependencies]
 dev = ["black>=23.7.0", "ruff>=0.5.0", "ty"]
 
