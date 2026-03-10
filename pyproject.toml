@@ -23,7 +23,7 @@ dependencies = [
   "numpy>=2.0.0",
   "pandas>=2.2.0",
   "pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git",
-  "pfs-utils",
+  "pfs-utils @ git+https://github.com/Subaru-PFS/pfs_utils.git",
   "psycopg2-binary>=2.9.8",
 ]
 requires-python = ">=3.12"
@@ -72,13 +72,13 @@ include-package-data = true
 [tool.setuptools_scm]
 version_file = "src/pfs_design_tool/_version.py"
 
-[tool.uv]
-override-dependencies = [
-  "pfs-utils @ git+https://github.com/Subaru-PFS/pfs_utils.git@u/monodera/symlink-data",
-]
+# [tool.uv]
+# override-dependencies = [
+#   "pfs-utils @ git+https://github.com/Subaru-PFS/pfs_utils.git@u/monodera/symlink-data",
+# ]
 
-[tool.uv.sources]
-pfs-utils = { git = "https://github.com/Subaru-PFS/pfs_utils.git", branch = "u/monodera/symlink-data" }
+# [tool.uv.sources]
+# pfs-utils = { git = "https://github.com/Subaru-PFS/pfs_utils.git", branch = "u/monodera/symlink-data" }
 
 # [tool.pdm.dev-dependencies]
 # dev = [
