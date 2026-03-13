@@ -299,6 +299,17 @@ def generate_pfs_design(
                 parallax[i_fiber] = df_fluxstds["parallax"][idx_fluxstd].values[0]
 
                 cat_id[i_fiber] = df_fluxstds["input_catalog_id"][idx_fluxstd].values[0]
+                if "proposal_id" in df_fluxstds.columns:
+                    _v = df_fluxstds["proposal_id"][idx_fluxstd].values[0]
+                    if pd.notna(_v):
+                        proposal_id[i_fiber] = _v
+                if "ob_code" in df_fluxstds.columns:
+                    _v = df_fluxstds["ob_code"][idx_fluxstd].values[0]
+                    if pd.notna(_v):
+                        ob_code[i_fiber] = _v
+                _v = df_fluxstds["obj_id"][idx_fluxstd].values[0]
+                if pd.notna(_v):
+                    obj_id[i_fiber] = np.int64(_v)
                 # dict_of_flux_lists["total_flux"][i_fiber] = [
                 #     np.nan for band in filter_band_names
                 # ]
@@ -338,16 +349,6 @@ def generate_pfs_design(
                     for band in filter_band_names
                 ]
 
-                # FIXME: temporal fix for gaia fluxstds
-                # if "g_gaia" in dict_of_flux_lists["filter_names"][i_fiber]:
-                #    dict_of_flux_lists["filter_names"][i_fiber] = list(dict_of_flux_lists["filter_names"][i_fiber][:3])
-                #    dict_of_flux_lists["psf_flux"][i_fiber] = np.array(dict_of_flux_lists["psf_flux"][i_fiber][:3])
-                #    dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(dict_of_flux_lists["psf_flux_error"][i_fiber][:3])
-                #    dict_of_flux_lists["filter_names"][i_fiber][3] = 'none'
-                #    dict_of_flux_lists["filter_names"][i_fiber][4] = 'none'
-
-            # psf_flux[i_fiber] = df_fluxstds["psfFlux"][idx_fluxstd][0]
-            # filter_names[i_fiber] = df_fluxstds["filterNames"][idx_fluxstd][0].tolist()
             if np.any(idx_sky):
                 cat_id[i_fiber] = df_sky["input_catalog_id"][idx_sky].values[0]
                 try:
@@ -784,21 +785,21 @@ def get_gs_flag(df, gs_snr_thresh):
     keys = [k.name for k in ag.AutoGuiderStarMask]
     flags = {k: np.zeros(len(df), dtype=np.uint16) for k in keys}
 
-    catalog = df.catalog.to_numpy()
+    catalog = df.catalog.to_numpy().copy()
     flags["GAIA"][catalog == "gaia_dr3"] = 1
     flags["HSC"][catalog == "hsc_pdr3"] = 1
 
-    pmra = df.pmra.to_numpy()
+    pmra = df.pmra.to_numpy().copy()
     msk = np.isnan(pmra)
     flags["PMRA"][~msk] = 1
 
-    pmra_error = df.pmra_error.to_numpy()
+    pmra_error = df.pmra_error.to_numpy().copy()
     snr = np.abs(pmra) / pmra_error
     snr[np.isnan(snr)] = 0.0
     flags["PMRA_SIG"][snr > gs_snr_thresh] = 1
 
-    pmdec = df.pmdec.to_numpy()
-    pmdec_error = df.pmdec_error.to_numpy()
+    pmdec = df.pmdec.to_numpy().copy()
+    pmdec_error = df.pmdec_error.to_numpy().copy()
     msk = np.isnan(pmdec)
     flags["PMDEC"][~msk] = 1
 
@@ -806,44 +807,44 @@ def get_gs_flag(df, gs_snr_thresh):
     snr[np.isnan(snr)] = 0.0
     flags["PMDEC_SIG"][snr > gs_snr_thresh] = 1
 
-    para = df.pmdec.to_numpy()
-    pmdec_error = df.pmdec_error.to_numpy()
+    para = df.pmdec.to_numpy().copy()
+    pmdec_error = df.pmdec_error.to_numpy().copy()
     msk = np.isnan(para)
     flags["PARA"][~msk] = 1
 
-    parallax_over_error = df.parallax_over_error.to_numpy()
+    parallax_over_error = df.parallax_over_error.to_numpy().copy()
     parallax_over_error[np.isnan(parallax_over_error)] = 0.0
     flags["PARA_SIG"][parallax_over_error**2 > gs_snr_thresh**2] = 1
 
-    astrometric_excess_noise = df.astrometric_excess_noise.to_numpy()
+    astrometric_excess_noise = df.astrometric_excess_noise.to_numpy().copy()
     astrometric_excess_noise[np.isnan(astrometric_excess_noise)] = 9999
     msk = astrometric_excess_noise < 1.0
     flags["ASTROMETRIC"][msk] = 1
 
-    astrometric_excess_noise_sig = df.astrometric_excess_noise_sig.to_numpy()
+    astrometric_excess_noise_sig = df.astrometric_excess_noise_sig.to_numpy().copy()
     astrometric_excess_noise_sig[np.isnan(astrometric_excess_noise_sig)] = 0
     msk = astrometric_excess_noise_sig > 2.0
     flags["ASTROMETRIC_SIG"][msk] = 1
 
-    ruwe = df.ruwe.to_numpy()
+    ruwe = df.ruwe.to_numpy().copy()
     ruwe[np.isnan(ruwe)] = 9999
     msk = ruwe < 1.4
     flags["NON_BINARY"][msk] = 1
 
     mag = np.zeros(len(df))
-    phot_g_mean_mag = df.phot_g_mean_mag.to_numpy()
+    phot_g_mean_mag = df.phot_g_mean_mag.to_numpy().copy()
     phot_g_mean_mag[np.isnan(phot_g_mean_mag)] = 0.0
     mag += phot_g_mean_mag
-    r_cmodel_mag = df.r_cmodel_mag.to_numpy()
+    r_cmodel_mag = df.r_cmodel_mag.to_numpy().copy()
     r_cmodel_mag[np.isnan(r_cmodel_mag)] = 0.0
     mag += r_cmodel_mag
 
     snr = np.zeros(len(df))
-    phot_g_mean_flux_over_error = df.phot_g_mean_flux_over_error.to_numpy()
+    phot_g_mean_flux_over_error = df.phot_g_mean_flux_over_error.to_numpy().copy()
     phot_g_mean_flux_over_error[np.isnan(phot_g_mean_flux_over_error)] = 0.0
     snr += phot_g_mean_flux_over_error
-    r_cmodel_mag = df.r_cmodel_mag.to_numpy()
-    r_cmodel_magerr = df.r_cmodel_magerr.to_numpy()
+    r_cmodel_mag = df.r_cmodel_mag.to_numpy().copy()
+    r_cmodel_magerr = df.r_cmodel_magerr.to_numpy().copy()
     flx = 10 ** (-0.4 * (r_cmodel_mag + 48.6))
     dflx = 10 ** (-0.4 * (r_cmodel_mag - r_cmodel_magerr + 48.6)) - flx
     r_cmodel_flux_over_error = flx / dflx
@@ -854,10 +855,10 @@ def get_gs_flag(df, gs_snr_thresh):
     flags["PHOTO_SIG"][msk] = 1
 
     classification = np.zeros(len(df))
-    in_galaxy_candidates = df.in_galaxy_candidates.to_numpy()
+    in_galaxy_candidates = df.in_galaxy_candidates.to_numpy().copy()
     in_galaxy_candidates[np.isnan(in_galaxy_candidates)] = 0
     classification += in_galaxy_candidates
-    r_extendedness_value = df.r_extendedness_value.to_numpy()
+    r_extendedness_value = df.r_extendedness_value.to_numpy().copy()
     r_extendedness_value[np.isnan(r_extendedness_value)] = 0
     classification += r_extendedness_value
 
@@ -1017,7 +1018,7 @@ def generate_guidestars_from_gaiadb(
 
     res = {}
     for col in df_res.columns:
-        res[col] = df_res[col].to_numpy()
+        res[col] = df_res[col].to_numpy().copy()
 
     # MO: I'm not sure if the following FIXME is still valid or not.
     # # FIXME: run similar query, but without the PM requirement, to get a list of
@@ -1213,8 +1214,8 @@ def generate_guidestars_from_csv(
     # read guideStar catalog from csv
     df = pd.read_csv(gs_csv)
 
-    ra_cat = df.ra.to_numpy()
-    dec_cat = df.dec.to_numpy()
+    ra_cat = df.ra.to_numpy().copy()
+    dec_cat = df.dec.to_numpy().copy()
     r2 = ((ra_cat - ra) * np.cos(np.pi / 180.0 * dec_cat)) ** 2 + (dec_cat - dec) ** 2
     df_sel = df[r2 < search_radius**2].reset_index()
 
@@ -1242,13 +1243,13 @@ def generate_guidestars_from_csv(
         }
     )
 
-    epoch = df_sel.ref_epoch.to_numpy()[gs_cat_flag & 0x1 != 0]
+    epoch = df_sel.ref_epoch.to_numpy().copy()[gs_cat_flag & 0x1 != 0]
     assert np.unique(epoch).size == 1, "Non-unique epochs for sources from GaiaDB"
     gaiadb_epoch = epoch[0]
 
     res = {}
     for col in df_res.columns:
-        res[col] = df_res[col].to_numpy()
+        res[col] = df_res[col].to_numpy().copy()
 
     # MO: I'm not sure if the following FIXME is still valid or not.
     # # FIXME: run similar query, but without the PM requirement, to get a list of
