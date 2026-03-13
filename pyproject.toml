@@ -1,65 +1,106 @@
 [project]
 license = { text = "GPLv2" }
 name = "pfs_design_tool"
-version = "0.1.0"
+dynamic = ["version"]
 description = ""
 authors = [
-    { name = "Wanqiu He" },
-    { name = "Kiyoto Yabe" },
-    { name = "Eric Jeschke" },
-    { name = "Masato Onodera", email = "monodera@naoj.org" },
+  { name = "Wanqiu He" },
+  { name = "Kiyoto Yabe" },
+  { name = "Eric Jeschke" },
+  { name = "Masato Onodera", email = "monodera@naoj.org" },
 ]
 dependencies = [
-    "numpy<1.24.0",           # np.complex in cobracharmer
-    "pandas>=2.1.0",
-    "psycopg2-binary>=2.9.8",
-    "astropy>=5.3",
-    "logzero>=1.7.0",
-    "matplotlib>=3.8.0",
-    "astroplan>=0.9.1",
-    "pyyaml==5.3.1",
-    # "ets-fiber-assigner @ git+https://github.com/Subaru-PFS/ets_fiberalloc.git",
-    "ics-cobraOps @ git+https://github.com/Subaru-PFS/ics_cobraOps.git",
-    "targetdb @ git+https://github.com/Subaru-PFS/ets_target_database.git",
-    "pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git",
-    # "ets-shuffle @ git+https://github.com/Subaru-PFS/ets_shuffle.git",
+  "astroplan>=0.10.0",
+  "astropy>=7.0",
+  "ets-fiber-assigner @ git+https://github.com/Subaru-PFS/ets_fiberalloc.git",
+  "ets-shuffle @ git+https://github.com/Subaru-PFS/ets_shuffle.git",
+  "ets_target_database @ git+https://github.com/Subaru-PFS/ets_target_database.git",
+  "ics-cobraCharmer @ git+https://github.com/Subaru-PFS/ics_cobraCharmer.git",
+  "ics-cobraOps @ git+https://github.com/Subaru-PFS/ics_cobraOps.git",
+  "ipython>=8.14.0",
+  "loguru>=0.7.0",
+  "matplotlib>=3.9.0",
+  "numpy>=2.0.0",
+  "pandas>=2.2.0",
+  "pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git",
+  "pfs-utils @ git+https://github.com/Subaru-PFS/pfs_utils.git",
+  "psycopg2-binary>=2.9.8",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 readme = "README.md"
 
+[project.scripts]
+pfs-fiber-allocation = "pfs_design_tool.subaru_fiber_allocation:main"
+pfs-reconfigure-fibers = "pfs_design_tool.reconfigure_fibers:main"
+pfs-reconfigure-fibers-ppp = "pfs_design_tool.reconfigure_fibers_ppp:main"
+
+[project.optional-dependencies]
+dev = ["black>=23.7.0", "ruff>=0.5.0", "ty"]
+
 [build-system]
-requires = ["setuptools", "wheel", "pybind11"]
+requires = ["pybind11", "setuptools", "setuptools_scm", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+ignore = [
+  "F401",  # module imported but unused
+  "F841",  # local variable is assigned to but never used
+  "E501",  # line too long, handled by black
+  "B008",  # do not perform function calls in argument defaults
+  "C901",  # too complex
+  "N802",  # function name should be lowercase
+  "N803",  # argument name should be lowercase
+  "N806",  # variable in function should be lowercase
+  "N815",  # variable in class should be lowercase
+  "N816",  # attribute in class should be lowercase
+  "EM101",  # use 'isinstance()' instead of comparing types directly
+  "TRY003",  # unnecessary except block
+]
 
 [tool.setuptools]
 package-dir = { "" = "src" }
 include-package-data = true
 
+[tool.setuptools_scm]
+version_file = "src/pfs_design_tool/_version.py"
 
-[tool.pdm.dev-dependencies]
-dev = [
-    "-e git+https://github.com/Subaru-PFS/ics_cobraCharmer.git#egg=ics-cobraCharmer",
-    "-e git+https://github.com/Subaru-PFS/ets_pointing.git#egg=ets-pointing",
-    "-e git+https://github.com/Subaru-PFS/pfs_utils.git#egg=pfs-utils",
-]
+# [tool.uv]
+# override-dependencies = [
+#   "pfs-utils @ git+https://github.com/Subaru-PFS/pfs_utils.git@u/monodera/symlink-data",
+# ]
 
+# [tool.uv.sources]
+# pfs-utils = { git = "https://github.com/Subaru-PFS/pfs_utils.git", branch = "u/monodera/symlink-data" }
 
-[tool.pdm.options]
-add = ["--no-isolation"]
-install = ["--no-isolation"]
+# [tool.pdm.dev-dependencies]
+# dev = [
+#   # "-e git+https://github.com/Subaru-PFS/ics_cobraCharmer.git#egg=ics-cobraCharmer@1af21d85a0af309cc57c939b78d625e884ece404",
+#   # "-e git+https://github.com/Subaru-PFS/ets_pointing.git#egg=ets-pointing",
+#   # "-e git+https://github.com/Subaru-PFS/pfs_utils.git#egg=pfs-utils",
+# ]
 
+# [tool.pdm.options]
+# add = ["--no-isolation"]
+# install = ["--no-isolation"]
 
-[tool.pdm.scripts]
-gen-requirements = { cmd = [
-    "pdm",
-    "export",
-    "--format",
-    "requirements",
-    "--without-hashes",
-    "--pyproject",
-    "--dev",
-    "--output",
-    "requirements.txt",
-    "--verbose",
-], help = "Generate requirements.txt" }
+# [tool.pdm.scripts]
+# gen-requirements = { cmd = [
+#   "pdm",
+#   "export",
+#   "--format",
+#   "requirements",
+#   "--without-hashes",
+#   "--pyproject",
+#   "--dev",
+#   "--output",
+#   "requirements.txt",
+#   "--verbose",
+# ], help = "Generate requirements.txt" }

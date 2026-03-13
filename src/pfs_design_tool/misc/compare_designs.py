@@ -9,7 +9,7 @@ from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.table import Table
 from astropy.utils import iers
-from logzero import logger
+from loguru import logger
 from pfs.datamodel import PfsDesign
 from pfs.utils.coordinates.CoordTransp import CoordinateTransform
 from pfs.utils.fiberids import FiberIds
