@@ -497,7 +497,7 @@ def main():
     df_targets = df_targets[~msk].reset_index()
 
     # degrade priority of science targets (default: no degradation)
-    if args.degrade_priority_proposal == None:
+    if args.degrade_priority_proposal is None:
         df_targets.priority += args.degrade_priority
     else:
         df_targets.priority[
@@ -617,7 +617,7 @@ def main():
 
     try:
         cobra_safety_margin = conf["netflow"]["cobra_safety_margin"]
-    except:
+    except KeyError:
         cobra_safety_margin = 0.0
 
     vis, tp, tel, tgt, tgt_class_dict, is_no_target, bench = nfutils.fiber_allocation(

@@ -256,7 +256,7 @@ def generate_fluxstds_from_targetdb(
                 AND teff_gspphot BETWEEN {min_teff} AND {max_teff}
                 """
 
-            except:
+            except ValueError:
                 extra_where += ""
 
     if fluxstd_versions is not None:
@@ -814,7 +814,7 @@ def fixcols_filler_targetdb(
             df_obs_filler_done = pd.read_csv(
                 os.path.join(workDir, "ppp/df_obsfiller_done.csv")
             )
-        except:
+        except FileNotFoundError:
             # query qaDB to get executed pfsdesign
             conn = connect_qadb(conf)
             cur = conn.cursor()

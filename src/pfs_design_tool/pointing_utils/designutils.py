@@ -362,7 +362,7 @@ def generate_pfs_design(
                             np.nan,
                         ]
                     )
-                except:
+                except (KeyError, TypeError):
                     dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
                         [
                             np.nan,
@@ -605,7 +605,7 @@ def generate_pfs_design(
                                 np.nan,
                             ]
                         )
-                    except:
+                    except (TypeError, AttributeError):
                         dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
                             [
                                 np.nan,
