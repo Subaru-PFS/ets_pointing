@@ -598,6 +598,10 @@ def fixcols_gaiadb_to_targetdb(
     # df["priority"][tb["g_mag_ab"].value - 7 > 12] = 9999
     # df["priority"][np.isnan(tb["g_mag_ab"])] = 9
 
+    df.loc[df["pmra"].isna(), "pmra"] = 0.0
+    df.loc[df["pmdec"].isna(), "pmdec"] = 0.0
+    df.loc[df["parallax"].isna(), "parallax"] = 1.0e-7
+
     return df
 
 
