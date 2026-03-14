@@ -383,6 +383,26 @@ def fiber_allocation(
 
     min_exptime, max_exptime_targets, max_exptime_filler = 10.0, 0.0, 0.0
 
+    # --- DEBUG: Check input DataFrames for NaN in key columns ---
+    _debug_cols = ["ra", "dec", "pmra", "pmdec", "parallax"]
+    for _label, _df in [
+        ("df_targets", df_targets),
+        ("df_fluxstds", df_fluxstds),
+        ("df_sky", df_sky),
+        ("df_filler", df_filler),
+    ]:
+        if _df is None or _df.empty:
+            continue
+        for _col in _debug_cols:
+            if _col not in _df.columns:
+                continue
+            _n_nan = _df[_col].isna().sum()
+            if _n_nan > 0:
+                logger.debug(f"[DEBUG] {_label}.{_col}: {_n_nan} NaN value(s)")
+                _show_cols = [c for c in ["obj_id", "ra", "dec", "pmra", "pmdec", "parallax"] if c in _df.columns]
+                logger.debug(_df[_df[_col].isna()][_show_cols].to_string())
+    # --- END DEBUG ---
+
     if not df_targets.empty:
         targets += register_objects(
             df_targets, target_class="sci", force_exptime=force_exptime
@@ -583,6 +603,23 @@ def fiber_allocation(
         is_no_target = False
         # get focal plane positions for all targets and all visits
         target_fppos = [tele.get_fp_positions(targets) for tele in telescopes]
+
+    # --- DEBUG: Check focal plane positions for NaN/inf ---
+    for _ivis, _fp in enumerate(target_fppos):
+        _fp_arr = np.array(_fp)
+        _nan_idx = np.where(~(np.isfinite(_fp_arr.real) & np.isfinite(_fp_arr.imag)))[0]
+        if len(_nan_idx) > 0:
+            logger.debug(f"[DEBUG] visit {_ivis}: {len(_nan_idx)} NaN/inf focal plane position(s)")
+            for _i in _nan_idx:
+                _t = targets[_i]
+                logger.debug(
+                    f"  idx={_i}, id={_t.ID}, ra={_t.ra}, dec={_t.dec}, "
+                    f"pmra={_t.pmra}, pmdec={_t.pmdec}, parallax={_t.parallax}, "
+                    f"type={type(_t).__name__}"
+                )
+        else:
+            logger.debug(f"[DEBUG] visit {_ivis}: all {len(_fp_arr)} focal plane positions are finite")
+    # --- END DEBUG ---
 
     res = run_netflow(
         bench,

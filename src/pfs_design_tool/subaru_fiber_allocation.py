@@ -436,6 +436,12 @@ def read_conf(conf):
 
 def main():
 
+    # --- DEBUG: enable DEBUG-level logging temporarily ---
+    import sys
+    logger.remove()
+    logger.add(sys.stderr, level="DEBUG")
+    # --- END DEBUG ---
+
     args = get_arguments()
 
     print(args)
