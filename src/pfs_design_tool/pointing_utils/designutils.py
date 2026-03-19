@@ -362,7 +362,7 @@ def generate_pfs_design(
                             np.nan,
                         ]
                     )
-                except:
+                except (KeyError, TypeError):
                     dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
                         [
                             np.nan,
@@ -605,7 +605,7 @@ def generate_pfs_design(
                                 np.nan,
                             ]
                         )
-                    except:
+                    except (TypeError, AttributeError):
                         dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
                             [
                                 np.nan,
@@ -1041,7 +1041,7 @@ def generate_guidestars_from_gaiadb(
         pa=pa_deg,
         cent=np.array([ra_tel_deg, dec_tel_deg]).reshape((2, 1)),
         pm=np.stack([res[coldict["pmra"]], res[coldict["pmdec"]]], axis=0),
-        par=res[coldict["parallax"]],
+        par=res[coldict["parallax"]].copy(),
         time=observation_time,
         epoch=gaiadb_epoch,
     )
@@ -1272,7 +1272,7 @@ def generate_guidestars_from_csv(
         pa=pa_deg,
         cent=np.array([ra_tel_deg, dec_tel_deg]).reshape((2, 1)),
         pm=np.stack([res[coldict["pmra"]], res[coldict["pmdec"]]], axis=0),
-        par=res[coldict["parallax"]],
+        par=res[coldict["parallax"]].copy(),
         time=observation_time,
         epoch=gaiadb_epoch,
     )

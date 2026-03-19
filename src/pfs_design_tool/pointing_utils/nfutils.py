@@ -398,7 +398,7 @@ def fiber_allocation(
 
     # exit()
 
-    if (df_filler is not None) and (two_stage == False):
+    if (df_filler is not None) and not two_stage:
         print("[single-stage] Registering stars for fillers.")
         targets += register_objects(
             df_filler, target_class="sci", force_exptime=force_exptime
@@ -610,7 +610,7 @@ def fiber_allocation(
         cobraSafetyMargin=cobraSafetyMargin,
     )
 
-    if two_stage == False:
+    if not two_stage:
         return (
             res[0],
             target_fppos[0],
@@ -621,7 +621,7 @@ def fiber_allocation(
             bench,
         )
 
-    elif two_stage == True:
+    elif two_stage:
         # get cobra ID of the 1st-stage assignment
         assign_1stage = {}
         for i, (vis, tp, tel) in enumerate(zip(res, target_fppos, telescopes)):

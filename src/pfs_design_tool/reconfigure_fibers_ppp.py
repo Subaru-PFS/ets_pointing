@@ -550,7 +550,7 @@ def reconfigure_multiprocessing(
 
     design_ids = {}
     for i, pointing in enumerate(list_pointings):
-        if clearOutput == True:
+        if clearOutput:
             clear_output()
         # observation_time = Time.now().iso
         observation_time = str(dict_pointings[pointing.lower()]["observation_time"][0])
@@ -613,7 +613,8 @@ def reconfigure_multiprocessing(
             )
             if conf["sfa"]["reduce_sky_targets"]:
                 n_sky_target = conf["sfa"]["n_sky_random"]  # this value can be tuned
-                if "CFHTLS" in ppc_code: n_sky_target=4000
+                if "CFHTLS" in ppc_code:
+                    n_sky_target = 4000
                 if len(df_sky) > n_sky_target:
                     df_sky = df_sky.sample(
                         n_sky_target, ignore_index=True, random_state=1
@@ -621,9 +622,9 @@ def reconfigure_multiprocessing(
             logger.info(f"Fetched sky target DataFrame: \n{df_sky}")
 
         # get filler targets (optional)
-        if conf["sfa"]["filler"] == False:
+        if not conf["sfa"]["filler"]:
             df_filler = None
-            if conf["sfa"]["dup_fluxstd_remove"] == True:
+            if conf["sfa"]["dup_fluxstd_remove"]:
                 _, df_filler_nocut = dbutils.generate_fillers_from_targetdb(
                     dict_pointings[pointing.lower()]["ra_center"],
                     dict_pointings[pointing.lower()]["dec_center"],
@@ -662,7 +663,7 @@ def reconfigure_multiprocessing(
                 logger.info(
                     f"Duplicates in fluxstds removed: {n_fluxstd_orig} --> {n_fluxstd_red}"
                 )            
-        elif conf["sfa"]["filler"] == True:
+        elif conf["sfa"]["filler"]:
             """
             df_filler_obs = dbutils.generate_targets_from_gaiadb(
                 dict_pointings[pointing.lower()]["ra_center"],
@@ -708,7 +709,7 @@ def reconfigure_multiprocessing(
             )
 
             # remove duplicates in df_fluxstds with df_filler_usr & df_sci
-            if conf["sfa"]["dup_fluxstd_remove"] == True:
+            if conf["sfa"]["dup_fluxstd_remove"]:
                 n_fluxstd_orig = len(df_fluxstds)
                 # Build SkyCoord for df_filler_fluxstds
                 coords_fluxstds = SkyCoord(
@@ -740,12 +741,10 @@ def reconfigure_multiprocessing(
 
             if rsl_mode == "L":
                 df_filler_usr = df_filler_usr[
-                    (df_filler_usr["is_medium_resolution"] == "L/M")
-                    | (df_filler_usr["is_medium_resolution"] == False)
+                    df_filler_usr["is_medium_resolution"].isin(["L/M", False])
                 ]
                 df_filler_obs = df_filler_obs[
-                    (df_filler_obs["is_medium_resolution"] == "L/M")
-                    | (df_filler_obs["is_medium_resolution"] == False)
+                    df_filler_obs["is_medium_resolution"].isin(["L/M", False])
                 ]
                 if ppc_backup:
                     df_filler_usr = df_filler_usr[
@@ -753,12 +752,10 @@ def reconfigure_multiprocessing(
                     ]
             elif rsl_mode == "M":
                 df_filler_usr = df_filler_usr[
-                    (df_filler_usr["is_medium_resolution"] == "L/M")
-                    | (df_filler_usr["is_medium_resolution"] == True)
+                    df_filler_usr["is_medium_resolution"].isin(["L/M", True])
                 ]
                 df_filler_obs = df_filler_obs[
-                    (df_filler_obs["is_medium_resolution"] == "L/M")
-                    | (df_filler_obs["is_medium_resolution"] == True)
+                    df_filler_obs["is_medium_resolution"].isin(["L/M", True])
                 ]
                 if ppc_backup:
                     df_filler_usr = df_filler_usr[
@@ -770,8 +767,8 @@ def reconfigure_multiprocessing(
 
                 # --- case 1: too many user fillers → downsample user fillers only ---
                 if len(df_filler_usr) >= n_fillers:
-                    unobs_usr = df_filler_usr[df_filler_usr["observed"] == False]
-                    obs_usr = df_filler_usr[df_filler_usr["observed"] == True]
+                    unobs_usr = df_filler_usr[~df_filler_usr["observed"]]
+                    obs_usr = df_filler_usr[df_filler_usr["observed"]]
             
                     if len(unobs_usr) >= n_fillers:
                         df_filler_usr = unobs_usr.sample(n_fillers, random_state=1, ignore_index=True)
@@ -789,8 +786,8 @@ def reconfigure_multiprocessing(
                     n_needed = n_fillers - len(df_filler_usr)
             
                     # fill df_filler_obs using the same unobs-first rule
-                    unobs_obs = df_filler_obs[df_filler_obs["observed"] == False]
-                    obs_obs = df_filler_obs[df_filler_obs["observed"] == True]
+                    unobs_obs = df_filler_obs[~df_filler_obs["observed"]]
+                    obs_obs = df_filler_obs[df_filler_obs["observed"]]
             
                     if len(unobs_obs) >= n_needed:
                         df_filler_obs = unobs_obs.sample(n_needed, random_state=1, ignore_index=True)

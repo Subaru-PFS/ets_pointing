@@ -21,7 +21,7 @@ dependencies = [
   "loguru>=0.7.0",
   "matplotlib>=3.9.0",
   "numpy>=2.0.0",
-  "pandas>=2.2.0",
+  "pandas>=2.2.0,<3.0.0",
   "pfs-datamodel @ git+https://github.com/Subaru-PFS/datamodel.git",
   "pfs-utils @ git+https://github.com/Subaru-PFS/pfs_utils.git",
   "psycopg2-binary>=2.9.8",
