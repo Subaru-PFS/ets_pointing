@@ -639,7 +639,8 @@ def reconfigure_multiprocessing(
             )
 
             df_usr_nocut = df_filler_nocut[
-                (df_filler_nocut["grade"] == "G") |
+                (df_filler_nocut["grade"] == "G")
+                |
                 (
                     (df_filler_nocut["grade"].isin(["B", "C", "F"]))
                     & df_filler_nocut["proposal_id"].str.startswith("S26A")
@@ -662,26 +663,24 @@ def reconfigure_multiprocessing(
                     dup_index = df_fluxstds.index[dup_pos]
                     matched_usr = df_usr_nocut.iloc[idx_usr[dup_mask]].reset_index(drop=True)
 
-                    # Ensure destination columns exist in df_fluxstds before updates.
+                    # Ensure destination columns exist and string columns accept text values.
                     for col in ["proposal_id", "input_catalog_id", "obj_id", "ob_code"]:
                         if col not in df_fluxstds.columns:
                             df_fluxstds[col] = np.nan
+                    df_fluxstds["proposal_id"] = df_fluxstds["proposal_id"].astype(object)
+                    df_fluxstds["ob_code"] = df_fluxstds["ob_code"].astype(object)
 
-                    # Prefer fluxstd_id in suffix; fall back to obj_id if unavailable.
-                    if "fluxstd_id" in df_fluxstds.columns:
-                        fluxstd_ids = df_fluxstds.loc[dup_index, "fluxstd_id"].astype(str).to_numpy()
-                    else:
-                        fluxstd_ids = df_fluxstds.loc[dup_index, "obj_id"].astype(str).to_numpy()
+                    fluxstd_ids = df_fluxstds.loc[dup_index, "fluxstd_id"].astype(str).to_numpy()
 
-                    filler_obcodes = matched_usr["ob_code"].astype(str).to_numpy()
-
-                    df_fluxstds.loc[dup_index, "proposal_id"] = matched_usr["proposal_id"].to_numpy()
-                    df_fluxstds.loc[dup_index, "input_catalog_id"] = matched_usr["input_catalog_id"].to_numpy()
-                    df_fluxstds.loc[dup_index, "obj_id"] = matched_usr["obj_id"].to_numpy()
-                    df_fluxstds.loc[dup_index, "ob_code"] = [
-                        f"{obc}_dup_fluxstd_{fid}"
-                        for obc, fid in zip(filler_obcodes, fluxstd_ids)
-                    ]
+                    # Assign scalar-by-scalar to avoid dtype/broadcast issues on masked vector assignment.
+                    for i, flux_idx in enumerate(dup_index):
+                        usr_row = matched_usr.iloc[i]
+                        df_fluxstds.at[flux_idx, "proposal_id"] = usr_row["proposal_id"]
+                        df_fluxstds.at[flux_idx, "input_catalog_id"] = usr_row["input_catalog_id"]
+                        df_fluxstds.at[flux_idx, "obj_id"] = usr_row["obj_id"]
+                        df_fluxstds.at[
+                            flux_idx, "ob_code"
+                        ] = f"{usr_row['ob_code']}_dup_fluxstd_{fluxstd_ids[i]}"
 
                     logger.info(
                         f"Found {n_dup} duplicate fluxstds; updated proposal_id/input_catalog_id/obj_id/ob_code from filler targets"
