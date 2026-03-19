@@ -133,6 +133,11 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
             if epoch_value.startswith("J"):
                 epoch_value = epoch_value[1:]  # Remove the 'J' character
 
+            if df["qa_reference_arm"].values[i] == "n":
+                req_flags_ = 0 # targets requesting NIR
+            else:
+                req_flags_ = 1 # targets no requesting NIR
+
             res.append(
                 nf.ScienceTarget(
                     # df["obj_id"][i],
@@ -146,6 +151,7 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
                     pmdec=df["pmdec"].values[i],
                     parallax=df["parallax"].values[i],
                     epoch=float(epoch_value),
+                    req_flags=req_flags_,
                 )
             )
     elif target_class == "cal":
@@ -176,6 +182,7 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
                     pmdec=df["pmdec"].values[i],
                     parallax=df["parallax"].values[i],
                     epoch=float(epoch_value),
+                    req_flags=1,
                 )
             )
     elif target_class == "sky":
@@ -191,6 +198,7 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
                 pmdec=0.0,
                 parallax=1.0e-07,
                 epoch=2000.0,
+                req_flags=1,
             )
             for i in range(df.index.size)
         ]
@@ -246,6 +254,22 @@ def run_netflow(
     else:
         black_dot_penalty_cost = None
 
+
+    # set pfs_utils data path
+    pfs_utils_path = get_pfs_utils_path()
+
+    # Limit spectral modules
+    gfm = FiberIds(path=pfs_utils_path)  # 2604
+    
+    cobra_idx_n2 = gfm.cobrasForSpectrograph(spectrographId=2)
+    cobra_idx_n2 = cobra_idx_n2[cobra_idx_n2<=2394]
+
+    cobra_idx_n2 = np.array(cobra_idx_n2)
+    mask_n2 = np.zeros(2394, dtype=bool)
+    mask_n2[cobra_idx_n2] = True
+    flag_n2 = np.array([0] * 2394)
+    flag_n2[mask_n2] = 1 # cobras of module 2 can not provide NIR
+
     done = False
 
     while not done:
@@ -277,6 +301,7 @@ def run_netflow(
             stage=stage,
             preassigned=preassigned,
             cobraSafetyMargin=cobraSafetyMargin,
+            cobraFeatureFlags=flag_n2,#None,
         )
 
         print("solving the problem")
@@ -300,7 +325,8 @@ def run_netflow(
         # positioning of unassigned Cobras).
         # So we skip this for now, hoping that it will become possible again with future
         # releases of cobraCharmer.
-
+        done = True
+        """
         print("Checking for trajectory collisions")
         ncoll = 0
         for ivis, (vis, tp) in enumerate(zip(res, target_fppos)):
@@ -344,7 +370,7 @@ def run_netflow(
 
         print("trajectory collisions found:", ncoll)
         done = ncoll == 0
-
+        #"""
     return res
 
 
@@ -538,12 +564,12 @@ def fiber_allocation(
         },
         "cal": {
             "numRequired": n_fluxstd,
-            "nonObservationCost": 6e10,
+            "nonObservationCost": 1e11,
             "calib": True,
         },
         "sky": {
             "numRequired": n_sky,
-            "nonObservationCost": 6e10,
+            "nonObservationCost": 4e10,
             "calib": True,
         },
     }

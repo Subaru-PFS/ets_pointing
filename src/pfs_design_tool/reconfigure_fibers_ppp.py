@@ -469,6 +469,7 @@ def load_ppp_results(infile: str):
                 "pmdec": df_pointing["pmdec_target"],
                 "parallax": df_pointing["parallax_target"],
                 "epoch": df_pointing["equinox_target"],
+                "qa_reference_arm": df_pointing["qa_reference_arm"],
                 "tract": np.full(n_obj, 0),
                 "patch": np.full(n_obj, 0),
                 "catalog_id": df_pointing["cat_id"],
@@ -621,49 +622,76 @@ def reconfigure_multiprocessing(
                     )
             logger.info(f"Fetched sky target DataFrame: \n{df_sky}")
 
-        # get filler targets (optional)
-        if not conf["sfa"]["filler"]:
-            df_filler = None
-            if conf["sfa"]["dup_fluxstd_remove"]:
-                _, df_filler_nocut = dbutils.generate_fillers_from_targetdb(
-                    dict_pointings[pointing.lower()]["ra_center"],
-                    dict_pointings[pointing.lower()]["dec_center"],
-                    band_select="total_flux_r",
-                    mag_min=conf["sfa"]["filler_mag_min"],
-                    mag_max=conf["sfa"]["filler_mag_max"],
-                    conf=conf,
-                    write_csv=False,
-                )
-                
-                n_fluxstd_orig = len(df_fluxstds)
-                # Build SkyCoord for df_filler_fluxstds
-                coords_fluxstds = SkyCoord(
-                    ra=df_fluxstds["ra"].values * u.deg,
-                    dec=df_fluxstds["dec"].values * u.deg,
-                )
+        # check duplicates between flux standards and user fillers, and update metadata of duplicated flux standards if needed
+        if len(df_fluxstds) > 0:
+            _, df_filler_nocut = dbutils.generate_fillers_from_targetdb(
+                dict_pointings[pointing.lower()]["ra_center"],
+                dict_pointings[pointing.lower()]["dec_center"],
+                band_select="total_flux_r",
+                mag_min=conf["sfa"]["filler_mag_min"],
+                mag_max=conf["sfa"]["filler_mag_max"],
+                conf=conf,
+                write_csv=False,
+            )
+            
+            # Build SkyCoord for flux standards and user-filler candidates.
+            coords_fluxstds = SkyCoord(
+                ra=df_fluxstds["ra"].values * u.deg,
+                dec=df_fluxstds["dec"].values * u.deg,
+            )
 
-                # Build SkyCoord for df_filler_usr (user-filler) + df_sci (science)
-                df_usr_nocut = df_filler_nocut[
-                    df_filler_nocut["grade"].isin(["B", "C", "F"])
-                ]
+            df_usr_nocut = df_filler_nocut[
+                (df_filler_nocut["grade"] == "G")
+                |
+                (
+                    (df_filler_nocut["grade"].isin(["B", "C", "F"]))
+                    & df_filler_nocut["proposal_id"].str.startswith("S26A")
+                )
+            ].reset_index(drop=True)
 
+            if len(df_usr_nocut) > 0:
                 coords_usr = SkyCoord(
                     ra=df_usr_nocut["ra"].values * u.deg,
                     dec=df_usr_nocut["dec"].values * u.deg,
                 )
 
-                # Match df_fluxstds → df_sci
-                idx_sci, sep2d_sci, _ = coords_fluxstds.match_to_catalog_sky(coords_usr)
-                mask_sci = sep2d_sci < (1.0 * u.arcsec)
+                # Match df_fluxstds -> user fillers and update duplicate metadata.
+                idx_usr, sep2d_usr, _ = coords_fluxstds.match_to_catalog_sky(coords_usr)
+                dup_mask = sep2d_usr < (1.0 * u.arcsec)
+                n_dup = int(np.sum(dup_mask))
 
-                # Keep only those not duplicated in either catalog
-                mask_keep = ~(mask_sci)
-                df_fluxstds = df_fluxstds.loc[mask_keep].reset_index(drop=True)
-                n_fluxstd_red = len(df_fluxstds)
-                logger.info(
-                    f"Duplicates in fluxstds removed: {n_fluxstd_orig} --> {n_fluxstd_red}"
-                )            
-        elif conf["sfa"]["filler"]:
+                if n_dup > 0:
+                    dup_pos = np.where(dup_mask)[0]
+                    dup_index = df_fluxstds.index[dup_pos]
+                    matched_usr = df_usr_nocut.iloc[idx_usr[dup_mask]].reset_index(drop=True)
+
+                    # Ensure destination columns exist and string columns accept text values.
+                    for col in ["proposal_id", "input_catalog_id", "obj_id", "ob_code"]:
+                        if col not in df_fluxstds.columns:
+                            df_fluxstds[col] = np.nan
+                    df_fluxstds["proposal_id"] = df_fluxstds["proposal_id"].astype(object)
+                    df_fluxstds["ob_code"] = df_fluxstds["ob_code"].astype(object)
+
+                    fluxstd_ids = df_fluxstds.loc[dup_index, "fluxstd_id"].astype(str).to_numpy()
+
+                    # Assign scalar-by-scalar to avoid dtype/broadcast issues on masked vector assignment.
+                    for i, flux_idx in enumerate(dup_index):
+                        usr_row = matched_usr.iloc[i]
+                        df_fluxstds.at[flux_idx, "proposal_id"] = usr_row["proposal_id"]
+                        df_fluxstds.at[flux_idx, "input_catalog_id"] = usr_row["input_catalog_id"]
+                        df_fluxstds.at[flux_idx, "obj_id"] = usr_row["obj_id"]
+                        df_fluxstds.at[
+                            flux_idx, "ob_code"
+                        ] = f"{usr_row['ob_code']}_dup_fluxstd_{fluxstd_ids[i]}"
+
+                    logger.info(
+                        f"Found {n_dup} duplicate fluxstds; updated proposal_id/input_catalog_id/obj_id/ob_code from filler targets"
+                    )
+
+        # get filler targets (optional)
+        if conf["sfa"]["filler"] == False:
+            df_filler = None
+        elif conf["sfa"]["filler"] == True:
             """
             df_filler_obs = dbutils.generate_targets_from_gaiadb(
                 dict_pointings[pointing.lower()]["ra_center"],
@@ -707,37 +735,6 @@ def reconfigure_multiprocessing(
                 obs_filler_done_remove=conf["sfa"]["obs_filler_done_remove"],
                 workDir=workDir,
             )
-
-            # remove duplicates in df_fluxstds with df_filler_usr & df_sci
-            if conf["sfa"]["dup_fluxstd_remove"]:
-                n_fluxstd_orig = len(df_fluxstds)
-                # Build SkyCoord for df_filler_fluxstds
-                coords_fluxstds = SkyCoord(
-                    ra=df_fluxstds["ra"].values * u.deg,
-                    dec=df_fluxstds["dec"].values * u.deg,
-                )
-
-                # Build SkyCoord for df_filler_usr (user-filler) + df_sci (science)
-                df_usr_nocut = df_filler_nocut[
-                    df_filler_nocut["grade"].isin(["B", "C", "F"])
-                ]
-
-                coords_usr = SkyCoord(
-                    ra=df_usr_nocut["ra"].values * u.deg,
-                    dec=df_usr_nocut["dec"].values * u.deg,
-                )
-
-                # Match df_fluxstds → df_sci
-                idx_sci, sep2d_sci, _ = coords_fluxstds.match_to_catalog_sky(coords_usr)
-                mask_sci = sep2d_sci < (1.0 * u.arcsec)
-
-                # Keep only those not duplicated in either catalog
-                mask_keep = ~(mask_sci)
-                df_fluxstds = df_fluxstds.loc[mask_keep].reset_index(drop=True)
-                n_fluxstd_red = len(df_fluxstds)
-                logger.info(
-                    f"Duplicates in fluxstds removed: {n_fluxstd_orig} --> {n_fluxstd_red}"
-                )
 
             if rsl_mode == "L":
                 df_filler_usr = df_filler_usr[
@@ -799,7 +796,10 @@ def reconfigure_multiprocessing(
                         ], ignore_index=True)
 
             # combine obs. and usr. fillers
-            df_filler = pd.concat([df_filler_usr, df_filler_obs])
+            if conf["ppp"]["mode"] == "classic":
+                df_filler = df_filler_obs
+            else:
+                df_filler = pd.concat([df_filler_usr, df_filler_obs])
             logger.info(
                 f"Fetched filler target DataFrame (obs filler = {len(df_filler_obs):.0f}, usr filler = {len(df_filler_usr):.0f}): \n{df_filler}"
             )

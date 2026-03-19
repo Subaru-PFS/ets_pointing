@@ -99,11 +99,15 @@ def generate_targets_from_targetdb(
     t_end = time.time()
     # logger.info(f"Time spent for querying (s): {t_end - t_begin:.3f}")
 
-    # keep grade BCF in S25B and FG in S25A
-    mask_keep = (
-        (df["proposal_id"].str.startswith("S25B")) & (df["grade"].isin(["B", "C", "F"]))
-    ) | ((df["proposal_id"].str.startswith("S25A")) & (df["grade"].isin(["F", "G"])))
-
+    # keep user fillers (grade BCF) for queue only; 
+    if conf["ppp"]["mode"] == "classic":
+        mask_keep = (df["proposal_id"].str.startswith("S25A")) & (df["grade"].isin(["G"]))
+    else:
+        mask_keep = (
+            ((df["proposal_id"].str.startswith("S26A")) & (df["grade"].isin(["C", "F"])))
+            | ((df["proposal_id"].str.startswith("S25A")) & (df["grade"].isin(["G"])))
+        )
+    
     df = df.loc[mask_keep].reset_index(drop=True)
 
     df.loc[df["pmra"].isna(), "pmra"] = 0.0
@@ -132,17 +136,12 @@ def generate_targets_from_targetdb(
         "total_flux_z",
         "total_flux_y",
     ]
-
     # --- case 2: grade != "G" ---
     # we build a per-row mask that depends on proposal_id
     mask_not_g = np.zeros(len(df), dtype=bool)
 
     for i, (_, row) in enumerate(df.iterrows()):
-        if row["proposal_id"] == "S25A-119QF":
-            # interpret as magnitudes → keep if all bands ≥ 17.0
-            if not np.any([row[col] < 17.0 for col in flux_cols]):
-                mask_not_g[i] = True
-        elif row["grade"] in ["B", "C", "F"]:
+        if row["grade"] in ["B", "C", "F"]:
             # interpret as fluxes → keep if all bands ≤ flux_limit_17mag
             if not np.any(
                 [
@@ -205,76 +204,44 @@ def generate_fluxstds_from_targetdb(
     if extra_where is None:
         extra_where = ""
 
+    filters = []
+
     if not ignore_prob_f_star:
-        extra_where = f"""
-        AND prob_f_star BETWEEN {min_prob_f_star} AND 1.0
-        """
+        filters.append(f"AND prob_f_star BETWEEN {min_prob_f_star} AND 1.0")
 
     if good_fluxstd:
-        extra_where += """
-        AND flags_dist IS FALSE
-        AND flags_ebv IS FALSE
-        """
-        if select_by_flux:
-            extra_where += (
-                f"""AND psf_flux_{mag_filter} BETWEEN {flux_min} AND {flux_max}"""
-            )
-        else:
-            extra_where += (
-                f"""AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}"""
-            )
-
-    if not good_fluxstd:
-        if select_by_flux:
-            extra_where += (
-                f"""AND psf_flux_{mag_filter} BETWEEN {flux_min} AND {flux_max}"""
-            )
-        else:
-            extra_where += (
-                f"""AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}"""
-            )
-
+        filters.append("AND flags_dist IS FALSE")
+        filters.append("AND flags_ebv IS FALSE")
+    else:
         if flags_dist:
-            extra_where += """
-            AND flags_dist IS FALSE
-            """
+            filters.append("AND flags_dist IS FALSE")
         if flags_ebv:
-            extra_where += """
-            AND flags_ebv IS FALSE
-            """
-    if fluxstd_versions is not None:
-        for fluxstd_version in fluxstd_versions:
-            try:
-                if float(fluxstd_version) >= 3.0:
-                    if not select_from_gaia:
-                        extra_where += f"""
-                AND teff_brutus BETWEEN {min_teff} AND {max_teff}
-                """
-                        break
-                    else:
-                        extra_where += f"""
-                AND teff_gspphot BETWEEN {min_teff} AND {max_teff}
-                """
+            filters.append("AND flags_ebv IS FALSE")
 
-            except ValueError:
-                extra_where += ""
+    if select_by_flux:
+        filters.append(f"AND psf_flux_{mag_filter} BETWEEN {flux_min} AND {flux_max}")
+    else:
+        filters.append(f"AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}")
+
+    if select_from_gaia:
+        filters.append(f"AND teff_gspphot BETWEEN {min_teff} AND {max_teff}")
+    else:
+        filters.append(f"AND teff_brutus BETWEEN {min_teff} AND {max_teff}")
 
     if fluxstd_versions is not None:
-        version_condition = "("
-        first_condition = True
-        for fluxstd_version in fluxstd_versions:
-            if first_condition:
-                first_condition = False
-            else:
-                version_condition += " OR "
-            version_condition += f"version = '{fluxstd_version}'"
-        version_condition += ")"
+        fluxstd_version = str(fluxstd_versions)
+        filters.append(f"AND (version = '{fluxstd_version}')")
 
-        extra_where += f"""
-        AND {version_condition
-        }"""
+        try:
+            if float(fluxstd_version) >= 3.5:
+                filters.append("AND (is_gc_neighbor = False)")
+                filters.append("AND (is_dense_region = False)")
+        except (TypeError, ValueError):
+            pass
 
     query_string += extra_where
+    if filters:
+        query_string += "\n" + "\n".join(filters)
 
     query_string += ";"
 
@@ -309,26 +276,34 @@ def generate_fluxstds_from_targetdb(
 
     db.close()
 
+    """
+    #Check if there are clusters of flux standards, and if so, keep only a representative subset to avoid over-representation in certain regions.
+
     n_fluxstd_ori = len(df)
 
     # check if there is cluster
-    ra = df["ra"].values
-    dec = df["dec"].values
+    ra_vals = df["ra"].values
+    dec_vals = df["dec"].values
 
-    bins = 7  # adjust for resolution (7×7 works well)
-    H, ra_edges, dec_edges = np.histogram2d(ra, dec, bins=bins)
+    bins = 7  # adjust for resolution (7x7 works well)
+    H, ra_edges, dec_edges = np.histogram2d(ra_vals, dec_vals, bins=bins)
     d_ra = ra_edges[1] - ra_edges[0]
     d_dec = dec_edges[1] - dec_edges[0]
     local_density = H / (d_ra * d_dec)
 
     density_global = np.mean(local_density)
-    print(f"Average density ≈ {density_global:.2f} / deg²")
+    logger.info(f"Average density ~= {density_global:.2f} / deg^2")
 
-    threshold = 5.0 * density_global  # keep regions up to 5.0 × mean
+    threshold = 5.0 * density_global  # keep regions up to 5.0 x mean
     overdense = local_density > threshold
 
     valid_densities = local_density[~overdense]
-    density_global_clean = np.mean(valid_densities[valid_densities > 0])
+    valid_nonzero_densities = valid_densities[valid_densities > 0]
+    density_global_clean = (
+        np.mean(valid_nonzero_densities)
+        if len(valid_nonzero_densities) > 0
+        else density_global
+    )
 
     if np.any(overdense):
         logger.warning("There may be clusters of fluxstds")
@@ -339,10 +314,10 @@ def generate_fluxstds_from_targetdb(
             for j in range(bins):
                 # points inside bin
                 in_bin = (
-                    (ra >= ra_edges[i])
-                    & (ra < ra_edges[i + 1])
-                    & (dec >= dec_edges[j])
-                    & (dec < dec_edges[j + 1])
+                    (ra_vals >= ra_edges[i])
+                    & (ra_vals < ra_edges[i + 1])
+                    & (dec_vals >= dec_edges[j])
+                    & (dec_vals < dec_edges[j + 1])
                 )
                 idx = np.where(in_bin)[0]
                 if len(idx) == 0:
@@ -358,7 +333,8 @@ def generate_fluxstds_from_targetdb(
                     keep_idx.extend(idx)
 
         df = df.iloc[keep_idx].reset_index(drop=True)
-        print(f"Kept {len(df)} / {n_fluxstd_ori} flux standards")
+        logger.info(f"Kept {len(df)} / {n_fluxstd_ori} flux standards")
+    """
 
     if write_csv:
         df.to_csv("fluxstd.csv")
@@ -547,8 +523,13 @@ def fixcols_gaiadb_to_targetdb(
 ):
     df.rename(columns={"source_id": "obj_id", "ref_epoch": "epoch"}, inplace=True)
 
-    if df["epoch"].dtype != "O":
-        df["epoch"] = df["epoch"].apply(lambda x: f"J{x:.1f}")
+    def format_epoch(x):
+        try:
+            return f"J{float(x):.1f}"
+        except (ValueError, TypeError):
+            return x  # leave already-string values unchanged
+
+    df["epoch"] = df["epoch"].map(format_epoch)
 
     if "proposal_id" not in df.columns:
         df["proposal_id"] = proposal_id
@@ -623,7 +604,7 @@ def generate_fillers_from_targetdb(
         search_radius = fp_radius_degree * fp_fudge_factor
 
     query_string = f"""SELECT
-    ob_code,obj_id,epoch,ra,dec,pmra,pmdec,parallax,
+    ob_code,obj_id,epoch,ra,dec,pmra,pmdec,parallax,qa_reference_arm,
     psf_flux_g,psf_flux_r,psf_flux_i,psf_flux_z,psf_flux_y,
     psf_flux_error_g, psf_flux_error_r, psf_flux_error_i, psf_flux_error_z, psf_flux_error_y, 
     total_flux_g,total_flux_r,total_flux_i,total_flux_z,total_flux_y,
@@ -650,6 +631,7 @@ def generate_fillers_from_targetdb(
             "pmra",
             "pmdec",
             "parallax",
+            "qa_reference_arm",
             "psf_flux_g",
             "psf_flux_r",
             "psf_flux_i",
@@ -707,12 +689,7 @@ def generate_fillers_from_targetdb(
     mask_not_g = np.zeros(len(df_res), dtype=bool)
 
     for i, (_, row) in enumerate(df_res.iterrows()):
-        if row["grade"] == "G":
-            continue
-        if row["proposal_id"] == "S25A-119QF":
-            # interpret as magnitudes → keep if all bands ≥ 17.0
-            if not np.any([row[col] < 17.0 for col in flux_cols]):
-                mask_not_g[i] = True
+        if row["grade"] == "G": continue
         else:
             # interpret as fluxes → keep if all bands ≤ flux_limit_17mag
             if not np.any(
@@ -766,8 +743,13 @@ def fixcols_filler_targetdb(
     )
     #"""
 
-    if df["epoch"].dtype != "O":
-        df["epoch"] = df["epoch"].apply(lambda x: f"J{x:.1f}")
+    def format_epoch(x):
+        try:
+            return f"J{float(x):.1f}"
+        except (ValueError, TypeError):
+            return x  # leave already-string values unchanged
+
+    df["epoch"] = df["epoch"].map(format_epoch)
 
     df["target_type_id"] = target_type_id
 
@@ -775,9 +757,10 @@ def fixcols_filler_targetdb(
 
     df_filler_obs = df[df["grade"].isin(["G"])]
     df_filler_usr = df[
-        ((df["grade"] == "C") & df["proposal_id"].str.startswith("S25B"))
-        | ((df["grade"] == "F") & df["proposal_id"].str.startswith("S25A"))
+        ((df["grade"] == "C") & df["proposal_id"].str.startswith("S26A"))
+        | ((df["grade"] == "F") & df["proposal_id"].str.startswith("S26A"))
     ]
+    
     df_sci = df_no_mag_cut[df_no_mag_cut["grade"].isin(["B", "C", "F"])]
 
     df_filler_obs["observed"] = False  # ensure column exists
@@ -811,9 +794,7 @@ def fixcols_filler_targetdb(
     if obs_filler_done_remove:
         # check observed obs filler
         try:
-            df_obs_filler_done = pd.read_csv(
-                os.path.join(workDir, "ppp/df_obsfiller_done.csv")
-            )
+            df_obs_filler_done = pd.read_csv(os.path.join(workDir, "ppp/df_obsfiller_done.csv"))
         except FileNotFoundError:
             # query qaDB to get executed pfsdesign
             conn = connect_qadb(conf)
@@ -919,10 +900,10 @@ def fixcols_filler_targetdb(
         if file_path:
             df_usr_filler_done = pd.read_csv(file_path[0])
 
-        mask = df_filler_usr.set_index(["proposal_id", "ob_code"]).index.isin(
-            df_usr_filler_done.set_index(["psl_id", "ob_code"]).index
-        )
-        df_filler_usr.loc[mask, "observed"] = True
+            mask = df_filler_usr.set_index(["proposal_id", "ob_code"]).index.isin(
+                df_usr_filler_done.set_index(["psl_id", "ob_code"]).index
+            )
+            df_filler_usr.loc[mask, "observed"] = True
 
         logger.info(
             f"There are {sum(df_filler_usr['observed'])} / {len(df_filler_usr)} observed"

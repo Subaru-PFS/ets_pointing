@@ -299,6 +299,17 @@ def generate_pfs_design(
                 parallax[i_fiber] = df_fluxstds["parallax"][idx_fluxstd].values[0]
 
                 cat_id[i_fiber] = df_fluxstds["input_catalog_id"][idx_fluxstd].values[0]
+                if "proposal_id" in df_fluxstds.columns:
+                    _v = df_fluxstds["proposal_id"][idx_fluxstd].values[0]
+                    if pd.notna(_v):
+                        proposal_id[i_fiber] = _v
+                if "ob_code" in df_fluxstds.columns:
+                    _v = df_fluxstds["ob_code"][idx_fluxstd].values[0]
+                    if pd.notna(_v):
+                        ob_code[i_fiber] = _v
+                _v = df_fluxstds["obj_id"][idx_fluxstd].values[0]
+                if pd.notna(_v):
+                    obj_id[i_fiber] = np.int64(_v)
                 # dict_of_flux_lists["total_flux"][i_fiber] = [
                 #     np.nan for band in filter_band_names
                 # ]
@@ -338,16 +349,6 @@ def generate_pfs_design(
                     for band in filter_band_names
                 ]
 
-                # FIXME: temporal fix for gaia fluxstds
-                # if "g_gaia" in dict_of_flux_lists["filter_names"][i_fiber]:
-                #    dict_of_flux_lists["filter_names"][i_fiber] = list(dict_of_flux_lists["filter_names"][i_fiber][:3])
-                #    dict_of_flux_lists["psf_flux"][i_fiber] = np.array(dict_of_flux_lists["psf_flux"][i_fiber][:3])
-                #    dict_of_flux_lists["psf_flux_error"][i_fiber] = np.array(dict_of_flux_lists["psf_flux_error"][i_fiber][:3])
-                #    dict_of_flux_lists["filter_names"][i_fiber][3] = 'none'
-                #    dict_of_flux_lists["filter_names"][i_fiber][4] = 'none'
-
-            # psf_flux[i_fiber] = df_fluxstds["psfFlux"][idx_fluxstd][0]
-            # filter_names[i_fiber] = df_fluxstds["filterNames"][idx_fluxstd][0].tolist()
             if np.any(idx_sky):
                 cat_id[i_fiber] = df_sky["input_catalog_id"][idx_sky].values[0]
                 try:
