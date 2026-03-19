@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
-import time
 import os
+import time
+from glob import glob
 
 import numpy as np
 import pandas as pd
@@ -9,11 +10,11 @@ import psycopg2
 import psycopg2.extras
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-from astropy.table import Table
-from logzero import logger
-from targetdb import targetdb
-from glob import glob
 from astropy.io import fits
+from astropy.table import Table
+from loguru import logger
+from targetdb import targetdb
+
 
 def connect_subaru_gaiadb(conf=None):
     conn = psycopg2.connect(**dict(conf["gaiadb"]))
@@ -67,7 +68,6 @@ def generate_targets_from_targetdb(
     WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
     AND c.active
     """
-        
     if extra_where is not None:
         query_string += extra_where
 
@@ -80,7 +80,9 @@ def generate_targets_from_targetdb(
 
     if proposal_id is not None:
         query_string += (
-            " AND (" + "OR".join([f" {tablename}.proposal_id='{v}' " for v in proposal_id]) + ")"
+            " AND ("
+            + "OR".join([f" {tablename}.proposal_id='{v}' " for v in proposal_id])
+            + ")"
         )
 
     if max_priority is not None:
@@ -88,14 +90,14 @@ def generate_targets_from_targetdb(
 
     query_string += ";"
 
-    #logger.info(f"Query string for targets:\n{query_string}")
+    # logger.info(f"Query string for targets:\n{query_string}")
 
     df = pd.DataFrame()
 
     t_begin = time.time()
     df = db.fetch_query(query_string)
     t_end = time.time()
-    #logger.info(f"Time spent for querying (s): {t_end - t_begin:.3f}")
+    # logger.info(f"Time spent for querying (s): {t_end - t_begin:.3f}")
 
     # keep user fillers (grade BCF) for queue only; 
     if conf["ppp"]["mode"] == "classic":
@@ -111,8 +113,8 @@ def generate_targets_from_targetdb(
     df.loc[df["pmra"].isna(), "pmra"] = 0.0
     df.loc[df["pmdec"].isna(), "pmdec"] = 0.0
     df.loc[df["parallax"].isna(), "parallax"] = 1.0e-7
-    df.loc[df["rank"]<0, "rank"] = 10.0 # give highest rank to classic targets
-    #logger.info(f"Fetched target DataFrame: \n{df}")
+    df.loc[df["rank"] < 0, "rank"] = 10.0  # give highest rank to classic targets
+    # logger.info(f"Fetched target DataFrame: \n{df}")
 
     if force_priority is not None:
         df["priority"] = force_priority
@@ -121,14 +123,19 @@ def generate_targets_from_targetdb(
     flux_max = (mag_min * u.ABmag).to(u.nJy).value
     flux_min = (mag_max * u.ABmag).to(u.nJy).value
     flux_limit_17mag = (17.0 * u.ABmag).to(u.nJy).value
-    
+
     # --- build mask ---
     # case 1: grade == "G"  → flux in desired range
     mask_g = (df["grade"] == "G") & df[mag_filter].between(flux_min, flux_max)
     
     # case 2: grade != "G" → none of the bands brighter than 17 mag
-    flux_cols = ["total_flux_g", "total_flux_r", "total_flux_i", "total_flux_z", "total_flux_y"]
-    
+    flux_cols = [
+        "total_flux_g",
+        "total_flux_r",
+        "total_flux_i",
+        "total_flux_z",
+        "total_flux_y",
+    ]
     # --- case 2: grade != "G" ---
     # we build a per-row mask that depends on proposal_id
     mask_not_g = np.zeros(len(df), dtype=bool)
@@ -568,6 +575,10 @@ def fixcols_gaiadb_to_targetdb(
     # df["priority"][tb["g_mag_ab"].value - 7 > 12] = 9999
     # df["priority"][np.isnan(tb["g_mag_ab"])] = 9
 
+    df.loc[df["pmra"].isna(), "pmra"] = 0.0
+    df.loc[df["pmdec"].isna(), "pmdec"] = 0.0
+    df.loc[df["parallax"].isna(), "parallax"] = 1.0e-7
+
     return df
 
 
@@ -770,7 +781,7 @@ def fixcols_filler_targetdb(
         # check observed obs filler
         try:
             df_obs_filler_done = pd.read_csv(os.path.join(workDir, "ppp/df_obsfiller_done.csv"))
-        except:
+        except FileNotFoundError:
             # query qaDB to get executed pfsdesign
             conn = connect_qadb(conf)
             cur = conn.cursor()
@@ -788,12 +799,21 @@ def fixcols_filler_targetdb(
         
             df_design_done = pd.DataFrame(
                 cur.fetchall(),
-                columns = [
-                    'pfs_visit_id', 'nominal_exposure_time', 'effective_exposure_time_r',
-                    'effective_exposure_time_b', 'effective_exposure_time_n',
-                    'effective_exposure_time_m', 'pfs_visit_id', 'pfs_visit_description',
-                    'pfs_design_id', 'issued_at', 'pfs_visit_id', 'status', 'started_at',
-                    'updated_at'
+                columns=[
+                    "pfs_visit_id",
+                    "nominal_exposure_time",
+                    "effective_exposure_time_r",
+                    "effective_exposure_time_b",
+                    "effective_exposure_time_n",
+                    "effective_exposure_time_m",
+                    "pfs_visit_id",
+                    "pfs_visit_description",
+                    "pfs_design_id",
+                    "issued_at",
+                    "pfs_visit_id",
+                    "status",
+                    "started_at",
+                    "updated_at",
                 ],
             )
         

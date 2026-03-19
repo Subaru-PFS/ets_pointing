@@ -31,7 +31,7 @@ from ics.cobraOps.TargetGroup import TargetGroup
 # import tempfile
 # import time
 # from targetdb import targetdb
-from logzero import logger
+from loguru import logger
 from pfs.utils.fiberids import FiberIds
 from ics.cobraCharmer.cobraCoach.cobraCoach import CobraCoach
 
@@ -40,7 +40,7 @@ from ics.cobraCharmer.cobraCoach.cobraCoach import CobraCoach
 #
 # NOTE: Do we still need the getBench function?
 #
-from ..utils import get_pfs_utils_path
+from ..utils import get_pfs_instdata_path, get_pfs_utils_path
 
 
 def getBench(
@@ -50,6 +50,13 @@ def getBench(
     sm,
     black_dot_radius_margin,
 ):
+    if pfs_instdata_dir is None:
+        pfs_instdata_dir = get_pfs_instdata_path()
+    if pfs_instdata_dir is None:
+        raise ValueError(
+            "pfs_instdata_dir could not be determined automatically. "
+            "Please set PFS_INSTDATA_DIR or use --pfs_instdata_dir."
+        )
     os.environ["PFS_INSTDATA_DIR"] = pfs_instdata_dir
     cobraCoach = CobraCoach(
         loadModel=True, trajectoryMode=True, rootDir=cobra_coach_dir
@@ -417,7 +424,7 @@ def fiber_allocation(
 
     # exit()
 
-    if (df_filler is not None) and (two_stage == False):
+    if (df_filler is not None) and not two_stage:
         print("[single-stage] Registering stars for fillers.")
         targets += register_objects(
             df_filler, target_class="sci", force_exptime=force_exptime
@@ -629,7 +636,7 @@ def fiber_allocation(
         cobraSafetyMargin=cobraSafetyMargin,
     )
 
-    if two_stage == False:
+    if not two_stage:
         return (
             res[0],
             target_fppos[0],
@@ -640,7 +647,7 @@ def fiber_allocation(
             bench,
         )
 
-    elif two_stage == True:
+    elif two_stage:
         # get cobra ID of the 1st-stage assignment
         assign_1stage = {}
         for i, (vis, tp, tel) in enumerate(zip(res, target_fppos, telescopes)):

@@ -11,11 +11,11 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 import numpy as np
 import pandas as pd
-import toml
+import tomllib
 from astropy.time import Time
 from astropy.utils import iers
 from IPython.display import clear_output
-from logzero import logger
+from loguru import logger
 from pfs.datamodel import PfsDesign, TargetType
 
 from .pointing_utils import dbutils, designutils, nfutils
@@ -370,7 +370,8 @@ def get_arguments():
 
 
 def read_conf(conf):
-    config = toml.load(conf)
+    with open(conf, "rb") as f:
+        config = tomllib.load(f)
     return config
 
 
@@ -550,7 +551,7 @@ def reconfigure_multiprocessing(
 
     design_ids = {}
     for i, pointing in enumerate(list_pointings):
-        if clearOutput == True:
+        if clearOutput:
             clear_output()
         # observation_time = Time.now().iso
         observation_time = str(dict_pointings[pointing.lower()]["observation_time"][0])
@@ -613,7 +614,8 @@ def reconfigure_multiprocessing(
             )
             if conf["sfa"]["reduce_sky_targets"]:
                 n_sky_target = conf["sfa"]["n_sky_random"]  # this value can be tuned
-                if "CFHTLS" in ppc_code: n_sky_target=4000
+                if "CFHTLS" in ppc_code:
+                    n_sky_target = 4000
                 if len(df_sky) > n_sky_target:
                     df_sky = df_sky.sample(
                         n_sky_target, ignore_index=True, random_state=1
@@ -725,7 +727,7 @@ def reconfigure_multiprocessing(
                 conf=conf,
                 target_type_id=1,  # SCIENCE
                 exptime=dict_pointings[pointing.lower()]["single_exptime"],
-                priority_obs=9999,
+                priority_obs=12,
                 priority_usr=11,
                 priority_obs_done=9999,
                 priority_usr_done=13,
@@ -736,12 +738,10 @@ def reconfigure_multiprocessing(
 
             if rsl_mode == "L":
                 df_filler_usr = df_filler_usr[
-                    (df_filler_usr["is_medium_resolution"] == "L/M")
-                    | (df_filler_usr["is_medium_resolution"] == False)
+                    df_filler_usr["is_medium_resolution"].isin(["L/M", False])
                 ]
                 df_filler_obs = df_filler_obs[
-                    (df_filler_obs["is_medium_resolution"] == "L/M")
-                    | (df_filler_obs["is_medium_resolution"] == False)
+                    df_filler_obs["is_medium_resolution"].isin(["L/M", False])
                 ]
                 if ppc_backup:
                     df_filler_usr = df_filler_usr[
@@ -749,12 +749,10 @@ def reconfigure_multiprocessing(
                     ]
             elif rsl_mode == "M":
                 df_filler_usr = df_filler_usr[
-                    (df_filler_usr["is_medium_resolution"] == "L/M")
-                    | (df_filler_usr["is_medium_resolution"] == True)
+                    df_filler_usr["is_medium_resolution"].isin(["L/M", True])
                 ]
                 df_filler_obs = df_filler_obs[
-                    (df_filler_obs["is_medium_resolution"] == "L/M")
-                    | (df_filler_obs["is_medium_resolution"] == True)
+                    df_filler_obs["is_medium_resolution"].isin(["L/M", True])
                 ]
                 if ppc_backup:
                     df_filler_usr = df_filler_usr[
@@ -766,8 +764,8 @@ def reconfigure_multiprocessing(
 
                 # --- case 1: too many user fillers → downsample user fillers only ---
                 if len(df_filler_usr) >= n_fillers:
-                    unobs_usr = df_filler_usr[df_filler_usr["observed"] == False]
-                    obs_usr = df_filler_usr[df_filler_usr["observed"] == True]
+                    unobs_usr = df_filler_usr[~df_filler_usr["observed"]]
+                    obs_usr = df_filler_usr[df_filler_usr["observed"]]
             
                     if len(unobs_usr) >= n_fillers:
                         df_filler_usr = unobs_usr.sample(n_fillers, random_state=1, ignore_index=True)
@@ -785,8 +783,8 @@ def reconfigure_multiprocessing(
                     n_needed = n_fillers - len(df_filler_usr)
             
                     # fill df_filler_obs using the same unobs-first rule
-                    unobs_obs = df_filler_obs[df_filler_obs["observed"] == False]
-                    obs_obs = df_filler_obs[df_filler_obs["observed"] == True]
+                    unobs_obs = df_filler_obs[~df_filler_obs["observed"]]
+                    obs_obs = df_filler_obs[df_filler_obs["observed"]]
             
                     if len(unobs_obs) >= n_needed:
                         df_filler_obs = unobs_obs.sample(n_needed, random_state=1, ignore_index=True)

@@ -8,7 +8,7 @@ from astroplan import FixedTarget, Observer
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from ets_shuffle.convenience import flag_close_pairs, guidecam_geometry
-from logzero import logger
+from loguru import logger
 from pfs.utils.coordinates.CoordTransp import CoordinateTransform as ctrans
 from pfs.utils.coordinates.CoordTransp import ag_pfimm_to_pixel
 from pfs.utils.fiberids import FiberIds
@@ -363,7 +363,7 @@ def generate_pfs_design(
                             np.nan,
                         ]
                     )
-                except:
+                except (KeyError, TypeError):
                     dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
                         [
                             np.nan,
@@ -606,7 +606,7 @@ def generate_pfs_design(
                                 np.nan,
                             ]
                         )
-                    except:
+                    except (TypeError, AttributeError):
                         dict_of_flux_lists["psf_flux"][i_fiber] = np.array(
                             [
                                 np.nan,
@@ -785,21 +785,21 @@ def get_gs_flag(df, gs_snr_thresh):
     keys = [k.name for k in ag.AutoGuiderStarMask]
     flags = {k: np.zeros(len(df), dtype=np.uint16) for k in keys}
 
-    catalog = df.catalog.to_numpy().copy()
+    catalog = df.catalog.to_numpy()
     flags["GAIA"][catalog == "gaia_dr3"] = 1
     flags["HSC"][catalog == "hsc_pdr3"] = 1
 
-    pmra = df.pmra.to_numpy().copy()
+    pmra = df.pmra.to_numpy()
     msk = np.isnan(pmra)
     flags["PMRA"][~msk] = 1
 
-    pmra_error = df.pmra_error.to_numpy().copy()
+    pmra_error = df.pmra_error.to_numpy()
     snr = np.abs(pmra) / pmra_error
     snr[np.isnan(snr)] = 0.0
     flags["PMRA_SIG"][snr > gs_snr_thresh] = 1
 
-    pmdec = df.pmdec.to_numpy().copy()
-    pmdec_error = df.pmdec_error.to_numpy().copy()
+    pmdec = df.pmdec.to_numpy()
+    pmdec_error = df.pmdec_error.to_numpy()
     msk = np.isnan(pmdec)
     flags["PMDEC"][~msk] = 1
 
@@ -807,8 +807,7 @@ def get_gs_flag(df, gs_snr_thresh):
     snr[np.isnan(snr)] = 0.0
     flags["PMDEC_SIG"][snr > gs_snr_thresh] = 1
 
-    para = df.pmdec.to_numpy().copy()
-    pmdec_error = df.pmdec_error.to_numpy().copy()
+    para = df.parallax.to_numpy()
     msk = np.isnan(para)
     flags["PARA"][~msk] = 1
 
@@ -843,8 +842,8 @@ def get_gs_flag(df, gs_snr_thresh):
     phot_g_mean_flux_over_error = df.phot_g_mean_flux_over_error.to_numpy().copy()
     phot_g_mean_flux_over_error[np.isnan(phot_g_mean_flux_over_error)] = 0.0
     snr += phot_g_mean_flux_over_error
-    r_cmodel_mag = df.r_cmodel_mag.to_numpy().copy()
-    r_cmodel_magerr = df.r_cmodel_magerr.to_numpy().copy()
+    r_cmodel_mag = df.r_cmodel_mag.to_numpy()
+    r_cmodel_magerr = df.r_cmodel_magerr.to_numpy()
     flx = 10 ** (-0.4 * (r_cmodel_mag + 48.6))
     dflx = 10 ** (-0.4 * (r_cmodel_mag - r_cmodel_magerr + 48.6)) - flx
     r_cmodel_flux_over_error = flx / dflx
@@ -1018,7 +1017,7 @@ def generate_guidestars_from_gaiadb(
 
     res = {}
     for col in df_res.columns:
-        res[col] = df_res[col].to_numpy().copy()
+        res[col] = df_res[col].to_numpy()
 
     # MO: I'm not sure if the following FIXME is still valid or not.
     # # FIXME: run similar query, but without the PM requirement, to get a list of
@@ -1043,7 +1042,7 @@ def generate_guidestars_from_gaiadb(
         pa=pa_deg,
         cent=np.array([ra_tel_deg, dec_tel_deg]).reshape((2, 1)),
         pm=np.stack([res[coldict["pmra"]], res[coldict["pmdec"]]], axis=0),
-        par=res[coldict["parallax"]],
+        par=res[coldict["parallax"]].copy(),
         time=observation_time,
         epoch=gaiadb_epoch,
     )
@@ -1214,8 +1213,8 @@ def generate_guidestars_from_csv(
     # read guideStar catalog from csv
     df = pd.read_csv(gs_csv)
 
-    ra_cat = df.ra.to_numpy().copy()
-    dec_cat = df.dec.to_numpy().copy()
+    ra_cat = df.ra.to_numpy()
+    dec_cat = df.dec.to_numpy()
     r2 = ((ra_cat - ra) * np.cos(np.pi / 180.0 * dec_cat)) ** 2 + (dec_cat - dec) ** 2
     df_sel = df[r2 < search_radius**2].reset_index()
 
@@ -1243,13 +1242,13 @@ def generate_guidestars_from_csv(
         }
     )
 
-    epoch = df_sel.ref_epoch.to_numpy().copy()[gs_cat_flag & 0x1 != 0]
+    epoch = df_sel.ref_epoch.to_numpy()[gs_cat_flag & 0x1 != 0]
     assert np.unique(epoch).size == 1, "Non-unique epochs for sources from GaiaDB"
     gaiadb_epoch = epoch[0]
 
     res = {}
     for col in df_res.columns:
-        res[col] = df_res[col].to_numpy().copy()
+        res[col] = df_res[col].to_numpy()
 
     # MO: I'm not sure if the following FIXME is still valid or not.
     # # FIXME: run similar query, but without the PM requirement, to get a list of
@@ -1274,7 +1273,7 @@ def generate_guidestars_from_csv(
         pa=pa_deg,
         cent=np.array([ra_tel_deg, dec_tel_deg]).reshape((2, 1)),
         pm=np.stack([res[coldict["pmra"]], res[coldict["pmdec"]]], axis=0),
-        par=res[coldict["parallax"]],
+        par=res[coldict["parallax"]].copy(),
         time=observation_time,
         epoch=gaiadb_epoch,
     )
