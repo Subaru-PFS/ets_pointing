@@ -6,10 +6,10 @@ import os
 
 import numpy as np
 import pandas as pd
-import toml
+import tomllib
 from astropy.time import Time
 from astropy.utils import iers
-from logzero import logger
+from loguru import logger
 from pfs.datamodel import PfsDesign
 from pfs.datamodel import TargetType
 
@@ -185,7 +185,8 @@ def get_arguments():
 
 
 def read_conf(conf):
-    config = toml.load(conf)
+    with open(conf, "rb") as f:
+        config = tomllib.load(f)
     return config
 
 

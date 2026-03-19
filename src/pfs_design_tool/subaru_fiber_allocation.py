@@ -11,14 +11,16 @@
 
 import argparse
 import os
+import tomllib
 
 import numpy as np
 import pandas as pd
-from pfs_design_tool.pointing_utils import dbutils, designutils, nfutils
-import toml
 from astropy.time import Time
 from astropy.utils import iers
-from logzero import logger
+from loguru import logger
+from pfs.datamodel.pfsConfig import TargetType
+
+from pfs_design_tool.pointing_utils import dbutils, designutils, nfutils
 
 # The following line seems to be needed to avoid IERS errors,
 # though the default config is already `auto_download=True`.
@@ -338,8 +340,8 @@ def get_arguments():
     parser.add_argument(
         "--pfs_instdata_dir",
         type=str,
-        default="/Users/monodera/Dropbox/NAOJ/PFS/Subaru-PFS/pfs_instdata/",
-        help="Location of pfs_instdata (default: /Users/monodera/Dropbox/NAOJ/PFS/Subaru-PFS/pfs_instdata/)",
+        default=None,
+        help="Location of pfs_instdata (default: None, auto-detected from PFS_INSTDATA_DIR env var or installed pfs.instdata package)",
     )
     parser.add_argument(
         "--cobra_coach_module_version",
@@ -427,11 +429,13 @@ def get_arguments():
 
 
 def read_conf(conf):
-    config = toml.load(conf)
+    with open(conf, "rb") as f:
+        config = tomllib.load(f)
     return config
 
 
 def main():
+
     args = get_arguments()
 
     print(args)
@@ -463,6 +467,8 @@ def main():
         mag_filter=args.target_mag_filter,
         max_priority=args.target_priority_max,
     )
+
+    df_targets["target_type_id"] = TargetType.SCIENCE
 
     ## FIXME: temporal workaround for GE targets ##
     if args.input_catalog == [10] and args.proposal_id == [
@@ -523,6 +529,12 @@ def main():
     )
 
     df_fluxstds["prob_f_star"] = df_fluxstds["prob_f_star"].fillna(1.0)
+
+    """ 2025.11.29
+    if args.n_fluxstd == 0:
+        logger.info("No fluxstd object will be sent to netflow")
+        df_fluxstds = df_fluxstds[:0]
+   """
 
     if args.n_sky == 0:
         logger.info("No sky object will be sent to netflow")
@@ -653,9 +665,11 @@ def main():
     print(f"The number of Unassigned + disabled fibers: {len(unassigned)} :")
     print(unassigned)
 
+    df_unassigned = None
+    """
     # daaframe to store additional targets
     df_unassigned = pd.DataFrame(
-        None,
+        None, 
         columns=[
             "source_id",
             "ref_epoch",
@@ -670,47 +684,46 @@ def main():
             "phot_g_mean_flux_over_error",
             "phot_bp_mean_flux_over_error",
             "phot_rp_mean_flux_over_error",
-            "cidx",
+            "cidx"
         ],
     )
     for cidx in unassigned:
-        # print(bench.cobras.centers[cidx], bench.cobras.centers[cidx], bench.cobras.isGood[cidx])
+        #print(bench.cobras.centers[cidx], bench.cobras.centers[cidx], bench.cobras.isGood[cidx])
         if bench.cobras.isGood[
             cidx
-        ]:  # Nothing can be done for broken cobras/broken fibers
+        ]:   # Nothing can be done for broken cobras/broken fibers
             ra_un, dec_un = designutils.get_skypos_cobra(
                 bench.cobras.centers[cidx],
                 args.observation_time,
                 args.ra,
                 args.dec,
-                args.pa,
+                args.pa
             )
-            # print(ra_un, dec_un)
+            #print(ra_un, dec_un)
             # Search for objects around unassigned cobra.
             df_gaia_un = dbutils.generate_targets_from_gaiadb(
                 ra_un,
                 dec_un,
                 conf=conf,
-                search_radius=25
-                / 3600.0,  # Take patrol region as radius of 25" (~3mm physically) in degree. It is better to make it configurable.
+                search_radius=25/3600. ,  # Take patrol region as radius of 25" (~3mm physically) in degree. It is better to make it configurable.
                 band_select="phot_g_mean_mag",
                 mag_min=18.0,  # It is better to make it configurable.
                 mag_max=99.0,
                 good_astrometry=False,
-                write_csv=False,
+                write_csv=False
             )
 
-            if len(df_gaia_un) > 0:  # >0 object is found
-                # print(df_gaia_un.columns)
+            if len(df_gaia_un)>0:  # >0 object is found
+                #print(df_gaia_un.columns)
                 # Check whether the found object is close to assigned targets and might be duplicated
                 for row in df_gaia_un.itertuples():
                     diff = np.hypot(
-                        (row[3] - assigned_ra) * np.cos(np.deg2rad(row[4])),
-                        row[4] - assigned_dec,
+                        (row[3]-assigned_ra)*np.cos(np.deg2rad(row[4])),
+                        row[4]-assigned_dec
                     )
                     if any(
-                        diff < 1.1 / 3600.0
-                    ):  # distance is less than one fiber (it should not be if the above query is right..)
+                        diff < 1.1/3600.
+                    ) :  # distance is less than one fiber (it should not be if the above query is right..)
                         print(
                             f"Looking for onject for {cidx}: {row[1]} is already allocated to another."
                         )
@@ -719,20 +732,26 @@ def main():
                         print(
                             f"I found a source for {cidx}: {row[1]} (df index is {row[0]})."
                         )
-                        df_tmp = df_gaia_un[row[0] : row[0] + 1]
+                        df_tmp=df_gaia_un[row[0]:row[0]+1]
                         df_tmp["cidx"] = cidx
                         df_unassigned = pd.concat([df_unassigned, df_tmp])
                         break
             else:
                 print(f"No gaia object around {cidx}")
 
-    # modify the columns
-    df_unassigned = dbutils.fixcols_gaiadb_to_targetdb(
-        df_unassigned,
-        input_catalog_id=4,  # Gaia DR3
-    )
     print(f"{len(df_unassigned)} targets were found.")
+    
+    # modify the columns
+    #print(df_unassigned)
+    if len(df_unassigned)>0:
+        df_unassigned = dbutils.fixcols_gaiadb_to_targetdb(df_unassigned,
+                                                       input_catalog_id=4,  # Gaia DR3
+                                                      )  
+    else:
+        df_unassigned=None
+    
     # 2025.10 fill as many unassigned fibers as possible -- end
+    """
 
     # generate pfsDesign
     design = designutils.generate_pfs_design(

@@ -127,7 +127,7 @@ def generate_targets_from_targetdb(
     # --- build mask ---
     # case 1: grade == "G"  → flux in desired range
     mask_g = (df["grade"] == "G") & df[mag_filter].between(flux_min, flux_max)
-    
+
     # case 2: grade != "G" → none of the bands brighter than 17 mag
     flux_cols = [
         "total_flux_g",
@@ -139,18 +139,22 @@ def generate_targets_from_targetdb(
     # --- case 2: grade != "G" ---
     # we build a per-row mask that depends on proposal_id
     mask_not_g = np.zeros(len(df), dtype=bool)
-    
+
     for i, (_, row) in enumerate(df.iterrows()):
         if row["grade"] in ["B", "C", "F"]:
             # interpret as fluxes → keep if all bands ≤ flux_limit_17mag
-            if not np.any([
-                (row[col] is not None) and np.isfinite(row[col]) and (row[col] > flux_limit_17mag)
-                for col in flux_cols
-            ]):
+            if not np.any(
+                [
+                    (row[col] is not None)
+                    and np.isfinite(row[col])
+                    and (row[col] > flux_limit_17mag)
+                    for col in flux_cols
+                ]
+            ):
                 mask_not_g[i] = True
         else:
             continue
-                
+
     # --- combine both ---
     df = df[mask_g | mask_not_g].reset_index(drop=True)
 
@@ -476,7 +480,7 @@ def generate_targets_from_gaiadb(
 
     query_string += ";"
 
-    #logger.info(query_string)
+    # logger.info(query_string)
 
     cur.execute(query_string)
 
@@ -660,34 +664,44 @@ def generate_fillers_from_targetdb(
         ],
     )
 
-    #df_res = df_res[df_res["grade"] != "G"] # do not include obs. fillers
+    # df_res = df_res[df_res["grade"] != "G"] # do not include obs. fillers
 
     # convert mag limits to flux (nJy)
     flux_max = (mag_min * u.ABmag).to(u.nJy).value
     flux_min = (mag_max * u.ABmag).to(u.nJy).value
     flux_limit_17mag = (17.0 * u.ABmag).to(u.nJy).value
-    
+
     # --- build mask ---
     # case 1: grade == "G"  → flux in desired range
     mask_g = (df_res["grade"] == "G") & df_res[band_select].between(flux_min, flux_max)
-    
+
     # case 2: grade != "G" → none of the bands brighter than 17 mag
-    flux_cols = ["total_flux_g", "total_flux_r", "total_flux_i", "total_flux_z", "total_flux_y"]
-    
+    flux_cols = [
+        "total_flux_g",
+        "total_flux_r",
+        "total_flux_i",
+        "total_flux_z",
+        "total_flux_y",
+    ]
+
     # --- case 2: grade != "G" ---
     # we build a per-row mask that depends on proposal_id
     mask_not_g = np.zeros(len(df_res), dtype=bool)
-    
+
     for i, (_, row) in enumerate(df_res.iterrows()):
         if row["grade"] == "G": continue
         else:
             # interpret as fluxes → keep if all bands ≤ flux_limit_17mag
-            if not np.any([
-                (row[col] is not None) and np.isfinite(row[col]) and (row[col] > flux_limit_17mag)
-                for col in flux_cols
-            ]):
+            if not np.any(
+                [
+                    (row[col] is not None)
+                    and np.isfinite(row[col])
+                    and (row[col] > flux_limit_17mag)
+                    for col in flux_cols
+                ]
+            ):
                 mask_not_g[i] = True
-                
+
     # --- combine both ---
     df_res_magcut = df_res[mask_g | mask_not_g].reset_index(drop=True)
 
@@ -785,18 +799,18 @@ def fixcols_filler_targetdb(
             # query qaDB to get executed pfsdesign
             conn = connect_qadb(conf)
             cur = conn.cursor()
-        
-            sql = f'''
+
+            sql = """
             SELECT *
             FROM exposure_time 
                 JOIN pfs_visit ON exposure_time.pfs_visit_id = pfs_visit.pfs_visit_id 
                 JOIN onsite_processing_status ON onsite_processing_status.pfs_visit_id = pfs_visit.pfs_visit_id
             WHERE pfs_visit.pfs_visit_id >=129587
             ORDER BY pfs_visit.pfs_visit_id DESC;
-            '''
-        
+            """
+
             cur.execute(sql)
-        
+
             df_design_done = pd.DataFrame(
                 cur.fetchall(),
                 columns=[
@@ -816,14 +830,14 @@ def fixcols_filler_targetdb(
                     "updated_at",
                 ],
             )
-        
+
             cur.close()
             conn.close()
 
             # search for design files under /work/wanqqq/ and make a df of observed obs filler
             base_dir = "/work/wanqqq/"
             design_path_map = {}
-            
+
             for root, _, files in os.walk(base_dir):
                 for f in files:
                     if f.startswith("pfsDesign-0x") and f.endswith(".fits"):
@@ -831,36 +845,43 @@ def fixcols_filler_targetdb(
 
             df_list_obs_filler = []
             cols = ["ra", "dec", "catId", "objId", "targetType", "proposalId", "obcode"]
-            
+
             for _, row in df_design_done.iterrows():
                 design_id = row["pfs_design_id"]
                 fname = f"pfsDesign-0x{design_id:016x}.fits"
-            
+
                 filepath = design_path_map.get(fname)
                 if filepath is None:
                     continue
-            
+
                 with fits.open(filepath, memmap=True) as hdul:
                     data = hdul[1].data
-            
-                    mask_obs_filler = (
-                        (data["targetType"] == 1) &
-                        (data["proposalId"] == "S25A-000QF")
+
+                    mask_obs_filler = (data["targetType"] == 1) & (
+                        data["proposalId"] == "S25A-000QF"
                     )
-            
+
                     if not np.any(mask_obs_filler):
                         continue
-            
-                    df_obs_filler_ = pd.DataFrame({c: data[c][mask_obs_filler] for c in cols})
+
+                    df_obs_filler_ = pd.DataFrame(
+                        {c: data[c][mask_obs_filler] for c in cols}
+                    )
                     df_obs_filler_["pfs_design_id"] = design_id
                     for band in ["b", "r", "n", "m"]:
-                        df_obs_filler_[f"effective_exposure_time_{band}"] = row[f"effective_exposure_time_{band}"]
-                    df_obs_filler_["nominal_exposure_time"] = row["nominal_exposure_time"]
-            
+                        df_obs_filler_[f"effective_exposure_time_{band}"] = row[
+                            f"effective_exposure_time_{band}"
+                        ]
+                    df_obs_filler_["nominal_exposure_time"] = row[
+                        "nominal_exposure_time"
+                    ]
+
                     df_list_obs_filler.append(df_obs_filler_)
-            
+
             df_obs_filler_done = pd.concat(df_list_obs_filler, ignore_index=True)
-            df_obs_filler_done.to_csv(os.path.join(workDir, "ppp/df_obsfiller_done.csv"))
+            df_obs_filler_done.to_csv(
+                os.path.join(workDir, "ppp/df_obsfiller_done.csv")
+            )
 
         # match observed obs filler with df_filler_obs, and set the observed ones to be true
         mask = df_filler_obs.set_index(["obj_id", "ob_code"]).index.isin(
@@ -868,7 +889,9 @@ def fixcols_filler_targetdb(
         )
         df_filler_obs.loc[mask, "observed"] = True
 
-        logger.info(f"There are {sum(df_filler_obs['observed'])} / {len(df_filler_obs)} observed")
+        logger.info(
+            f"There are {sum(df_filler_obs['observed'])} / {len(df_filler_obs)} observed"
+        )
 
         # check observed user filler (including grade C)
         base_dir = os.path.join(workDir, "ppp")
@@ -882,18 +905,16 @@ def fixcols_filler_targetdb(
             )
             df_filler_usr.loc[mask, "observed"] = True
 
-        logger.info(f"There are {sum(df_filler_usr['observed'])} / {len(df_filler_usr)} observed")
+        logger.info(
+            f"There are {sum(df_filler_usr['observed'])} / {len(df_filler_usr)} observed"
+        )
 
     df_filler_obs["priority"] = np.where(
-        df_filler_obs["observed"],
-        priority_obs_done,
-        priority_obs
+        df_filler_obs["observed"], priority_obs_done, priority_obs
     )
-    
+
     df_filler_usr["priority"] = np.where(
-        df_filler_usr["observed"],
-        priority_usr_done,
-        priority_usr
+        df_filler_usr["observed"], priority_usr_done, priority_usr
     )
 
     return df_filler_obs, df_filler_usr
