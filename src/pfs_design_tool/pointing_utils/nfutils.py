@@ -318,7 +318,8 @@ def run_netflow(
         # positioning of unassigned Cobras).
         # So we skip this for now, hoping that it will become possible again with future
         # releases of cobraCharmer.
-
+        done = True
+        """
         print("Checking for trajectory collisions")
         ncoll = 0
         for ivis, (vis, tp) in enumerate(zip(res, target_fppos)):
@@ -362,7 +363,7 @@ def run_netflow(
 
         print("trajectory collisions found:", ncoll)
         done = ncoll == 0
-
+        #"""
     return res
 
 
