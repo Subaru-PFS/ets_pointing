@@ -270,107 +270,66 @@ def run_netflow(
     flag_n2 = np.array([0] * 2394)
     flag_n2[mask_n2] = 1 # cobras of module 2 can not provide NIR
 
-    done = False
+    # compute observation strategy
+    prob = nf.buildProblem(
+        bench,
+        targets,
+        target_fppos,
+        class_dict,
+        exptime,
+        vis_cost=vis_cost,
+        cobraMoveCost=cobra_move_cost if cobraMoveCost is None else cobraMoveCost,
+        collision_distance=collision_distance,
+        elbow_collisions=elbow_collisions,
+        gurobi=gurobi,
+        gurobiOptions=gurobiOptions,
+        alreadyObserved=alreadyObserved,
+        forbiddenPairs=forbiddenPairs,
+        cobraLocationGroup=cobraLocationGroup,
+        minSkyTargetsPerLocation=minSkyTargetsPerLocation,
+        locationGroupPenalty=locationGroupPenalty,
+        cobraInstrumentRegion=cobraInstrumentRegion,
+        minSkyTargetsPerInstrumentRegion=minSkyTargetsPerInstrumentRegion,
+        instrumentRegionPenalty=instrumentRegionPenalty,
+        blackDotPenalty=black_dot_penalty_cost,
+        numReservedFibers=numReservedFibers,
+        fiberNonAllocationCost=fiberNonAllocationCost,
+        obsprog_time_budget=obsprog_time_budget,
+        stage=stage,
+        preassigned=preassigned,
+        cobraSafetyMargin=cobraSafetyMargin,
+        cobraFeatureFlags=flag_n2,#None,
+    )
 
-    while not done:
-        # compute observation strategy
-        prob = nf.buildProblem(
-            bench,
-            targets,
-            target_fppos,
-            class_dict,
-            exptime,
-            vis_cost=vis_cost,
-            cobraMoveCost=cobra_move_cost if cobraMoveCost is None else cobraMoveCost,
-            collision_distance=collision_distance,
-            elbow_collisions=elbow_collisions,
-            gurobi=gurobi,
-            gurobiOptions=gurobiOptions,
-            alreadyObserved=alreadyObserved,
-            forbiddenPairs=forbiddenPairs,
-            cobraLocationGroup=cobraLocationGroup,
-            minSkyTargetsPerLocation=minSkyTargetsPerLocation,
-            locationGroupPenalty=locationGroupPenalty,
-            cobraInstrumentRegion=cobraInstrumentRegion,
-            minSkyTargetsPerInstrumentRegion=minSkyTargetsPerInstrumentRegion,
-            instrumentRegionPenalty=instrumentRegionPenalty,
-            blackDotPenalty=black_dot_penalty_cost,
-            numReservedFibers=numReservedFibers,
-            fiberNonAllocationCost=fiberNonAllocationCost,
-            obsprog_time_budget=obsprog_time_budget,
-            stage=stage,
-            preassigned=preassigned,
-            cobraSafetyMargin=cobraSafetyMargin,
-            cobraFeatureFlags=flag_n2,#None,
+    print("solving the problem")
+    prob.solve()
+
+    # extract solution
+    res = [{} for _ in range(1)]
+    for k1, v1 in prob._vardict.items():
+        if k1.startswith("Tv_Cv_"):
+            visited = prob.value(v1) > 0
+            if visited:
+                _, _, tidx, cidx, ivis = k1.split("_")
+                res[int(ivis)][int(tidx)] = int(cidx)
+        
+    print("Checking for distancre from the cobra center")
+    for ivis, (vis, tp) in enumerate(zip(res, target_fppos)):
+        selectedTargets = np.full(
+            len(bench.cobras.centers), TargetGroup.NULL_TARGET_POSITION
         )
-
-        print("solving the problem")
-        prob.solve()
-
-        # extract solution
-        res = [{} for _ in range(1)]
-        for k1, v1 in prob._vardict.items():
-            if k1.startswith("Tv_Cv_"):
-                visited = prob.value(v1) > 0
-                if visited:
-                    _, _, tidx, cidx, ivis = k1.split("_")
-                    res[int(ivis)][int(tidx)] = int(cidx)
-
-        # NOTE: the following block would normally be used to "fix" the trajectory
-        # collisions detected by the collision simulator.
-        # However, this does not work currently, since the current version of
-        # cobraCharmer does not actively move unassigned Cobras out of the way of
-        # assigned ones, which can result in endpoint collisions which the fiber
-        # assigner itself cannot avoid (since it does not know anything about the
-        # positioning of unassigned Cobras).
-        # So we skip this for now, hoping that it will become possible again with future
-        # releases of cobraCharmer.
-        done = True
-        """
-        print("Checking for trajectory collisions")
-        ncoll = 0
-        for ivis, (vis, tp) in enumerate(zip(res, target_fppos)):
-            selectedTargets = np.full(
-                len(bench.cobras.centers), TargetGroup.NULL_TARGET_POSITION
-            )
-            ids = np.full(len(bench.cobras.centers), TargetGroup.NULL_TARGET_ID)
-            for tidx, cidx in vis.items():
-                selectedTargets[cidx] = tp[tidx]
-                ids[cidx] = ""
-            for i in range(selectedTargets.size):
-                if selectedTargets[i] != TargetGroup.NULL_TARGET_POSITION:
-                    dist = np.abs(selectedTargets[i] - bench.cobras.centers[i])
-                    if dist > bench.cobras.L1[i] + bench.cobras.L2[i]:
-                        logger.warning(
-                            f"(CobraId={i}) Distance from the center exceeds L1+L2 ({dist} mm)"
-                        )
-            simulator = CollisionSimulator(bench, TargetGroup(selectedTargets, ids))
-            simulator.run()
-            # If you want to see the result of the collision simulator, uncomment the next three lines
-            #            from ics.cobraOps import plotUtils
-            #            simulator.plotResults(paintFootprints=False)
-            #            plotUtils.pauseExecution()
-            #
-            #            if np.any(simulator.endPointCollisions):
-            #                print("ERROR: detected end point collision, which should be impossible")
-            #                raise RuntimeError()
-            coll_tidx = []
-            for tidx, cidx in vis.items():
-                if simulator.collisions[cidx]:
-                    coll_tidx.append(tidx)
-            ncoll += len(coll_tidx)
-            for i1 in range(0, len(coll_tidx)):
-                found = False
-                for i2 in range(i1 + 1, len(coll_tidx)):
-                    if np.abs(tp[coll_tidx[i1]] - tp[coll_tidx[i2]]) < 10:
-                        forbiddenPairs[ivis].append((coll_tidx[i1], coll_tidx[i2]))
-                        found = True
-                if not found:  # not a collision between two active Cobras
-                    forbiddenPairs[ivis].append((coll_tidx[i1],))
-
-        print("trajectory collisions found:", ncoll)
-        done = ncoll == 0
-        #"""
+        ids = np.full(len(bench.cobras.centers), TargetGroup.NULL_TARGET_ID)
+        for tidx, cidx in vis.items():
+            selectedTargets[cidx] = tp[tidx]
+            ids[cidx] = ""
+        for i in range(selectedTargets.size):
+            if selectedTargets[i] != TargetGroup.NULL_TARGET_POSITION:
+                dist = np.abs(selectedTargets[i] - bench.cobras.centers[i])
+                if dist > bench.cobras.L1[i] + bench.cobras.L2[i]:
+                    logger.warning(
+                        f"(CobraId={i}) Distance from the center exceeds L1+L2 ({dist} mm)"
+                    )
+            
     return res
 
 
