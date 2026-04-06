@@ -12,6 +12,7 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.table import Table
+from astropy.time import Time
 from loguru import logger
 from targetdb import targetdb
 
@@ -520,8 +521,50 @@ def fixcols_gaiadb_to_targetdb(
     input_catalog_id=None,
     exptime=900.0,
     priority=1,
+    observation_time=None,
 ):
     df.rename(columns={"source_id": "obj_id", "ref_epoch": "epoch"}, inplace=True)
+
+    if observation_time is not None:
+        motion_mask = (
+            df["epoch"].notna()
+            & df["pmra"].notna()
+            & df["pmdec"].notna()
+            & df["parallax"].notna()
+        )
+
+        if np.any(motion_mask):
+            epoch_values = pd.to_numeric(
+                df.loc[motion_mask, "epoch"].astype(str).str.removeprefix("J"),
+                errors="coerce",
+            )
+            pmra_values = pd.to_numeric(df.loc[motion_mask, "pmra"], errors="coerce")
+            pmdec_values = pd.to_numeric(df.loc[motion_mask, "pmdec"], errors="coerce")
+            parallax_values = pd.to_numeric(df.loc[motion_mask, "parallax"], errors="coerce")
+
+            valid_mask = (
+                np.isfinite(epoch_values)
+                & np.isfinite(pmra_values)
+                & np.isfinite(pmdec_values)
+                & np.isfinite(parallax_values)
+                & (parallax_values > 0.0)
+            )
+
+            if np.any(valid_mask):
+                valid_index = df.loc[motion_mask].index[valid_mask]
+                target_time = Time(observation_time)
+                coords = SkyCoord(
+                    ra=df.loc[valid_index, "ra"].to_numpy() * u.deg,
+                    dec=df.loc[valid_index, "dec"].to_numpy() * u.deg,
+                    distance=(1000.0 / parallax_values[valid_mask].to_numpy()) * u.pc,
+                    pm_ra_cosdec=pmra_values[valid_mask].to_numpy() * u.mas / u.yr,
+                    pm_dec=pmdec_values[valid_mask].to_numpy() * u.mas / u.yr,
+                    obstime=Time(epoch_values[valid_mask].to_numpy(), format="jyear"),
+                )
+                coords = coords.apply_space_motion(new_obstime=target_time)
+                df.loc[valid_index, "ra"] = coords.ra.deg
+                df.loc[valid_index, "dec"] = coords.dec.deg
+                df.loc[valid_index, "epoch"] = target_time.jyear
 
     def format_epoch(x):
         try:

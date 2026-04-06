@@ -584,6 +584,7 @@ def main():
             input_catalog_id=4,  # Gaia DR3
             exptime=60.0,
             priority=9999,
+            observation_time=args.observation_time,
         )
         if args.raster:
             df_filler["priority"] = 1
