@@ -868,6 +868,7 @@ def reconfigure_multiprocessing(
             force_exptime=dict_pointings[pointing.lower()]["single_exptime"],
             two_stage=conf["netflow"]["two_stage"],
             cobraSafetyMargin=conf["netflow"]["cobra_safety_margin"],
+            apply_nir_flag=conf["netflow"]["apply_nir_flag"],
         )
 
         try:
@@ -998,6 +999,7 @@ def reconfigure_multiprocessing(
                                     df_tmp = dbutils.fixcols_gaiadb_to_targetdb(
                                         df_tmp,
                                         input_catalog_id=4,  # Gaia DR3
+                                        observation_time=obs_time_,
                                     )
                                     df_tmp["ob_code"] = "gaiafiller_" + df_gaia_un["source_id"].astype(str) + f"_{rsl_mode}" # rename ob_code of gaia fillers
                                 if len(df_unassigned) == 0:

@@ -584,6 +584,7 @@ def main():
             input_catalog_id=4,  # Gaia DR3
             exptime=60.0,
             priority=9999,
+            observation_time=args.observation_time,
         )
         if args.raster:
             df_filler["priority"] = 1
@@ -649,6 +650,7 @@ def main():
         df_filler=df_filler,
         force_exptime=args.exptime,
         cobraSafetyMargin=cobra_safety_margin,
+        apply_nir_flag=True,
     )
     # print(vis, tp, tel, tgt, tgt_classdict)
     # print(vis.items())
