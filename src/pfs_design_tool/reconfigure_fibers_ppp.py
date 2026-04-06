@@ -868,6 +868,7 @@ def reconfigure_multiprocessing(
             force_exptime=dict_pointings[pointing.lower()]["single_exptime"],
             two_stage=conf["netflow"]["two_stage"],
             cobraSafetyMargin=conf["netflow"]["cobra_safety_margin"],
+            apply_nir_flag=conf["netflow"]["apply_nir_flag"],
         )
 
         try:

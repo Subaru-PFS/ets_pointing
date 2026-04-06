@@ -314,6 +314,7 @@ def main():
             fiber_non_allocation_cost=0.0,
             df_filler=None,
             force_exptime=args.exptime,
+            apply_nir_flag=True,
         )
 
         # print(vis)

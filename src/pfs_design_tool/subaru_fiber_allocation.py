@@ -649,6 +649,7 @@ def main():
         df_filler=df_filler,
         force_exptime=args.exptime,
         cobraSafetyMargin=cobra_safety_margin,
+        apply_nir_flag=True,
     )
     # print(vis, tp, tel, tgt, tgt_classdict)
     # print(vis.items())

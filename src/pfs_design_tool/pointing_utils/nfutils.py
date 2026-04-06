@@ -112,7 +112,7 @@ def getBench(
     return bench
 
 
-def register_objects(df, target_class=None, force_priority=None, force_exptime=None):
+def register_objects(df, target_class=None, force_priority=None, force_exptime=None, apply_nir_flag=True):
     df["netflow_id"] = df["obj_id"].astype(str) + "_" + df["input_catalog_id"].astype(str)
 
     if target_class == "sci":
@@ -133,27 +133,44 @@ def register_objects(df, target_class=None, force_priority=None, force_exptime=N
             if epoch_value.startswith("J"):
                 epoch_value = epoch_value[1:]  # Remove the 'J' character
 
-            if df["qa_reference_arm"].values[i] == "n":
-                req_flags_ = 0 # targets requesting NIR
-            else:
-                req_flags_ = 1 # targets no requesting NIR
+            if apply_nir_flag:
+                if df["qa_reference_arm"].values[i] == "n":
+                    req_flags_ = 0
+                else:
+                    req_flags_ = 1
 
-            res.append(
-                nf.ScienceTarget(
-                    # df["obj_id"][i],
-                    df["netflow_id"].values[i],
-                    df["ra"].values[i],
-                    df["dec"].values[i],
-                    exptime,
-                    priority,
-                    target_class,
-                    pmra=df["pmra"].values[i],
-                    pmdec=df["pmdec"].values[i],
-                    parallax=df["parallax"].values[i],
-                    epoch=float(epoch_value),
-                    req_flags=req_flags_,
+                res.append(
+                    nf.ScienceTarget(
+                        # df["obj_id"][i],
+                        df["netflow_id"].values[i],
+                        df["ra"].values[i],
+                        df["dec"].values[i],
+                        exptime,
+                        priority,
+                        target_class,
+                        pmra=df["pmra"].values[i],
+                        pmdec=df["pmdec"].values[i],
+                        parallax=df["parallax"].values[i],
+                        epoch=float(epoch_value),
+                        req_flags=req_flags_,
+                    )
                 )
-            )
+            else:
+                res.append(
+                    nf.ScienceTarget(
+                        # df["obj_id"][i],
+                        df["netflow_id"].values[i],
+                        df["ra"].values[i],
+                        df["dec"].values[i],
+                        exptime,
+                        priority,
+                        target_class,
+                        pmra=df["pmra"].values[i],
+                        pmdec=df["pmdec"].values[i],
+                        parallax=df["parallax"].values[i],
+                        epoch=float(epoch_value),
+                    )
+                )
     elif target_class == "cal":
         res = []
 
@@ -236,6 +253,7 @@ def run_netflow(
     stage=0.0,
     preassigned=None,
     cobraSafetyMargin=0.0,
+    apply_nir_flag=True,
 ):
     # print(bench.cobras.status)
     # exit()
@@ -247,36 +265,12 @@ def run_netflow(
         return 0.1 * dist
 
     if dot_penalty is not None:
-
         def black_dot_penalty_cost(dist):
             return max(0, dot_penalty * (1 - 0.5 * dist))
-
     else:
         black_dot_penalty_cost = None
-
-
-    # set pfs_utils data path
-    pfs_utils_path = get_pfs_utils_path()
-
-    # Limit spectral modules
-    gfm = FiberIds(path=pfs_utils_path)  # 2604
-    
-    cobra_idx_n2 = gfm.cobrasForSpectrograph(spectrographId=2)
-    cobra_idx_n2 = cobra_idx_n2[cobra_idx_n2<=2394]
-
-    cobra_idx_n2 = np.array(cobra_idx_n2)
-    mask_n2 = np.zeros(2394, dtype=bool)
-    mask_n2[cobra_idx_n2] = True
-    flag_n2 = np.array([0] * 2394)
-    flag_n2[mask_n2] = 1 # cobras of module 2 can not provide NIR
-
-    # compute observation strategy
-    prob = nf.buildProblem(
-        bench,
-        targets,
-        target_fppos,
-        class_dict,
-        exptime,
+        
+    build_problem_kwargs = dict(
         vis_cost=vis_cost,
         cobraMoveCost=cobra_move_cost if cobraMoveCost is None else cobraMoveCost,
         collision_distance=collision_distance,
@@ -298,7 +292,30 @@ def run_netflow(
         stage=stage,
         preassigned=preassigned,
         cobraSafetyMargin=cobraSafetyMargin,
-        cobraFeatureFlags=flag_n2,#None,
+    )
+
+    if apply_nir_flag:
+        pfs_utils_path = get_pfs_utils_path()
+        gfm = FiberIds(path=pfs_utils_path)  # 2604
+
+        cobra_idx_n2 = gfm.cobrasForSpectrograph(spectrographId=2)
+        cobra_idx_n2 = cobra_idx_n2[cobra_idx_n2 <= 2394]
+
+        cobra_idx_n2 = np.array(cobra_idx_n2)
+        mask_n2 = np.zeros(2394, dtype=bool)
+        mask_n2[cobra_idx_n2] = True
+        flag_n2 = np.array([0] * 2394)
+        flag_n2[mask_n2] = 1
+        build_problem_kwargs["cobraFeatureFlags"] = flag_n2
+
+    # compute observation strategy
+    prob = nf.buildProblem(
+        bench,
+        targets,
+        target_fppos,
+        class_dict,
+        exptime,
+        **build_problem_kwargs,
     )
 
     print("solving the problem")
@@ -363,15 +380,14 @@ def fiber_allocation(
     force_exptime=None,
     two_stage=False,
     cobraSafetyMargin=0.0,
+    apply_nir_flag=True,
 ):
     targets = []
 
     min_exptime, max_exptime_targets, max_exptime_filler = 10.0, 0.0, 0.0
 
     if not df_targets.empty:
-        targets += register_objects(
-            df_targets, target_class="sci", force_exptime=force_exptime
-        )
+        targets += register_objects(df_targets, target_class="sci", force_exptime=force_exptime, apply_nir_flag=apply_nir_flag)
         max_exptime_targets = df_targets["effective_exptime"].max()
 
     # print(len(targets))
@@ -385,9 +401,7 @@ def fiber_allocation(
 
     if (df_filler is not None) and not two_stage:
         print("[single-stage] Registering stars for fillers.")
-        targets += register_objects(
-            df_filler, target_class="sci", force_exptime=force_exptime
-        )
+        targets += register_objects(df_filler, target_class="sci", force_exptime=force_exptime, apply_nir_flag=apply_nir_flag)
         max_exptime_filler = df_filler["effective_exptime"].max()
 
     # print(len(targets))
@@ -593,6 +607,7 @@ def fiber_allocation(
         numReservedFibers=num_reserved_fibers,
         fiberNonAllocationCost=fiber_non_allocation_cost,
         cobraSafetyMargin=cobraSafetyMargin,
+        apply_nir_flag=apply_nir_flag,
     )
 
     if not two_stage:
@@ -616,9 +631,7 @@ def fiber_allocation(
         # add fillers for the 2nd-stage assignment
         if df_filler is not None:
             print("[2-stage] Registering stars for fillers.")
-            targets += register_objects(
-                df_filler, target_class="sci", force_exptime=force_exptime
-            )
+            targets += register_objects(df_filler, target_class="sci", force_exptime=force_exptime, apply_nir_flag=apply_nir_flag)
             max_exptime_filler = df_filler["effective_exptime"].max()
 
         # get focal plane positions for all targets and all visits
@@ -649,6 +662,7 @@ def fiber_allocation(
             fiberNonAllocationCost=fiber_non_allocation_cost,
             preassigned=[assign_1stage],
             cobraSafetyMargin=cobraSafetyMargin,
+            apply_nir_flag=apply_nir_flag,
         )
 
         return (
