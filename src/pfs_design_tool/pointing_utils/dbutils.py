@@ -230,11 +230,22 @@ def generate_fluxstds_from_targetdb(
         filters.append(f"AND teff_brutus BETWEEN {min_teff} AND {max_teff}")
 
     if fluxstd_versions is not None:
-        fluxstd_version = str(fluxstd_versions)
-        filters.append(f"AND (version = '{fluxstd_version}')")
+        if isinstance(fluxstd_versions, (list, tuple, set, np.ndarray)):
+            fluxstd_version_list = [str(version) for version in fluxstd_versions]
+        else:
+            fluxstd_version_list = [str(fluxstd_versions)]
+
+        if len(fluxstd_version_list) == 1:
+            filters.append(f"AND (version = '{fluxstd_version_list[0]}')")
+        else:
+            version_values = ", ".join(
+                f"'{version}'" for version in fluxstd_version_list
+            )
+            filters.append(f"AND (version IN ({version_values}))")
 
         try:
-            if float(fluxstd_version) >= 3.5:
+            numeric_versions = [float(version) for version in fluxstd_version_list]
+            if max(numeric_versions) >= 3.5:
                 filters.append("AND (is_gc_neighbor = False)")
                 filters.append("AND (is_dense_region = False)")
         except (TypeError, ValueError):
