@@ -1087,12 +1087,24 @@ def reconfigure_multiprocessing(
 
         fluxstd_mask = design.targetType == 3
         fluxstd_proposal_ids = np.asarray(design.proposalId[fluxstd_mask], dtype=object)
-        n_dup_science_fluxstd = sum(
-            proposal_id is not None
+        dup_science_fluxstd_ids = [
+            str(proposal_id).strip()
+            for proposal_id in fluxstd_proposal_ids
+            if proposal_id is not None
             and not pd.isna(proposal_id)
             and str(proposal_id).strip() != ""
-            for proposal_id in fluxstd_proposal_ids
+        ]
+        n_dup_science_fluxstd = sum(
+            1 for _ in dup_science_fluxstd_ids
         )
+        if n_dup_science_fluxstd > 0:
+            dup_fluxstd_by_proposal = pd.Series(dup_science_fluxstd_ids).value_counts()
+            dup_fluxstd_detail = ", ".join(
+                f"{proposal_id}: {count}"
+                for proposal_id, count in dup_fluxstd_by_proposal.items()
+            )
+        else:
+            dup_fluxstd_detail = "none"
 
         logger.info(
             f"pfsDesign file {design.filename} for {pointing} is created in the {design_dir} directory."
@@ -1106,6 +1118,9 @@ def reconfigure_multiprocessing(
             "Number of FLUXSTD fibers: {:} (including {:} duplicated science targets)".format(
                 len(np.where(fluxstd_mask)[0]), n_dup_science_fluxstd
             )
+        )
+        logger.info(
+            f"Duplicated science targets in FLUXSTD by proposalId: {dup_fluxstd_detail}"
         )
         logger.info(
             "Number of SKY fibers: {:}".format(len(np.where(design.targetType == 2)[0]))
