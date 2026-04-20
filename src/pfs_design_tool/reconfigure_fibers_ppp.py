@@ -910,6 +910,15 @@ def reconfigure_multiprocessing(
             )
             assigned_ra = np.array([tgt[tidx].ra for tidx, _ in vis.items()])
             assigned_dec = np.array([tgt[tidx].dec for tidx, _ in vis.items()])
+            classic_program_ids = None
+            if conf["ppp"]["mode"] == "classic" and "proposal_id" in df_sci.columns:
+                classic_program_ids = sorted(
+                    {
+                        str(proposal_id).strip()
+                        for proposal_id in df_sci["proposal_id"].dropna().tolist()
+                        if str(proposal_id).strip() != ""
+                    }
+                )
             logger.warning(
                 f"The number of Unassigned + disabled fibers (n = {len(unassigned)})"
             )
@@ -930,7 +939,7 @@ def reconfigure_multiprocessing(
                     # Search for objects around unassigned cobra.
                     #"""
                     if conf["ppp"]["mode"] == "classic":
-                        pslId_ = conf["ppp"]["proposalIds"] + conf["sfa"]["proposalIds_obsFiller"]
+                        pslId_ = classic_program_ids
                     else:
                         pslId_ = None
                     df_sci_un = dbutils.generate_targets_from_targetdb(
@@ -951,22 +960,25 @@ def reconfigure_multiprocessing(
                         #print(df_sci_un[["ob_code", "rank", "priority"]])
                     #"""
 
-                    df_gaia_un = dbutils.generate_targets_from_gaiadb(
-                        ra_un,
-                        dec_un,
-                        conf=conf,
-                        search_radius=conf["sfa"][
-                            "fill_unassign_radius"
-                        ],  # 25/3600. ,  # Take patrol region as radius of 25" (~3mm physically) in degree. It is better to make it configurable.
-                        band_select="phot_g_mean_mag",
-                        mag_min=conf["sfa"][
-                            "fill_unassign_gaia_mag"
-                        ],  # 18.0,  # It is better to make it configurable.
-                        mag_max=99.0,
-                        good_astrometry=False,
-                        write_csv=False,
-                    )
-                    df_gaia_un = df_gaia_un[df_gaia_un["phot_bp_mean_mag"].notna()]
+                    if conf["ppp"]["mode"] == "classic":
+                        df_gaia_un = pd.DataFrame()
+                    else:
+                        df_gaia_un = dbutils.generate_targets_from_gaiadb(
+                            ra_un,
+                            dec_un,
+                            conf=conf,
+                            search_radius=conf["sfa"][
+                                "fill_unassign_radius"
+                            ],  # 25/3600. ,  # Take patrol region as radius of 25" (~3mm physically) in degree. It is better to make it configurable.
+                            band_select="phot_g_mean_mag",
+                            mag_min=conf["sfa"][
+                                "fill_unassign_gaia_mag"
+                            ],  # 18.0,  # It is better to make it configurable.
+                            mag_max=99.0,
+                            good_astrometry=False,
+                            write_csv=False,
+                        )
+                        df_gaia_un = df_gaia_un[df_gaia_un["phot_bp_mean_mag"].notna()]
 
                     df_sky_un = dbutils.generate_skyobjects_from_targetdb(
                         ra_un,
