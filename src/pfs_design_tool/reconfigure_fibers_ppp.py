@@ -665,6 +665,13 @@ def reconfigure_multiprocessing(
                     dup_index = df_fluxstds.index[dup_pos]
                     matched_usr = df_usr_nocut.iloc[idx_usr[dup_mask]].reset_index(drop=True)
 
+                    keep_dup_mask = np.ones(len(matched_usr), dtype=bool)
+                    if conf["ppp"]["mode"] == "classic":
+                        keep_dup_mask = (
+                            matched_usr["proposal_id"].astype(str).str.strip()
+                            == "S25A-000QF"
+                        ).to_numpy()
+
                     # Ensure destination columns exist and string columns accept text values.
                     for col in ["proposal_id", "input_catalog_id", "obj_id", "ob_code"]:
                         if col not in df_fluxstds.columns:
@@ -672,11 +679,13 @@ def reconfigure_multiprocessing(
                     df_fluxstds["proposal_id"] = df_fluxstds["proposal_id"].astype(object)
                     df_fluxstds["ob_code"] = df_fluxstds["ob_code"].astype(object)
 
-                    fluxstd_ids = df_fluxstds.loc[dup_index, "fluxstd_id"].astype(str).to_numpy()
+                    keep_dup_index = dup_index[keep_dup_mask]
+                    matched_usr_keep = matched_usr.iloc[keep_dup_mask].reset_index(drop=True)
+                    fluxstd_ids = df_fluxstds.loc[keep_dup_index, "fluxstd_id"].astype(str).to_numpy()
 
                     # Assign scalar-by-scalar to avoid dtype/broadcast issues on masked vector assignment.
-                    for i, flux_idx in enumerate(dup_index):
-                        usr_row = matched_usr.iloc[i]
+                    for i, flux_idx in enumerate(keep_dup_index):
+                        usr_row = matched_usr_keep.iloc[i]
                         df_fluxstds.at[flux_idx, "proposal_id"] = usr_row["proposal_id"]
                         df_fluxstds.at[flux_idx, "input_catalog_id"] = usr_row["input_catalog_id"]
                         df_fluxstds.at[flux_idx, "obj_id"] = usr_row["obj_id"]
@@ -684,9 +693,23 @@ def reconfigure_multiprocessing(
                             flux_idx, "ob_code"
                         ] = f"{usr_row['ob_code']}_dup_fluxstd_{fluxstd_ids[i]}"
 
-                    logger.info(
-                        f"Found {n_dup} duplicate fluxstds; updated proposal_id/input_catalog_id/obj_id/ob_code from filler targets"
-                    )
+                    if conf["ppp"]["mode"] == "classic":
+                        remove_dup_index = dup_index[~keep_dup_mask]
+                        if len(remove_dup_index) > 0:
+                            df_fluxstds = df_fluxstds.drop(index=remove_dup_index).reset_index(drop=True)
+
+                    if conf["ppp"]["mode"] == "classic":
+                        logger.info(
+                            "Found {} duplicate fluxstds in classic mode; kept {} with S25A-000QF and removed {} others".format(
+                                n_dup,
+                                int(np.sum(keep_dup_mask)),
+                                int(np.sum(~keep_dup_mask)),
+                            )
+                        )
+                    else:
+                        logger.info(
+                            f"Found {n_dup} duplicate fluxstds; updated proposal_id/input_catalog_id/obj_id/ob_code from filler targets"
+                        )
 
         # get filler targets (optional)
         if conf["sfa"]["filler"] == False:
