@@ -1085,6 +1085,15 @@ def reconfigure_multiprocessing(
 
         print("### design saved ###")
 
+        fluxstd_mask = design.targetType == 3
+        fluxstd_proposal_ids = np.asarray(design.proposalId[fluxstd_mask], dtype=object)
+        n_dup_science_fluxstd = sum(
+            proposal_id is not None
+            and not pd.isna(proposal_id)
+            and str(proposal_id).strip() != ""
+            for proposal_id in fluxstd_proposal_ids
+        )
+
         logger.info(
             f"pfsDesign file {design.filename} for {pointing} is created in the {design_dir} directory."
         )
@@ -1094,8 +1103,8 @@ def reconfigure_multiprocessing(
             )
         )
         logger.info(
-            "Number of FLUXSTD fibers: {:}".format(
-                len(np.where(design.targetType == 3)[0])
+            "Number of FLUXSTD fibers: {:} (including {:} duplicated science targets)".format(
+                len(np.where(fluxstd_mask)[0]), n_dup_science_fluxstd
             )
         )
         logger.info(
