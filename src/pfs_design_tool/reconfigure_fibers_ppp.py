@@ -1087,12 +1087,13 @@ def reconfigure_multiprocessing(
 
         fluxstd_mask = design.targetType == 3
         fluxstd_proposal_ids = np.asarray(design.proposalId[fluxstd_mask], dtype=object)
+        invalid_duplicate_proposal_ids = {"", "N/A", "NA", "NONE", "NULL", "NAN"}
         dup_science_fluxstd_ids = [
             str(proposal_id).strip()
             for proposal_id in fluxstd_proposal_ids
             if proposal_id is not None
             and not pd.isna(proposal_id)
-            and str(proposal_id).strip() != ""
+            and str(proposal_id).strip().upper() not in invalid_duplicate_proposal_ids
         ]
         n_dup_science_fluxstd = sum(
             1 for _ in dup_science_fluxstd_ids
