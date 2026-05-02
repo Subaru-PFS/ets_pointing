@@ -62,7 +62,7 @@ def generate_targets_from_targetdb(
         if "r" in arms:
             extra_where = "AND is_medium_resolution IS FALSE"
 
-    query_string = f"""SELECT ob_code,obj_id,c.input_catalog_id,ra,dec,epoch,priority,pmra,pmdec,parallax,effective_exptime,single_exptime,qa_reference_arm,is_medium_resolution,proposal.proposal_id,rank,grade,allocated_time_lr+allocated_time_mr as \"allocated_time\",allocated_time_lr,allocated_time_mr,filter_g,filter_r,filter_i,filter_z,filter_y,psf_flux_g,psf_flux_r,psf_flux_i,psf_flux_z,psf_flux_y,psf_flux_error_g,psf_flux_error_r,psf_flux_error_i,psf_flux_error_z,psf_flux_error_y,total_flux_g,total_flux_r,total_flux_i,total_flux_z,total_flux_y,total_flux_error_g,total_flux_error_r,total_flux_error_i,total_flux_error_z,total_flux_error_y
+    query_string = f"""SELECT ob_code,obj_id,c.input_catalog_id,ra,dec,epoch,priority,pmra,pmdec,parallax,effective_exptime,single_exptime,qa_reference_arm,is_medium_resolution,proposal.proposal_id,rank,grade,allocated_time_lr+allocated_time_mr as \"allocated_time\",allocated_time_lr,allocated_time_mr,filter_g,filter_r,filter_i,filter_z,filter_y,psf_flux_g,psf_flux_r,psf_flux_i,psf_flux_z,psf_flux_y,psf_flux_error_g,psf_flux_error_r,psf_flux_error_i,psf_flux_error_z,psf_flux_error_y,total_flux_g,total_flux_r,total_flux_i,total_flux_z,total_flux_y,total_flux_error_g,total_flux_error_r,total_flux_error_i,total_flux_error_z,total_flux_error_y,target_type_id
     FROM {tablename} JOIN input_catalog AS c ON {tablename}.input_catalog_id = c.input_catalog_id JOIN proposal ON {tablename}.proposal_id=proposal.proposal_id
     WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
     AND c.active
@@ -73,7 +73,7 @@ def generate_targets_from_targetdb(
     if input_catalog is not None:
         query_string += (
             " AND ("
-            + "OR".join([f" input_catalog_id={v} " for v in input_catalog])
+            + "OR".join([f" {tablename}.input_catalog_id={v} " for v in input_catalog])
             + ")"
         )
 
@@ -100,6 +100,7 @@ def generate_targets_from_targetdb(
     mask_keep = (
         ((df["proposal_id"].str.startswith("S25B")) & (df["grade"].isin(["B", "C", "F"])))
         | ((df["proposal_id"].str.startswith("S25A")) & (df["grade"].isin(["F", "G"])))
+        | (df['proposal_id'].str.contains('EN16'))
     )
     
     df = df.loc[mask_keep].reset_index(drop=True)
@@ -141,6 +142,8 @@ def generate_targets_from_targetdb(
                 for col in flux_cols
             ]):
                 mask_not_g[i] = True
+        elif "EN16" in row["proposal_id"]:
+            mask_not_g[i] = True
         else:
             continue
                 

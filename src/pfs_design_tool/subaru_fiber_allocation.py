@@ -464,6 +464,8 @@ def main():
         max_priority=args.target_priority_max,
     )
 
+    logger.info(f"Fetched target DataFrame: \n{df_targets}")
+
     ## FIXME: temporal workaround for GE targets ##
     if args.input_catalog == [10] and args.proposal_id == [
         "S23A-QN900",
@@ -719,9 +721,10 @@ def main():
                         print(
                             f"I found a source for {cidx}: {row[1]} (df index is {row[0]})."
                         )
-                        df_tmp = df_gaia_un[row[0] : row[0] + 1]
+                        df_tmp = df_gaia_un[row[0] : row[0] + 1].copy()
                         df_tmp["cidx"] = cidx
-                        df_unassigned = pd.concat([df_unassigned, df_tmp])
+                        if not df_tmp.empty:
+                            df_unassigned = pd.concat([df_unassigned, df_tmp])
                         break
             else:
                 print(f"No gaia object around {cidx}")
@@ -731,9 +734,12 @@ def main():
         df_unassigned,
         input_catalog_id=4,  # Gaia DR3
     )
+    df_unassigned["source_type"] = "gaia"
+
     print(f"{len(df_unassigned)} targets were found.")
     # 2025.10 fill as many unassigned fibers as possible -- end
 
+    print(df_unassigned)
     # generate pfsDesign
     design = designutils.generate_pfs_design(
         df_targets,

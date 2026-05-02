@@ -326,14 +326,16 @@ class CheckDesign(object):
 
     def configGeometry(self):
         # get cobra+dots geometry
-        sys.path.append(os.path.join(self.repoDir, "ics_fpsActor/python"))
-        sys.path.append(os.path.join(self.repoDir, "spt_operational_database/python"))
-        sys.path.append(os.path.join(self.repoDir, "ics_cobraCharmer/python"))
-        sys.path.append(os.path.join(self.repoDir, "ics_cobraOps/python"))
+        #sys.path.append(os.path.join(self.repoDir, "ics_fpsActor/python"))
+        #sys.path.append(os.path.join(self.repoDir, "spt_operational_database/python"))
+        #sys.path.append(os.path.join(self.repoDir, "ics_cobraCharmer/python"))
+        #sys.path.append(os.path.join(self.repoDir, "ics_cobraOps/python"))
 
         from ics.cobraCharmer.pfiDesign import PFIDesign
         from ics.cobraOps.Bench import Bench
         from ics.cobraOps.BlackDotsCalibrationProduct import BlackDotsCalibrationProduct
+        from ics.cobraOps.CollisionSimulator import CollisionSimulator
+        from ics.cobraOps.TargetGroup import TargetGroup
 
         # from ics.cobraOps.CollisionSimulator2 import CollisionSimulator2
         # from ics.cobraOps.TargetGroup import TargetGroup
@@ -388,7 +390,7 @@ class CheckDesign(object):
             # set Bad Cobra status for unused spectral modules
             for cobra_id in range(calibrationProduct.nCobras):
                 if cobra_id not in self.cobra_ids_use:
-                    calibrationProduct.status[cobra_id] = ~PFIDesign.COBRA_OK_MASK
+                    calibrationProduct.status[cobra_id] = PFIDesign.COBRA_BROKEN_MOTOR_MASK
 
             # Get the black dots calibration product
             calibrationFileName = os.path.join(
