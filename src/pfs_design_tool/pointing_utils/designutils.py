@@ -719,7 +719,13 @@ def generate_pfs_design(
         if ep[0] != "J":
             epoch[i] = "J" + ep
 
-    versions = {"pfs_utils": getVersion("pfs_utils")}
+    versions = {}
+    versionKeys = ["pfs_utils", "pfs_instdata"]
+    for versionKey in versionKeys:
+        try:
+            versions[versionKey] = getVersion(versionKey)
+        except:
+            pass
 
     pfs_design = makePfsDesign(
         pfi_nominal,
