@@ -99,8 +99,8 @@ def getBench(
     calibrationFileName = os.path.join(
         os.environ["PFS_INSTDATA_DIR"], "data/pfi/dot", "black_dots_mm.csv"
     )
-    blackDotsCalibrationProduct = BlackDotsCalibrationProduct(calibrationFileName)
-
+    blackDotsCalibrationProduct = BlackDotsCalibrationProduct.from_file(calibrationFileName)
+    #blackDotsCalibrationProduct = None
     # Create the bench instance
     bench = Bench(
         cobraCoach=cobraCoach,

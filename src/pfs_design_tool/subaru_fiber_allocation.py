@@ -470,6 +470,8 @@ def main():
 
     df_targets["target_type_id"] = TargetType.SCIENCE
 
+    logger.info(f"Fetched target DataFrame: \n{df_targets}")
+    
     ## FIXME: temporal workaround for GE targets ##
     if args.input_catalog == [10] and args.proposal_id == [
         "S23A-QN900",
