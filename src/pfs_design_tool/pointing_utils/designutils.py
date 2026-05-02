@@ -14,6 +14,7 @@ from pfs.utils.coordinates.CoordTransp import ag_pfimm_to_pixel
 from pfs.utils.fiberids import FiberIds
 from pfs.utils.pfsDesignUtils import makePfsDesign, setFiberStatus
 from pfs.utils.datamodel import ag
+from pfs.utils.versions import getVersion
 
 from ..utils import get_pfs_utils_path
 from .dbutils import connect_subaru_gaiadb
@@ -718,6 +719,8 @@ def generate_pfs_design(
         if ep[0] != "J":
             epoch[i] = "J" + ep
 
+    versions = {"pfs_utils": getVersion("pfs_utils")}
+
     pfs_design = makePfsDesign(
         pfi_nominal,
         ra,
@@ -751,6 +754,7 @@ def generate_pfs_design(
         designName=design_name,
         fiberidsPath=get_pfs_utils_path(),
         obstime=obs_time,
+        versions=versions,
     )
 
     # Set the environment variables for the PFS instrument data and utilities directories
