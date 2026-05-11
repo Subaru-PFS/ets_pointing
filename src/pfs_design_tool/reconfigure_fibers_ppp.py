@@ -758,6 +758,10 @@ def reconfigure_multiprocessing(
                 obs_filler_done_remove=conf["sfa"]["obs_filler_done_remove"],
                 workDir=workDir,
             )
+            print(np.unique(df_filler_usr["priority_orig"]), np.unique(df_filler_usr["proposal_id"]))
+            if conf["ppp"]["mode"] == "classic":
+                df_filler_usr = df_filler_usr[(df_filler_usr["proposal_id"].isin(conf["ppp"]["proposalIds"]))]
+            print(np.unique(df_filler_usr["priority_orig"]), np.unique(df_filler_usr["proposal_id"]))
 
             if rsl_mode == "L":
                 df_filler_usr = df_filler_usr[
@@ -819,12 +823,9 @@ def reconfigure_multiprocessing(
                         ], ignore_index=True)
 
             # combine obs. and usr. fillers
-            if conf["ppp"]["mode"] == "classic":
-                df_filler = df_filler_obs
-            else:
-                df_filler = pd.concat([df_filler_usr, df_filler_obs])
+            df_filler = pd.concat([df_filler_usr, df_filler_obs])
             logger.info(
-                f"Fetched filler target DataFrame (obs filler = {len(df_filler_obs):.0f}, usr filler = {len(df_filler_usr):.0f}): \n{df_filler}"
+                f"Fetched filler target DataFrame (obs filler = {len(df_filler_obs):.0f}, usr filler = {len(df_filler_usr):.0f}) (usr filler: {np.unique(df_filler_usr['priority_orig'])}): \n{df_filler}"
             )
 
         if rsl_mode == "L":
@@ -939,7 +940,7 @@ def reconfigure_multiprocessing(
                     # Search for objects around unassigned cobra.
                     #"""
                     if conf["ppp"]["mode"] == "classic":
-                        pslId_ = classic_program_ids
+                        pslId_ = classic_program_ids + conf["sfa"]["proposalIds_obsFiller"]
                     else:
                         pslId_ = None
                     df_sci_un = dbutils.generate_targets_from_targetdb(
