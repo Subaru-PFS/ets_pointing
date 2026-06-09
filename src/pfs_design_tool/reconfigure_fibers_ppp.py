@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import functools
 import os
 from functools import partial
 from itertools import chain
@@ -35,6 +34,8 @@ instrument_region_penalty = None
 
 
 def get_arguments():
+    """Parse command-line arguments for PPP-based fiber reconfiguration."""
+
     parser = argparse.ArgumentParser()
 
     # input pfsDesign file
@@ -370,12 +371,16 @@ def get_arguments():
 
 
 def read_conf(conf):
+    """Load the TOML configuration used by the reconfiguration workflow."""
+
     with open(conf, "rb") as f:
         config = tomllib.load(f)
     return config
 
 
 def load_input_design(design_id, indir=".", exptime=None, bands=["g", "r", "i"]):
+    """Load a PFS design and convert its main target classes into DataFrames."""
+
     pfs_design = PfsDesign.read(pfsDesignId=design_id, dirName=indir)
 
     fib = {
@@ -435,22 +440,19 @@ def load_input_design(design_id, indir=".", exptime=None, bands=["g", "r", "i"])
                 for iobj in range(fib[target_type].objId.size)
             ]
 
-    # # print(dataframes["sci"]["total_flux"][0])
-    # print(dataframes["sci"][["filter_g", "filter_r", "filter_i"]])
-    # print(dataframes["sci"][["psf_flux_g", "psf_flux_r", "psf_flux_i"]])
-    # exit()
-
     return pfs_design, dataframes["sci"], dataframes["std"], dataframes["sky"]
 
 
 def load_ppp_results(infile: str):
+    """Load PPP output and group targets by pointing for downstream allocation."""
+
     df = pd.read_csv(infile)
-    # print(df)
 
     pointings = df["pointing"].unique()
-    n_pointings = pointings.size
     priorities = df["target_class"].unique()
-    print(pointings, n_pointings, priorities)
+    logger.info(
+        f"Loaded {pointings.size} pointings from PPP results; target classes: {list(priorities)}"
+    )
 
     dict_pointings = {}
 
@@ -523,23 +525,19 @@ def load_ppp_results(infile: str):
             "single_exptime": df_pointing["ob_single_exptime"][0],
         }
 
-    # print(dict_pointings)
-
     return pointings, dict_pointings
 
 
 def reconfigure_multiprocessing(
     list_pointings, dict_pointings, conf, workDir=".", clearOutput=False
 ):
-    obstime0 = Time("2023-06-15T10:00:00")
-    # obstime0 = Time("2023-07-01T00:00:00.000")  # UTC
-    d_obstime = 20 * u.min
+    """Reconfigure one batch of PPP pointings, optionally inside a worker process."""
 
     design_filenames = []
     observation_times = []
     observation_dates_in_hst = []
 
-    # convert toml "None" to None
+    # Normalize TOML string placeholders so the downstream APIs receive real None values.
     if conf["sfa"]["cobra_coach_module_version"].lower() == "none":
         cobra_coach_module_version = None
     else:
@@ -553,7 +551,9 @@ def reconfigure_multiprocessing(
     for i, pointing in enumerate(list_pointings):
         if clearOutput:
             clear_output()
-        # observation_time = Time.now().iso
+
+        # PPP stores observation timestamps in a space-separated format; convert them
+        # to the ISO-like string expected by the downstream design utilities.
         observation_time = str(dict_pointings[pointing.lower()]["observation_time"][0])
         observation_time = observation_time.replace(" ", "T") + "Z"
         observation_date_in_hst = str(
@@ -641,12 +641,8 @@ def reconfigure_multiprocessing(
             )
 
             df_usr_nocut = df_filler_nocut[
-                (df_filler_nocut["grade"] == "G")
-                |
-                (
-                    (df_filler_nocut["grade"].isin(["B", "C", "F"]))
+                (df_filler_nocut["grade"].isin(["B", "C", "F"]))
                     & df_filler_nocut["proposal_id"].str.startswith("S26A")
-                )
             ].reset_index(drop=True)
 
             if len(df_usr_nocut) > 0:
@@ -715,26 +711,6 @@ def reconfigure_multiprocessing(
         if conf["sfa"]["filler"] == False:
             df_filler = None
         elif conf["sfa"]["filler"] == True:
-            """
-            df_filler_obs = dbutils.generate_targets_from_gaiadb(
-                dict_pointings[pointing.lower()]["ra_center"],
-                dict_pointings[pointing.lower()]["dec_center"],
-                conf=conf,
-                band_select="phot_g_mean_mag",
-                mag_min=conf["sfa"]["filler_mag_min"],
-                mag_max=conf["sfa"]["filler_mag_max"],
-                good_astrometry=False,  # select bright stars which may have large astrometric errors.
-                write_csv=False,
-            )
-            df_filler_obs = dbutils.fixcols_gaiadb_to_targetdb(
-                df_filler_obs,
-                proposal_id="S24A-EN16",
-                target_type_id=1,  # SCIENCE
-                input_catalog_id=4,  # Gaia DR3
-                exptime=dict_pointings[pointing.lower()]["single_exptime"],
-                priority=10,
-            )
-            """
             df_filler, df_filler_nocut = dbutils.generate_fillers_from_targetdb(
                 dict_pointings[pointing.lower()]["ra_center"],
                 dict_pointings[pointing.lower()]["dec_center"],
@@ -760,7 +736,7 @@ def reconfigure_multiprocessing(
             )
             print(np.unique(df_filler_usr["priority_orig"]), np.unique(df_filler_usr["proposal_id"]))
             if conf["ppp"]["mode"] == "classic":
-                df_filler_usr = df_filler_usr[(df_filler_usr["proposal_id"].isin(conf["ppp"]["proposalIds"]))]
+                df_filler_usr = df_filler_usr[(df_filler_usr["proposal_id"].isin(conf["ppp"]["proposalIds"])) * (df_filler_usr["priority_orig"]>=2)]
             print(np.unique(df_filler_usr["priority_orig"]), np.unique(df_filler_usr["proposal_id"]))
 
             if rsl_mode == "L":
@@ -822,8 +798,9 @@ def reconfigure_multiprocessing(
                             obs_obs.sample(min(n_extra, len(obs_obs)), random_state=1)
                         ], ignore_index=True)
 
-            # combine obs. and usr. fillers
-            df_filler = pd.concat([df_filler_usr, df_filler_obs])
+                # Combine observed-history fillers and user-provided fillers into a
+                # single science-like table for allocation.
+                df_filler = pd.concat([df_filler_usr, df_filler_obs])
             logger.info(
                 f"Fetched filler target DataFrame (obs filler = {len(df_filler_obs):.0f}, usr filler = {len(df_filler_usr):.0f}) (usr filler: {np.unique(df_filler_usr['priority_orig'])}): \n{df_filler}"
             )
@@ -850,7 +827,7 @@ def reconfigure_multiprocessing(
         for i in range(conf["netflow"]["cobra_location_group_n"]):
             cobraRegions_[i] += i
         cobraRegions = np.concatenate(cobraRegions_)
-        print(ncobras, cobraRegions)
+        logger.info(f"Bench has {ncobras} cobras; location groups: {cobraRegions}")
 
         (
             vis,
@@ -895,15 +872,12 @@ def reconfigure_multiprocessing(
             apply_nir_flag=conf["netflow"]["apply_nir_flag"],
         )
 
-        try:
-            obs_time_ = args.observation_time
-        except NameError:
-            obs_time_ = observation_time
+        # Use the per-pointing observation time inside worker processes instead of
+        # relying on CLI globals that are not available under multiprocessing.
+        obs_time_ = observation_time
 
-        # 2025.10 fill as many unassigned fibers as possible
-        # Pickup the unassigned cobras (cobra index, 0-start)
-        # And collect ra,dec for assigned targets to check duplication
-        # print(len(vis.keys()))
+        # Optionally perform a second pass to manually populate otherwise unused
+        # fibers by searching around the patrol region of each unassigned cobra.
         df_unassigned = pd.DataFrame()
         if conf["sfa"]["fill_unassign"]:
             unassigned = np.array(
@@ -940,7 +914,7 @@ def reconfigure_multiprocessing(
                     # Search for objects around unassigned cobra.
                     #"""
                     if conf["ppp"]["mode"] == "classic":
-                        pslId_ = classic_program_ids + conf["sfa"]["proposalIds_obsFiller"]
+                        pslId_ = classic_program_ids
                     else:
                         pslId_ = None
                     df_sci_un = dbutils.generate_targets_from_targetdb(
@@ -957,9 +931,11 @@ def reconfigure_multiprocessing(
                         mag_max=conf["sfa"]["filler_mag_max"],
                     )
                     if not df_sci_un.empty:
-                        df_sci_un = df_sci_un[df_sci_un["is_medium_resolution"] == (rsl_mode == "M")].sort_values(by=["rank", "priority"], ascending=[False, True]).reset_index(drop=True)
-                        #print(df_sci_un[["ob_code", "rank", "priority"]])
-                    #"""
+                        df_sci_un = df_sci_un[
+                            df_sci_un["is_medium_resolution"] == (rsl_mode == "M")
+                        ].sort_values(
+                            by=["rank", "priority"], ascending=[False, True]
+                        ).reset_index(drop=True)
 
                     if conf["ppp"]["mode"] == "classic":
                         df_gaia_un = pd.DataFrame()
@@ -1007,7 +983,8 @@ def reconfigure_multiprocessing(
                         df_candidates = pd.DataFrame()
 
                     if len(df_candidates) > 0:  # >0 object is found
-                        # Check whether the found object is close to assigned targets and might be duplicated
+                        # Reject candidates that are effectively duplicates of already
+                        # allocated targets before assigning them to the free cobra.
                         for row in df_candidates.itertuples():
                             ra, dec = row.ra, row.dec
                             diff = np.hypot(
@@ -1022,9 +999,6 @@ def reconfigure_multiprocessing(
                                 )
                                 continue
                             else:
-                                #logger.info(
-                                #    f"A source ({row.source_type}) found for {cidx}: {row}"
-                                #)
                                 df_tmp = df_candidates.iloc[[row.Index]].copy()
                                 df_tmp["cidx"] = cidx
                                 df_tmp["ppc_code"] = ppc_code
@@ -1037,7 +1011,13 @@ def reconfigure_multiprocessing(
                                         input_catalog_id=4,  # Gaia DR3
                                         observation_time=obs_time_,
                                     )
-                                    df_tmp["ob_code"] = "gaiafiller_" + df_gaia_un["source_id"].astype(str) + f"_{rsl_mode}" # rename ob_code of gaia fillers
+                                    # Rebuild `ob_code` so manual Gaia fillers remain
+                                    # traceable in later validation steps.
+                                    df_tmp["ob_code"] = (
+                                        "gaiafiller_"
+                                        + df_tmp["source_id"].astype(str)
+                                        + f"_{rsl_mode}"
+                                    )
                                 if len(df_unassigned) == 0:
                                     df_unassigned = df_tmp.copy()
                                 else:
@@ -1063,7 +1043,6 @@ def reconfigure_multiprocessing(
                 logger.info(
                     f"Unassigned fibers saved to {out_path}"
                 )
-        # 2025.10 fill as many unassigned fibers as possible -- end
 
         design = designutils.generate_pfs_design(
             df_sci,
@@ -1118,8 +1097,7 @@ def reconfigure_multiprocessing(
         df_obj_id.to_csv(
             os.path.join(design_dir, f"{design.filename}_obj_ids.csv"), index=False
         )
-
-        print("### design saved ###")
+        logger.info(f"Saved design products for {pointing} as {design.filename}")
 
         fluxstd_mask = design.targetType == 3
         fluxstd_proposal_ids = np.asarray(design.proposalId[fluxstd_mask], dtype=object)
@@ -1177,6 +1155,8 @@ def reconfigure_multiprocessing(
 
 
 def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=False):
+    """Run PPP reconfiguration for all pointings and write a summary table."""
+
     try:
         list_pointings, dict_pointings = load_ppp_results(os.path.join(workDir, infile))
     except FileNotFoundError:
@@ -1184,9 +1164,6 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
             os.path.join(workDir, "ppp", infile)
         )
 
-    # in_design, df_sci, df_std, df_sky = load_input_design(
-    #     args.design_id, indir=args.design_indir, exptime=args.exptime
-    # )
     multiPro = conf["sfa"]["multiprocessing"]
 
     if multiPro:
@@ -1273,12 +1250,14 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
 
 
 def main():
+    """CLI entry point for the PPP reconfiguration workflow."""
+
     args = get_arguments()
 
     conf = read_conf(args.conf)
-    print(conf["netflow"]["use_gurobi"])
+    logger.info(f"Netflow gurobi enabled: {conf['netflow']['use_gurobi']}")
 
-    reconfigure(conf=conf)
+    reconfigure(conf=conf, infile=args.infile)
 
 
 if __name__ == "__main__":
