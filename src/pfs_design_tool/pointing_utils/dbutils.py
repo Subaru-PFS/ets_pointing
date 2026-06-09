@@ -188,6 +188,9 @@ def generate_fluxstds_from_targetdb(
     ignore_prob_f_star=False,
     select_from_gaia=False,
 ):
+    flux_max = (mag_min * u.ABmag).to(u.nJy).value
+    flux_min = (mag_max * u.ABmag).to(u.nJy).value
+
     try:
         fluxstd_versions = conf["targetdb"]["fluxstd"]["version"]
     except Exception:
@@ -230,11 +233,22 @@ def generate_fluxstds_from_targetdb(
         filters.append(f"AND teff_brutus BETWEEN {min_teff} AND {max_teff}")
 
     if fluxstd_versions is not None:
-        fluxstd_version = str(fluxstd_versions)
-        filters.append(f"AND (version = '{fluxstd_version}')")
+        if isinstance(fluxstd_versions, (list, tuple, set, np.ndarray)):
+            fluxstd_version_list = [str(version) for version in fluxstd_versions]
+        else:
+            fluxstd_version_list = [str(fluxstd_versions)]
+
+        if len(fluxstd_version_list) == 1:
+            filters.append(f"AND (version = '{fluxstd_version_list[0]}')")
+        else:
+            version_values = ", ".join(
+                f"'{version}'" for version in fluxstd_version_list
+            )
+            filters.append(f"AND (version IN ({version_values}))")
 
         try:
-            if float(fluxstd_version) >= 3.5:
+            numeric_versions = [float(version) for version in fluxstd_version_list]
+            if max(numeric_versions) >= 3.5:
                 filters.append("AND (is_gc_neighbor = False)")
                 filters.append("AND (is_dense_region = False)")
         except (TypeError, ValueError):
@@ -251,17 +265,30 @@ def generate_fluxstds_from_targetdb(
     t_begin = time.time()
     df = db.fetch_query(query_string)
 
-    if len(df) == 0:
+    if len(df) == 0 or dec < -25:
         # select gaia fstar when no PS1 fstar is selected
         flux_max = (mag_min * u.ABmag).to(u.nJy).value
         flux_min = (mag_max * u.ABmag).to(u.nJy).value
 
+        #query_string = f"""SELECT *
+        #   FROM {tablename}
+        #    WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
+        #    AND (is_gc_neighbor=False)
+        #    AND (is_dense_region=False)
+        #    AND filter_r= 'g_gaia'
+        #    AND is_fstar_gaia
+        #    AND teff_gspphot BETWEEN {min_teff} AND {max_teff}
+        #    AND psf_flux_r BETWEEN {flux_min} AND {flux_max}
+        #    AND prob_f_star::text = 'NaN';
+        #    """
         query_string = f"""SELECT *
             FROM {tablename}
             WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
+            AND filter_r= 'g_gaia'
             AND is_fstar_gaia
             AND teff_gspphot BETWEEN {min_teff} AND {max_teff}
-            AND psf_flux_r BETWEEN {flux_min} AND {flux_max};
+            AND psf_flux_r BETWEEN {flux_min} AND {flux_max}
+            AND prob_f_star::text = 'NaN';
             """
         logger.info(f"Query string for fluxstd (Gaia): \n{query_string}")
 
@@ -647,7 +674,7 @@ def generate_fillers_from_targetdb(
         search_radius = fp_radius_degree * fp_fudge_factor
 
     query_string = f"""SELECT
-    ob_code,obj_id,epoch,ra,dec,pmra,pmdec,parallax,qa_reference_arm,
+    ob_code,obj_id,epoch,ra,dec,pmra,pmdec,parallax,priority,effective_exptime,qa_reference_arm,
     psf_flux_g,psf_flux_r,psf_flux_i,psf_flux_z,psf_flux_y,
     psf_flux_error_g, psf_flux_error_r, psf_flux_error_i, psf_flux_error_z, psf_flux_error_y, 
     total_flux_g,total_flux_r,total_flux_i,total_flux_z,total_flux_y,
@@ -674,6 +701,8 @@ def generate_fillers_from_targetdb(
             "pmra",
             "pmdec",
             "parallax",
+            "priority",
+            "effective_exptime",
             "qa_reference_arm",
             "psf_flux_g",
             "psf_flux_r",
@@ -796,13 +825,19 @@ def fixcols_filler_targetdb(
 
     df["target_type_id"] = target_type_id
 
-    df["effective_exptime"] = exptime
+    #df["effective_exptime"] = exptime
 
     df_filler_obs = df[df["grade"].isin(["G"])]
     df_filler_usr = df[
+        #df["proposal_id"].str.startswith("S26A")
         ((df["grade"] == "C") & df["proposal_id"].str.startswith("S26A"))
         | ((df["grade"] == "F") & df["proposal_id"].str.startswith("S26A"))
     ]
+    df_filler_usr = df_filler_usr.rename(
+        columns={
+            "priority": "priority_orig",
+        }
+    )
     
     df_sci = df_no_mag_cut[df_no_mag_cut["grade"].isin(["B", "C", "F"])]
 
@@ -943,10 +978,24 @@ def fixcols_filler_targetdb(
         if file_path:
             df_usr_filler_done = pd.read_csv(file_path[0])
 
-            mask = df_filler_usr.set_index(["proposal_id", "ob_code"]).index.isin(
-                df_usr_filler_done.set_index(["psl_id", "ob_code"]).index
+            key_filler = df_filler_usr.set_index(["proposal_id", "ob_code"]).index
+
+            exp_done = df_usr_filler_done.set_index(["psl_id", "ob_code"])[
+                "eff_exptime_done_real"
+            ]
+        
+            exp_done_for_filler = key_filler.map(exp_done)
+        
+            df_filler_usr["observed"] = (
+                exp_done_for_filler > df_filler_usr["effective_exptime"].to_numpy()
             )
-            df_filler_usr.loc[mask, "observed"] = True
+            
+            # For S26A-131QN, only keep targets with eff_exptime_done_real > 3900
+            keep_mask = (
+                (exp_done_for_filler > 0)
+            )
+        
+            df_filler_usr = df_filler_usr.loc[keep_mask].copy()
 
         logger.info(
             f"There are {sum(df_filler_usr['observed'])} / {len(df_filler_usr)} observed"
