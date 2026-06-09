@@ -265,7 +265,7 @@ def generate_fluxstds_from_targetdb(
     t_begin = time.time()
     df = db.fetch_query(query_string)
 
-    if len(df) == 0 or dec < -20:
+    if len(df) == 0 or dec < -25:
         # select gaia fstar when no PS1 fstar is selected
         flux_max = (mag_min * u.ABmag).to(u.nJy).value
         flux_min = (mag_max * u.ABmag).to(u.nJy).value
