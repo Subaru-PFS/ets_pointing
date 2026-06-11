@@ -19,6 +19,46 @@ from ..utils import get_pfs_utils_path
 from .dbutils import connect_subaru_gaiadb
 
 
+def _build_version_metadata() -> tuple:
+    """Return a ("package_name", package_version) tuple describing the software
+    versions used to create a PfsDesign.
+
+    Package versions are looked up via get_installed_info() from
+    pfs_obsproc_planning.utils.pfs_packages.  The revision (git branch/tag)
+    is preferred over the commit hash, which is preferred over the pip version
+    string.  
+    """
+    try:
+        from pfs_obsproc_planning.utils.pfs_packages import get_installed_info
+    except ImportError:
+        logger.warning(
+            "pfs_obsproc_planning not importable; version metadata will be 'unknown'."
+        )
+        get_installed_info = lambda _: None  # noqa: E731
+
+    def _ver(pip_name: str) -> str:
+        """Best available version string for a pip package."""
+        info = get_installed_info(pip_name)
+        if info is None:
+            return "unknown"
+        if info["revision"]:
+            return info["revision"]
+        if info["commit_id"]:
+            return info["commit_id"][:12]
+        return info["version"] or "unknown"
+
+    return (
+        ("ics_cobraCharmer", _ver("ics_cobraCharmer")),
+        ("ics_cobraOps",     _ver("ics-cobraOps")),
+        ("ets_fiberalloc",   _ver("ets-fiber-assigner")),
+        ("pfs_instdata",     _ver("pfs_instdata")),
+        ("moduleXml",        ""),
+        ("pfs_utils",        _ver("pfs-utils")),
+        ("datamodel",        _ver("pfs-datamodel")),
+        ("author",           "Wanqiu He"),
+    )
+
+
 def generate_pfs_design(
     df_targets,
     df_fluxstds,
@@ -750,6 +790,7 @@ def generate_pfs_design(
         # guideStars=None,
         designName=design_name,
         fiberidsPath=get_pfs_utils_path(),
+        version=_build_version_metadata(),
         obstime=obs_time,
     )
 
