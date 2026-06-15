@@ -853,6 +853,8 @@ def reconfigure_multiprocessing(
             two_stage=conf["netflow"]["two_stage"],
             cobraSafetyMargin=conf["netflow"]["cobra_safety_margin"],
             apply_nir_flag=conf["netflow"]["apply_nir_flag"],
+            brokenCobrasMargin=conf["netflow"]["broken_cobras_margin"],
+            fiducialsAvoidDistance=conf["netflow"]["fiducials_avoid_distance"],
         )
 
         # Use the per-pointing observation time inside worker processes instead of

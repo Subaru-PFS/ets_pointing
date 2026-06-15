@@ -634,6 +634,8 @@ def main():
         force_exptime=args.exptime,
         cobraSafetyMargin=cobra_safety_margin,
         apply_nir_flag=True,
+        brokenCobrasMargin=conf["netflow"]["broken_cobras_margin"],
+        fiducialsAvoidDistance=conf["netflow"]["fiducials_avoid_distance"],
     )
     # print(vis, tp, tel, tgt, tgt_classdict)
     # print(vis.items())

@@ -204,10 +204,9 @@ def run_netflow(
     preassigned=None,
     cobraSafetyMargin=0.0,
     apply_nir_flag=True,
+    brokenCobrasMargin=None,
+    fiducialsAvoidDistance=None,
 ):
-    # print(bench.cobras.status)
-    # exit()
-
     # We penalize targets near the edge of a patrol region slightly to reduce
     # the chance of endpoint collisions with unallocated Cobras
     # (see note below).
@@ -242,6 +241,8 @@ def run_netflow(
         stage=stage,
         preassigned=preassigned,
         cobraSafetyMargin=cobraSafetyMargin,
+        brokenCobrasMargin=brokenCobrasMargin,
+        fiducialsAvoidDistance=fiducialsAvoidDistance,
     )
 
     if apply_nir_flag:
@@ -329,6 +330,8 @@ def fiber_allocation(
     two_stage=False,
     cobraSafetyMargin=0.0,
     apply_nir_flag=True,
+    brokenCobrasMargin=None,
+    fiducialsAvoidDistance=None,
 ):
     targets = []
 
@@ -559,6 +562,8 @@ def fiber_allocation(
         fiberNonAllocationCost=fiber_non_allocation_cost,
         cobraSafetyMargin=cobraSafetyMargin,
         apply_nir_flag=apply_nir_flag,
+        brokenCobrasMargin=brokenCobrasMargin,
+        fiducialsAvoidDistance=fiducialsAvoidDistance,
     )
 
     if not two_stage:
@@ -614,6 +619,8 @@ def fiber_allocation(
             preassigned=[assign_1stage],
             cobraSafetyMargin=cobraSafetyMargin,
             apply_nir_flag=apply_nir_flag,
+            brokenCobrasMargin=brokenCobrasMargin,
+            fiducialsAvoidDistance=fiducialsAvoidDistance,
         )
 
         return (
