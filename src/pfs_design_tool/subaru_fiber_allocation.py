@@ -344,19 +344,6 @@ def get_arguments():
         help="Location of pfs_instdata (default: None, auto-detected from PFS_INSTDATA_DIR env var or installed pfs.instdata package)",
     )
     parser.add_argument(
-        "--cobra_coach_module_version",
-        type=str,
-        default=None,
-        help="version of the bench description file (default: None)",
-    )
-    parser.add_argument(
-        "--sm",
-        nargs="+",
-        type=int,
-        default=[1, 2, 3, 4],
-        help="Spectral Modules(1 to 4) to be used (default: 1 2 3 4)",
-    )
-    parser.add_argument(
         "--dot_margin",
         type=float,
         default=1.0,
@@ -601,8 +588,6 @@ def main():
     bench = nfutils.getBench(
         args.pfs_instdata_dir,
         args.cobra_coach_dir,
-        None,
-        args.sm,
         args.dot_margin,
     )
 
@@ -635,8 +620,6 @@ def main():
         dict(conf["gurobi"]) if conf["netflow"]["use_gurobi"] else None,
         args.pfs_instdata_dir,
         args.cobra_coach_dir,
-        args.cobra_coach_module_version,
-        args.sm,
         args.dot_margin,
         args.dot_penalty,
         cobra_location_group=cobraRegions,
