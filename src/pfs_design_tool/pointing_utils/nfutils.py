@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import contextlib
 import os
 from ast import Module
 
@@ -204,8 +205,8 @@ def run_netflow(
     preassigned=None,
     cobraSafetyMargin=0.0,
     apply_nir_flag=True,
-    brokenCobrasMargin=None,
-    fiducialsAvoidDistance=None,
+    brokenCobrasMargin=0.0,
+    fiducialsAvoidDistance=0.0,
 ):
     # We penalize targets near the edge of a patrol region slightly to reduce
     # the chance of endpoint collisions with unallocated Cobras
@@ -260,16 +261,16 @@ def run_netflow(
         build_problem_kwargs["cobraFeatureFlags"] = flag_n2
 
     # compute observation strategy
-    prob = nf.buildProblem(
-        bench,
-        targets,
-        target_fppos,
-        class_dict,
-        exptime,
-        **build_problem_kwargs,
-    )
+    with open(os.devnull, "w") as _devnull, contextlib.redirect_stdout(_devnull):
+        prob = nf.buildProblem(
+            bench,
+            targets,
+            target_fppos,
+            class_dict,
+            exptime,
+            **build_problem_kwargs,
+        )
 
-    print("solving the problem")
     prob.solve()
 
     # extract solution
@@ -281,7 +282,6 @@ def run_netflow(
                 _, _, tidx, cidx, ivis = k1.split("_")
                 res[int(ivis)][int(tidx)] = int(cidx)
         
-    print("Checking for distancre from the cobra center")
     for ivis, (vis, tp) in enumerate(zip(res, target_fppos)):
         selectedTargets = np.full(
             len(bench.cobras.centers), TargetGroup.NULL_TARGET_POSITION
@@ -330,8 +330,8 @@ def fiber_allocation(
     two_stage=False,
     cobraSafetyMargin=0.0,
     apply_nir_flag=True,
-    brokenCobrasMargin=None,
-    fiducialsAvoidDistance=None,
+    brokenCobrasMargin=0.0,
+    fiducialsAvoidDistance=0.0,
 ):
     targets = []
 
