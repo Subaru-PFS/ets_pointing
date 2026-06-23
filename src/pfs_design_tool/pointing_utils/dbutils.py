@@ -719,6 +719,20 @@ def generate_fillers_from_targetdb(
                 "total_flux_i",
                 "total_flux_z",
                 "total_flux_y",
+                "total_flux_error_g",
+                "total_flux_error_r",
+                "total_flux_error_i",
+                "total_flux_error_z",
+                "total_flux_error_y",
+                "filter_g",
+                "filter_r",
+                "filter_i",
+                "filter_z",
+                "filter_y",
+                "proposal_id",
+                "grade",
+                "input_catalog_id",
+                "is_medium_resolution",
             ],
         )
 
@@ -815,11 +829,16 @@ def fixcols_filler_targetdb(
     #df["effective_exptime"] = exptime
 
     df_filler_obs = df[df["grade"].isin(["G"])]
-    df_filler_usr = df[
-        #df["proposal_id"].str.startswith("S26A")
-        ((df["grade"] == "C") & df["proposal_id"].str.startswith("S26A"))
-        | ((df["grade"] == "F") & df["proposal_id"].str.startswith("S26A"))
-    ]
+
+    if conf["ppp"]["mode"] == "classic":
+        df_filler_usr = df[
+            df["proposal_id"].str.startswith("S26A")
+        ]
+    else:
+        df_filler_usr = df[
+            ((df["grade"] == "C") & df["proposal_id"].str.startswith("S26A"))
+            | ((df["grade"] == "F") & df["proposal_id"].str.startswith("S26A"))
+        ]
     df_filler_usr = df_filler_usr.rename(
         columns={
             "priority": "priority_orig",

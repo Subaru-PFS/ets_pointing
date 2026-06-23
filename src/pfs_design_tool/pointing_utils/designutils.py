@@ -790,7 +790,7 @@ def generate_pfs_design(
         # guideStars=None,
         designName=design_name,
         fiberidsPath=get_pfs_utils_path(),
-        version=_build_version_metadata(),
+        versions=_build_version_metadata(),
         obstime=obs_time,
     )
 
