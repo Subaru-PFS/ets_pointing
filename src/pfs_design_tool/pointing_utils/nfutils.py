@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 
+import contextlib
 import os
 from ast import Module
 
 import ets_fiber_assigner.netflow as nf
 import numpy as np
-from ics.cobraCharmer.pfiDesign import PFIDesign
 from ics.cobraOps.Bench import Bench
-from ics.cobraOps.BlackDotsCalibrationProduct import BlackDotsCalibrationProduct
-from ics.cobraOps.CollisionSimulator import CollisionSimulator
 from ics.cobraOps.TargetGroup import TargetGroup
 
 # import argparse
@@ -46,10 +44,9 @@ from ..utils import get_pfs_instdata_path, get_pfs_utils_path
 def getBench(
     pfs_instdata_dir,
     cobra_coach_dir,
-    cobra_coach_module_version,
-    sm,
     black_dot_radius_margin,
 ):
+    """Load the cobra bench model from pfs_instdata and cobraCoach."""
     if pfs_instdata_dir is None:
         pfs_instdata_dir = get_pfs_instdata_path()
     if pfs_instdata_dir is None:
@@ -61,54 +58,8 @@ def getBench(
     cobraCoach = CobraCoach(
         loadModel=True, trajectoryMode=True, rootDir=cobra_coach_dir
     )
-
-    # Get the calibration product
-    calibrationProduct = cobraCoach.calibModel
-
-    # Fix the phi and tht angles for some of the cobras
-    wrongAngles = calibrationProduct.phiIn == 0
-    calibrationProduct.phiIn[wrongAngles] = -np.pi
-    calibrationProduct.phiOut[wrongAngles] = 0
-    calibrationProduct.tht0[wrongAngles] = 0
-    calibrationProduct.tht1[wrongAngles] = (2.1 * np.pi) % (2 * np.pi)
-    print(f"Number of cobras with wrong phi and tht angles: {np.sum(wrongAngles)}")
-
-    # Check if there is any cobra with too short or too long link lengths
-    tooShortLinks = np.logical_or(calibrationProduct.L1 < 1, calibrationProduct.L2 < 1)
-    tooLongLinks = np.logical_or(calibrationProduct.L1 > 5, calibrationProduct.L2 > 5)
-    print(f"Number of cobras with too short link lenghts: {np.sum(tooShortLinks)}")
-    print(f"Number of cobras with too long link lenghts: {np.sum(tooLongLinks)}")
-
-    # set pfs_utils data path
-    pfs_utils_path = get_pfs_utils_path()
-
-    # Limit spectral modules
-    gfm = FiberIds(path=pfs_utils_path)  # 2604
-    cobra_ids_use = np.array([], dtype=np.uint16)
-    for sm_use in sm:
-        cobra_ids_use = np.append(cobra_ids_use, gfm.cobrasForSpectrograph(sm_use))
-
-    # print(cobra_ids_use)
-
-    # set Bad Cobra status for unused spectral modules
-    for cobra_id in range(calibrationProduct.nCobras):
-        if cobra_id not in cobra_ids_use:
-            calibrationProduct.status[cobra_id] = ~PFIDesign.COBRA_OK_MASK
-
-    # Get the black dots calibration product
-    calibrationFileName = os.path.join(
-        os.environ["PFS_INSTDATA_DIR"], "data/pfi/dot", "black_dots_mm.csv"
-    )
-    blackDotsCalibrationProduct = BlackDotsCalibrationProduct(calibrationFileName)
-
-    # Create the bench instance
-    bench = Bench(
-        cobraCoach=cobraCoach,
-        blackDotsCalibrationProduct=blackDotsCalibrationProduct,
-        blackDotsMargin=black_dot_radius_margin,
-    )
-    print("Number of cobras:", bench.cobras.nCobras)
-
+    bench = Bench(cobraCoach, blackDotsMargin=black_dot_radius_margin)
+    logger.info(f"Number of cobras: {bench.cobras.nCobras}")
     return bench
 
 
@@ -254,10 +205,9 @@ def run_netflow(
     preassigned=None,
     cobraSafetyMargin=0.0,
     apply_nir_flag=True,
+    brokenCobrasMargin=0.0,
+    fiducialsAvoidDistance=0.0,
 ):
-    # print(bench.cobras.status)
-    # exit()
-
     # We penalize targets near the edge of a patrol region slightly to reduce
     # the chance of endpoint collisions with unallocated Cobras
     # (see note below).
@@ -292,6 +242,8 @@ def run_netflow(
         stage=stage,
         preassigned=preassigned,
         cobraSafetyMargin=cobraSafetyMargin,
+        brokenCobrasMargin=brokenCobrasMargin,
+        fiducialsAvoidDistance=fiducialsAvoidDistance,
     )
 
     if apply_nir_flag:
@@ -309,16 +261,16 @@ def run_netflow(
         build_problem_kwargs["cobraFeatureFlags"] = flag_n2
 
     # compute observation strategy
-    prob = nf.buildProblem(
-        bench,
-        targets,
-        target_fppos,
-        class_dict,
-        exptime,
-        **build_problem_kwargs,
-    )
+    with open(os.devnull, "w") as _devnull, contextlib.redirect_stdout(_devnull):
+        prob = nf.buildProblem(
+            bench,
+            targets,
+            target_fppos,
+            class_dict,
+            exptime,
+            **build_problem_kwargs,
+        )
 
-    print("solving the problem")
     prob.solve()
 
     # extract solution
@@ -330,7 +282,6 @@ def run_netflow(
                 _, _, tidx, cidx, ivis = k1.split("_")
                 res[int(ivis)][int(tidx)] = int(cidx)
         
-    print("Checking for distancre from the cobra center")
     for ivis, (vis, tp) in enumerate(zip(res, target_fppos)):
         selectedTargets = np.full(
             len(bench.cobras.centers), TargetGroup.NULL_TARGET_POSITION
@@ -364,8 +315,6 @@ def fiber_allocation(
     gurobi_options,
     pfs_instdata_dir,
     cobra_coach_dir,
-    cobra_coach_module_version,
-    sm,
     dot_margin,
     dot_penalty,
     cobra_location_group=None,
@@ -381,6 +330,8 @@ def fiber_allocation(
     two_stage=False,
     cobraSafetyMargin=0.0,
     apply_nir_flag=True,
+    brokenCobrasMargin=0.0,
+    fiducialsAvoidDistance=0.0,
 ):
     targets = []
 
@@ -409,8 +360,6 @@ def fiber_allocation(
     bench = getBench(
         pfs_instdata_dir,
         cobra_coach_dir,
-        cobra_coach_module_version,
-        sm,
         black_dot_radius_margin=dot_margin,
     )
 
@@ -613,6 +562,8 @@ def fiber_allocation(
         fiberNonAllocationCost=fiber_non_allocation_cost,
         cobraSafetyMargin=cobraSafetyMargin,
         apply_nir_flag=apply_nir_flag,
+        brokenCobrasMargin=brokenCobrasMargin,
+        fiducialsAvoidDistance=fiducialsAvoidDistance,
     )
 
     if not two_stage:
@@ -668,6 +619,8 @@ def fiber_allocation(
             preassigned=[assign_1stage],
             cobraSafetyMargin=cobraSafetyMargin,
             apply_nir_flag=apply_nir_flag,
+            brokenCobrasMargin=brokenCobrasMargin,
+            fiducialsAvoidDistance=fiducialsAvoidDistance,
         )
 
         return (

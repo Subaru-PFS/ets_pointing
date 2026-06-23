@@ -317,19 +317,6 @@ def get_arguments():
         help="Location of pfs_instdata (default: /work/pfs/commissioning/2023jul/fiber_allocation/pfs_instdata/)",
     )
     parser.add_argument(
-        "--cobra_coach_module_version",
-        type=str,
-        default=None,
-        help="version of the bench description file (default: None)",
-    )
-    parser.add_argument(
-        "--sm",
-        nargs="+",
-        type=int,
-        default=[1, 2, 3, 4],
-        help="Spectral Modules(1 to 4) to be used (default: 1 2 3 4)",
-    )
-    parser.add_argument(
         "--dot_margin",
         type=float,
         default=1.0,
@@ -814,8 +801,6 @@ def reconfigure_multiprocessing(
         bench = nfutils.getBench(
             conf["packages"]["pfs_instdata_dir"],
             conf["sfa"]["cobra_coach_dir"],
-            None,
-            conf["sfa"]["sm"],
             conf["sfa"]["dot_margin"],
         )
 
@@ -851,8 +836,6 @@ def reconfigure_multiprocessing(
             dict(conf["gurobi"]) if conf["netflow"]["use_gurobi"] else None,
             conf["packages"]["pfs_instdata_dir"],
             conf["sfa"]["cobra_coach_dir"],
-            None,
-            conf["sfa"]["sm"],
             conf["sfa"]["dot_margin"],
             None,
             cobra_location_group=cobraRegions,
@@ -870,6 +853,8 @@ def reconfigure_multiprocessing(
             two_stage=conf["netflow"]["two_stage"],
             cobraSafetyMargin=conf["netflow"]["cobra_safety_margin"],
             apply_nir_flag=conf["netflow"]["apply_nir_flag"],
+            brokenCobrasMargin=conf["netflow"]["broken_cobras_margin"],
+            fiducialsAvoidDistance=conf["netflow"]["fiducials_avoid_distance"],
         )
 
         # Use the per-pointing observation time inside worker processes instead of

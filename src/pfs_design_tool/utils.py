@@ -387,75 +387,23 @@ class CheckDesign(object):
         def getBench(
             pfs_instdata_dir,
             cobra_coach_dir,
-            cobra_coach_module_version,
-            sm,
             black_dot_radius_margin,
         ):
             os.environ["PFS_INSTDATA_DIR"] = pfs_instdata_dir
             cobraCoach = CobraCoach(
                 loadModel=True, trajectoryMode=True, rootDir=cobra_coach_dir
             )
-            # Get the calibration product
-            calibrationProduct = cobraCoach.calibModel
-
-            # Fix the phi and tht angles for some of the cobras
-            wrongAngles = calibrationProduct.phiIn == 0
-            calibrationProduct.phiIn[wrongAngles] = -np.pi
-            calibrationProduct.phiOut[wrongAngles] = 0
-            calibrationProduct.tht0[wrongAngles] = 0
-            calibrationProduct.tht1[wrongAngles] = (2.1 * np.pi) % (2 * np.pi)
-            print(f"Number of cobras with wrong phi and tht angles: {np.sum(wrongAngles)}")
-
-            # Check if there is any cobra with too short or too long link lengths
-            tooShortLinks = np.logical_or(
-                calibrationProduct.L1 < 1, calibrationProduct.L2 < 1)
-            tooLongLinks = np.logical_or(
-                calibrationProduct.L1 > 5, calibrationProduct.L2 > 5)
-            print(f"Number of cobras with too short link lenghts: {np.sum(tooShortLinks)}")
-            print(f"Number of cobras with too long link lenghts: {np.sum(tooLongLinks)}")
-
-            # Limit spectral modules
-            gfm = FiberIds()  # 2604
-            self.cobra_ids_use = np.array([], dtype=np.uint16)
-            for sm_use in sm:
-                self.cobra_ids_use = np.append(
-                    self.cobra_ids_use, gfm.cobrasForSpectrograph(sm_use)
-                )
-
-            # set Bad Cobra status for unused spectral modules
-            for cobra_id in range(calibrationProduct.nCobras):
-                if cobra_id not in self.cobra_ids_use:
-                    calibrationProduct.status[cobra_id] = ~PFIDesign.COBRA_OK_MASK
-
-            # Get the black dots calibration product
-            calibrationFileName = os.path.join(
-                os.environ["PFS_INSTDATA_DIR"], "data/pfi/dot", "black_dots_mm.csv"
-            )
-            blackDotsCalibrationProduct = BlackDotsCalibrationProduct(
-                calibrationFileName
-            )
-
-            # Create the bench instance
-            bench = Bench(
-                cobraCoach=cobraCoach,
-                blackDotsCalibrationProduct=blackDotsCalibrationProduct,
-                blackDotsMargin=black_dot_radius_margin,
-            )
+            bench = Bench(cobraCoach, blackDotsMargin=black_dot_radius_margin)
             print("Number of cobras:", bench.cobras.nCobras)
-
             return bench
 
         # load bench information
         pfs_instdata_dir = os.path.join(self.repoDir, "pfs_instdata")
         cobra_coach_dir = "cobracoach"
-        cobra_coach_module_version = None
-        black_dot_radius_margin = self.dotMargin
         self.bench = getBench(
             pfs_instdata_dir,
             cobra_coach_dir,
-            cobra_coach_module_version,
-            sm,
-            black_dot_radius_margin,
+            self.dotMargin,
         )
         # get cobra+dots geometry
         self.cobra_mpl_patches = []
