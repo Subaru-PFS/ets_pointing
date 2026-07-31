@@ -8,6 +8,7 @@ import ets_fiber_assigner.netflow as nf
 import numpy as np
 from ics.cobraOps.Bench import Bench
 from ics.cobraOps.TargetGroup import TargetGroup
+from ics.cobraOps.BlackDotsCalibrationProduct import BlackDotsCalibrationProduct
 
 # import argparse
 # import configparser
@@ -58,7 +59,7 @@ def getBench(
     cobraCoach = CobraCoach(
         loadModel=True, trajectoryMode=True, rootDir=cobra_coach_dir
     )
-    bench = Bench(cobraCoach, blackDotsMargin=black_dot_radius_margin)
+    bench = Bench(cobraCoach, blackDotsCalibrationProduct=None, fiducials=None, blackDotsMargin=black_dot_radius_margin)
     logger.info(f"Number of cobras: {bench.cobras.nCobras}")
     return bench
 
@@ -243,7 +244,8 @@ def run_netflow(
         preassigned=preassigned,
         cobraSafetyMargin=cobraSafetyMargin,
         brokenCobrasMargin=brokenCobrasMargin,
-        fiducialsAvoidDistance=fiducialsAvoidDistance,
+        #fiducialsAvoidDistance=fiducialsAvoidDistance,
+        avoidFiducials = True,
     )
 
     if apply_nir_flag:
