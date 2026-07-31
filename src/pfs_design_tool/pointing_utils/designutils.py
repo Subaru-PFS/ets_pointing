@@ -4,6 +4,7 @@ import matplotlib.path as mppath
 import numpy as np
 import pandas as pd
 import pfs.datamodel
+from pfs.datamodel.pfsConfig import TargetType
 from astroplan import FixedTarget, Observer
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -95,7 +96,18 @@ def generate_pfs_design(
     pfi_nominal = np.full((n_fiber, 2), [np.nan, np.nan])
     cat_id = np.full(n_fiber, -1, dtype=int)
     obj_id = np.full(n_fiber, -1, dtype=np.int64)
-    target_type = np.full(n_fiber, 4, dtype=int)  # filled as unassigned number
+
+    # 2026.07 default targetType of the unassigned but working fiber: TargetType.BLACKSPOT (=10)
+    # Set TargetType of all the fibers as TargetType.BLACKSPOT, and then change unassigned for disabled fibers.
+    target_type = np.full(n_fiber, TargetType.BLACKSPOT, dtype=int)  # filled as unassigned number
+    for cidx in range(n_fiber):
+        if bench.cobras.status[cidx] > 1:
+            fidx = (
+                   cobra_ids[np.logical_and(scifiber_ids >= 0, scifiber_ids <= n_fiber)]
+                   == cidx + 1
+                   )
+            target_type[fidx] = TargetType.UNASSIGNED
+    
     # fiber_status = np.full(n_fiber, 1, dtype=int)  # filled as GOOD=1
     # for cidx in range(n_fiber):
     #     fidx = (
