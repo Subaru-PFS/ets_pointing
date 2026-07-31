@@ -7,10 +7,10 @@ import pfs.datamodel
 from astroplan import FixedTarget, Observer
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-from ets_shuffle.convenience import flag_close_pairs, guidecam_geometry
+from ets_shuffle.convenience import flag_close_pairs
 from loguru import logger
 from pfs.utils.coordinates.CoordTransp import CoordinateTransform as ctrans
-from pfs.utils.coordinates.CoordTransp import ag_pfimm_to_pixel
+from pfs.utils.coordinates.CoordTransp import ag_pfimm_to_pixel, ag_pixel_to_pfimm
 from pfs.utils.fiberids import FiberIds
 from pfs.utils.pfsDesignUtils import makePfsDesign, setFiberStatus
 from pfs.utils.datamodel import ag
@@ -955,7 +955,16 @@ def generate_guidestars_from_gaiadb(
     # guidestar_minsep_deg = guidestar_minsep_deg
 
     # guide star cam geometries
-    agcoord = guidecam_geometry()
+    # directly call pfs_utils function
+    # AG image size is 1072 (X) x 1033 (Y)
+    # The first and last 24 pixel in X, and first 9 pixel in Y is overscan.
+    agcoord = np.zeros((6, 4, 2))
+    for i in range(0, 6):
+        agcoord[i, 0, :] = ag_pixel_to_pfimm(i, 23.5, 8.5)
+        agcoord[i, 1, :] = ag_pixel_to_pfimm(i, 1047.5, 8.5)
+        agcoord[i, 2, :] = ag_pixel_to_pfimm(i, 1047.5, 1032.5)
+        agcoord[i, 3, :] = ag_pixel_to_pfimm(i, 23.5, 1032.5)
+
 
     # internal, technical parameters
     # set focal plane radius
