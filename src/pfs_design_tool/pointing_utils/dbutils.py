@@ -550,6 +550,8 @@ def fixcols_gaiadb_to_targetdb(
 ):
     df.rename(columns={"source_id": "obj_id", "ref_epoch": "epoch"}, inplace=True)
 
+    df['qa_reference_arm']='r'
+
     if observation_time is not None:
         motion_mask = (
             df["epoch"].notna()

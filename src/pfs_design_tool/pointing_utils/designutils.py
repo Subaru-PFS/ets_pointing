@@ -4,13 +4,14 @@ import matplotlib.path as mppath
 import numpy as np
 import pandas as pd
 import pfs.datamodel
+from pfs.datamodel.pfsConfig import TargetType
 from astroplan import FixedTarget, Observer
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-from ets_shuffle.convenience import flag_close_pairs, guidecam_geometry
+from ets_shuffle.convenience import flag_close_pairs
 from loguru import logger
 from pfs.utils.coordinates.CoordTransp import CoordinateTransform as ctrans
-from pfs.utils.coordinates.CoordTransp import ag_pfimm_to_pixel
+from pfs.utils.coordinates.CoordTransp import ag_pfimm_to_pixel, ag_pixel_to_pfimm
 from pfs.utils.fiberids import FiberIds
 from pfs.utils.pfsDesignUtils import makePfsDesign, setFiberStatus
 from pfs.utils.datamodel import ag
@@ -95,7 +96,18 @@ def generate_pfs_design(
     pfi_nominal = np.full((n_fiber, 2), [np.nan, np.nan])
     cat_id = np.full(n_fiber, -1, dtype=int)
     obj_id = np.full(n_fiber, -1, dtype=np.int64)
-    target_type = np.full(n_fiber, 4, dtype=int)  # filled as unassigned number
+
+    # 2026.07 default targetType of the unassigned but working fiber: TargetType.BLACKSPOT (=10)
+    # Set TargetType of all the fibers as TargetType.BLACKSPOT, and then change unassigned for disabled fibers.
+    target_type = np.full(n_fiber, TargetType.BLACKSPOT, dtype=int)  # filled as unassigned number
+    for cidx in range(n_fiber):
+        if bench.cobras.status[cidx] > 1:
+            fidx = (
+                   cobra_ids[np.logical_and(scifiber_ids >= 0, scifiber_ids <= n_fiber)]
+                   == cidx + 1
+                   )
+            target_type[fidx] = TargetType.UNASSIGNED
+    
     # fiber_status = np.full(n_fiber, 1, dtype=int)  # filled as GOOD=1
     # for cidx in range(n_fiber):
     #     fidx = (
@@ -955,7 +967,16 @@ def generate_guidestars_from_gaiadb(
     # guidestar_minsep_deg = guidestar_minsep_deg
 
     # guide star cam geometries
-    agcoord = guidecam_geometry()
+    # directly call pfs_utils function
+    # AG image size is 1072 (X) x 1033 (Y)
+    # The first and last 24 pixel in X, and first 9 pixel in Y is overscan.
+    agcoord = np.zeros((6, 4, 2))
+    for i in range(0, 6):
+        agcoord[i, 0, :] = ag_pixel_to_pfimm(i, 23.5, 8.5)
+        agcoord[i, 1, :] = ag_pixel_to_pfimm(i, 1047.5, 8.5)
+        agcoord[i, 2, :] = ag_pixel_to_pfimm(i, 1047.5, 1032.5)
+        agcoord[i, 3, :] = ag_pixel_to_pfimm(i, 23.5, 1032.5)
+
 
     # internal, technical parameters
     # set focal plane radius
