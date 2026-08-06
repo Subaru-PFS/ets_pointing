@@ -1000,7 +1000,7 @@ def reconfigure_multiprocessing(
                                     # traceable in later validation steps.
                                     df_tmp["ob_code"] = (
                                         "gaiafiller_"
-                                        + df_tmp["source_id"].astype(str)
+                                        + df_tmp["obj_id"].astype(str)
                                         + f"_{rsl_mode}"
                                     )
                                 if len(df_unassigned) == 0:
