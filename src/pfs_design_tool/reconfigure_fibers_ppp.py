@@ -498,6 +498,12 @@ def load_ppp_results(infile: str):
             },
         )
 
+        ppc_priority = (
+            df_pointing["ppc_priority"].iloc[0]
+            if "ppc_priority" in df_pointing.columns
+            else 1
+        )
+
         dict_pointings[pointing.lower()] = {
             "pointing_name": pointing,
             "ra_center": df_pointing["ra_center"][0],
@@ -510,6 +516,7 @@ def load_ppp_results(infile: str):
             "observation_time": df_pointing["obstime"],
             "observation_date_in_hst": df_pointing["obsdate_in_hst"],
             "single_exptime": df_pointing["ob_single_exptime"][0],
+            "ppc_priority": ppc_priority,
         }
 
     return pointings, dict_pointings
