@@ -107,7 +107,8 @@ def generate_targets_from_targetdb(
             mask_keep = (df["proposal_id"].str.startswith("S25A")) & (df["grade"].isin(["G"]))
         else:
             mask_keep = (
-                ((df["proposal_id"].str.startswith("S26A")) & (df["grade"].isin(["C", "F"])))
+                ((df["proposal_id"].str.startswith("S26A")) & (df["grade"].isin(["F"])))
+                |  ((df["proposal_id"].str.startswith("S26B")) & (df["grade"].isin(["C"])))
                 | ((df["proposal_id"].str.startswith("S25A")) & (df["grade"].isin(["G"])))
             )
 
@@ -834,11 +835,11 @@ def fixcols_filler_targetdb(
 
     if conf["ppp"]["mode"] == "classic":
         df_filler_usr = df[
-            df["proposal_id"].str.startswith("S26A")
+            df["proposal_id"].str.startswith("S26B")
         ]
     else:
         df_filler_usr = df[
-            ((df["grade"] == "C") & df["proposal_id"].str.startswith("S26A"))
+            ((df["grade"] == "C") & df["proposal_id"].str.startswith("S26B"))
             | ((df["grade"] == "F") & df["proposal_id"].str.startswith("S26A"))
         ]
     df_filler_usr = df_filler_usr.rename(
