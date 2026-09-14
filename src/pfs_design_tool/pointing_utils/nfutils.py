@@ -497,7 +497,7 @@ def fiber_allocation(
         },
         "sky": {
             "numRequired": n_sky,
-            "nonObservationCost": 4e10,
+            "nonObservationCost": 1e11,
             "calib": True,
         },
     }
