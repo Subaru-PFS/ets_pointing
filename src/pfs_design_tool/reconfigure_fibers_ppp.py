@@ -634,9 +634,11 @@ def reconfigure_multiprocessing(
                 dec=df_fluxstds["dec"].values * u.deg,
             )
 
+            semester_b = conf["sfa"]["semester"]
+            semester_a = semester_b if semester_b.endswith("A") else semester_b[:-1] + "A"
             df_usr_nocut = df_filler_nocut[
-                ((df_filler_nocut["grade"].isin(["B", "C"])) & df_filler_nocut["proposal_id"].str.startswith("S26B"))
-                | ((df_filler_nocut["grade"].isin(["F"])) & df_filler_nocut["proposal_id"].str.startswith("S26A"))
+                ((df_filler_nocut["grade"].isin(["B", "C"])) & df_filler_nocut["proposal_id"].str.startswith(semester_b))
+                | ((df_filler_nocut["grade"].isin(["F"])) & df_filler_nocut["proposal_id"].str.startswith(semester_a))
             ].reset_index(drop=True)
 
             if len(df_usr_nocut) > 0:
