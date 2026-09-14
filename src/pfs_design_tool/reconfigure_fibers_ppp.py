@@ -635,8 +635,8 @@ def reconfigure_multiprocessing(
             )
 
             df_usr_nocut = df_filler_nocut[
-                (df_filler_nocut["grade"].isin(["B", "C", "F"]))
-                    & df_filler_nocut["proposal_id"].str.startswith("S26A")
+                ((df_filler_nocut["grade"].isin(["B", "C"])) & df_filler_nocut["proposal_id"].str.startswith("S26B"))
+                | ((df_filler_nocut["grade"].isin(["F"])) & df_filler_nocut["proposal_id"].str.startswith("S26A"))
             ].reset_index(drop=True)
 
             if len(df_usr_nocut) > 0:
@@ -1053,6 +1053,7 @@ def reconfigure_multiprocessing(
             pfs_instdata_dir=conf["packages"]["pfs_instdata_dir"],
             obs_time=obs_time_,
             df_unassigned=df_unassigned,
+            conf=conf,
         )
 
         guidestars = designutils.generate_guidestars_from_gaiadb(

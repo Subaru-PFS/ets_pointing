@@ -757,6 +757,7 @@ def main():
         design_name=args.design_name,
         obs_time=args.observation_time,
         df_unassigned=df_unassigned,
+        conf=conf,
     )
 
     # set guideStars
