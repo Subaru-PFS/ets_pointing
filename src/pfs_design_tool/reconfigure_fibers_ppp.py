@@ -1230,6 +1230,9 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
             "pa_center": [
                 dict_pointings[p.lower()]["pa_center"] for p in list_pointings
             ],
+            "ppc_priority": [
+                dict_pointings[p.lower()]["ppc_priority"] for p in list_pointings
+            ],
             "design_filename": design_filenames,
             "observation_time": observation_times,
             "observation_date_in_hst": observation_dates_in_hst,
