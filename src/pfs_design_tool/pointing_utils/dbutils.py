@@ -103,11 +103,14 @@ def generate_targets_from_targetdb(
         # logger.info(f"Time spent for querying (s): {t_end - t_begin:.3f}")
 
         # keep user fillers (grade BCF) for queue only;
+        semester_b = conf["sfa"]["semester"]
+        semester_a = semester_b if semester_b.endswith("A") else semester_b[:-1] + "A"
         if conf["ppp"]["mode"] == "classic":
             mask_keep = (df["proposal_id"].str.startswith("S25A")) & (df["grade"].isin(["G"]))
         else:
             mask_keep = (
-                ((df["proposal_id"].str.startswith("S26A")) & (df["grade"].isin(["C", "F"])))
+                ((df["proposal_id"].str.startswith(semester_a)) & (df["grade"].isin(["F"])))
+                |  ((df["proposal_id"].str.startswith(semester_b)) & (df["grade"].isin(["C"])))
                 | ((df["proposal_id"].str.startswith("S25A")) & (df["grade"].isin(["G"])))
             )
 
@@ -258,7 +261,7 @@ def generate_fluxstds_from_targetdb(
         t_begin = time.time()
         df = db.fetch_query(query_string)
 
-        if len(df) == 0 or dec < -25:
+        if len(df) == 0 or dec < -30:
             # select gaia fstar when no PS1 fstar is selected
             flux_max = (mag_min * u.ABmag).to(u.nJy).value
             flux_min = (mag_max * u.ABmag).to(u.nJy).value
@@ -378,13 +381,14 @@ def generate_skyobjects_from_targetdb(
     try:
         search_radius = fp_radius_degree * fp_fudge_factor
 
+        # ----- normal sky query -----
         try:
             sky_versions = conf["targetdb"]["sky"]["version"]
         except Exception:
             sky_versions = None
-
+        
         where_condition = f"WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})"
-
+        
         if sky_versions is not None:
             version_condition = "("
             first_condition = True
@@ -393,38 +397,59 @@ def generate_skyobjects_from_targetdb(
                     first_condition = False
                 else:
                     version_condition += " OR "
+        
                 if sky_version == "20220915":
-                    # use only HSC sky catalog in the older version
                     version_condition += (
                         f"(version = '{sky_version}' AND input_catalog_id=1001)"
                     )
                 else:
                     version_condition += f"version = '{sky_version}'"
+        
             version_condition += ")"
-
             where_condition += f" AND {version_condition}"
-
-        query_string = f"""SELECT *
-    FROM {tablename}
-    {where_condition}
-    """
-
-        query_string += ";"
-
-        logger.info(f"Query string for sky: \n{query_string}")
-
+        
+        query_sky = f"""
+        SELECT *
+        FROM {tablename}
+        {where_condition}
+        ;
+        """
+        
+        logger.info(f"Query string for normal sky: \n{query_sky}")
+        
         t_begin = time.time()
-        df = db.fetch_query(query_string)
+        df_sky = db.fetch_query(query_sky)
         t_end = time.time()
-        logger.info(f"Time spent for querying (s): {t_end - t_begin:.3f}")
+        logger.info(f"Time spent for querying normal sky (s): {t_end - t_begin:.3f}")
+        
+        
+        # ----- optional additional target-catalog sky query -----
+        query_target_sky_template = conf.get("sfa", {}).get("query_target_sky", "")
+        if query_target_sky_template and query_target_sky_template.strip():
+            query_target_sky = query_target_sky_template.format(
+                ra=ra,
+                dec=dec,
+                search_radius=search_radius,
+            )
+            logger.info(
+                f"Query string for additional target sky: \n{query_target_sky}"
+            )
+
+            t_begin = time.time()
+            df_target_sky = db.fetch_query(query_target_sky)
+            t_end = time.time()
+            logger.info(
+                "Time spent for querying additional target sky (s): "
+                f"{t_end - t_begin:.3f}"
+            )
+            df = pd.concat([df_sky, df_target_sky], ignore_index=True, sort=False)
+        else:
+            df = df_sky
 
         df["pmra"] = np.zeros(df.index.size, dtype=float)
         df["pmdec"] = np.zeros(df.index.size, dtype=float)
         df["parallax"] = np.full(df.index.size, 1.0e-7)
         logger.info(f"Fetched target DataFrame: \n{df}")
-
-        # Replacing obj_id with sky_id as currently (obj_id, cat_id) pairs can be duplicated for sky.
-        # In the version 20220915, obj_ids are not unique and sometimes not integer.
 
         is_old_version = df["version"] == "20220915"
 
@@ -832,14 +857,16 @@ def fixcols_filler_targetdb(
 
     df_filler_obs = df[df["grade"].isin(["G"])]
 
+    semester_b = conf["sfa"]["semester"]
+    semester_a = semester_b if semester_b.endswith("A") else semester_b[:-1] + "A"
     if conf["ppp"]["mode"] == "classic":
         df_filler_usr = df[
-            df["proposal_id"].str.startswith("S26A")
+            df["proposal_id"].str.startswith(semester_b)
         ]
     else:
         df_filler_usr = df[
-            ((df["grade"] == "C") & df["proposal_id"].str.startswith("S26A"))
-            | ((df["grade"] == "F") & df["proposal_id"].str.startswith("S26A"))
+            ((df["grade"] == "C") & df["proposal_id"].str.startswith(semester_b))
+            | ((df["grade"] == "F") & df["proposal_id"].str.startswith(semester_a))
         ]
     df_filler_usr = df_filler_usr.rename(
         columns={
@@ -1001,11 +1028,11 @@ def fixcols_filler_targetdb(
             )
             
             # For S26A-131QN, only keep targets with eff_exptime_done_real > 3900
-            keep_mask = (
-                (exp_done_for_filler > 0)
-            )
+            #keep_mask = (
+            #    (exp_done_for_filler > 0)
+            #)
         
-            df_filler_usr = df_filler_usr.loc[keep_mask].copy()
+            #df_filler_usr = df_filler_usr.loc[keep_mask].copy()
 
         logger.info(
             f"There are {sum(df_filler_usr['observed'])} / {len(df_filler_usr)} observed"

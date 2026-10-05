@@ -320,6 +320,7 @@ def main():
             is_no_target=is_no_target,
             design_name=in_design.designName,
             obs_time=args.observation_time,
+            conf=conf,
         )
 
     # add guideStars table

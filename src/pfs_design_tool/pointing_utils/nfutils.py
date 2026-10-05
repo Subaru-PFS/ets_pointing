@@ -207,7 +207,7 @@ def run_netflow(
     cobraSafetyMargin=0.0,
     apply_nir_flag=True,
     brokenCobrasMargin=0.0,
-    fiducialsAvoidDistance=0.0,
+    avoidFiducials=None,
 ):
     # We penalize targets near the edge of a patrol region slightly to reduce
     # the chance of endpoint collisions with unallocated Cobras
@@ -244,8 +244,7 @@ def run_netflow(
         preassigned=preassigned,
         cobraSafetyMargin=cobraSafetyMargin,
         brokenCobrasMargin=brokenCobrasMargin,
-        #fiducialsAvoidDistance=fiducialsAvoidDistance,
-        avoidFiducials = True,
+        avoidFiducials=avoidFiducials,
     )
 
     if apply_nir_flag:
@@ -333,7 +332,7 @@ def fiber_allocation(
     cobraSafetyMargin=0.0,
     apply_nir_flag=True,
     brokenCobrasMargin=0.0,
-    fiducialsAvoidDistance=0.0,
+    avoidFiducials=None,
 ):
     targets = []
 
@@ -498,7 +497,7 @@ def fiber_allocation(
         },
         "sky": {
             "numRequired": n_sky,
-            "nonObservationCost": 4e10,
+            "nonObservationCost": 1e11,
             "calib": True,
         },
     }
@@ -565,7 +564,7 @@ def fiber_allocation(
         cobraSafetyMargin=cobraSafetyMargin,
         apply_nir_flag=apply_nir_flag,
         brokenCobrasMargin=brokenCobrasMargin,
-        fiducialsAvoidDistance=fiducialsAvoidDistance,
+        avoidFiducials=avoidFiducials,
     )
 
     if not two_stage:
@@ -622,7 +621,7 @@ def fiber_allocation(
             cobraSafetyMargin=cobraSafetyMargin,
             apply_nir_flag=apply_nir_flag,
             brokenCobrasMargin=brokenCobrasMargin,
-            fiducialsAvoidDistance=fiducialsAvoidDistance,
+            avoidFiducials=avoidFiducials,
         )
 
         return (

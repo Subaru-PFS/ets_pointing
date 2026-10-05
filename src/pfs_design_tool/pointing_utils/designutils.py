@@ -20,7 +20,7 @@ from ..utils import get_pfs_utils_path
 from .dbutils import connect_subaru_gaiadb
 
 
-def _build_version_metadata() -> tuple:
+def _build_version_metadata(conf=None) -> tuple:
     """Return a ("package_name", package_version) tuple describing the software
     versions used to create a PfsDesign.
 
@@ -48,6 +48,7 @@ def _build_version_metadata() -> tuple:
             return info["commit_id"][:12]
         return info["version"] or "unknown"
 
+    author = (conf or {}).get("sfa", {}).get("author", "Wanqiu He")
     return (
         ("ics_cobraCharmer", _ver("ics_cobraCharmer")),
         ("ics_cobraOps",     _ver("ics-cobraOps")),
@@ -56,7 +57,7 @@ def _build_version_metadata() -> tuple:
         ("moduleXml",        ""),
         ("pfs_utils",        _ver("pfs-utils")),
         ("datamodel",        _ver("pfs-datamodel")),
-        ("author",           "Wanqiu He"),
+        ("author",           author),
     )
 
 
@@ -78,6 +79,7 @@ def generate_pfs_design(
     pfs_instdata_dir=None,
     obs_time="",
     df_unassigned=None,
+    conf=None,
 ):
     gfm = FiberIds(path=get_pfs_utils_path())  # 2604
     cobra_ids = gfm.cobraId
@@ -802,7 +804,7 @@ def generate_pfs_design(
         # guideStars=None,
         designName=design_name,
         fiberidsPath=get_pfs_utils_path(),
-        versions=_build_version_metadata(),
+        versions=_build_version_metadata(conf),
         obstime=obs_time,
     )
 

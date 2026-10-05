@@ -498,6 +498,12 @@ def load_ppp_results(infile: str):
             },
         )
 
+        ppc_priority = (
+            df_pointing["ppc_priority"].iloc[0]
+            if "ppc_priority" in df_pointing.columns
+            else 1
+        )
+
         dict_pointings[pointing.lower()] = {
             "pointing_name": pointing,
             "ra_center": df_pointing["ra_center"][0],
@@ -510,6 +516,7 @@ def load_ppp_results(infile: str):
             "observation_time": df_pointing["obstime"],
             "observation_date_in_hst": df_pointing["obsdate_in_hst"],
             "single_exptime": df_pointing["ob_single_exptime"][0],
+            "ppc_priority": ppc_priority,
         }
 
     return pointings, dict_pointings
@@ -627,9 +634,11 @@ def reconfigure_multiprocessing(
                 dec=df_fluxstds["dec"].values * u.deg,
             )
 
+            semester_b = conf["sfa"]["semester"]
+            semester_a = semester_b if semester_b.endswith("A") else semester_b[:-1] + "A"
             df_usr_nocut = df_filler_nocut[
-                (df_filler_nocut["grade"].isin(["B", "C", "F"]))
-                    & df_filler_nocut["proposal_id"].str.startswith("S26A")
+                ((df_filler_nocut["grade"].isin(["B", "C"])) & df_filler_nocut["proposal_id"].str.startswith(semester_b))
+                | ((df_filler_nocut["grade"].isin(["F"])) & df_filler_nocut["proposal_id"].str.startswith(semester_a))
             ].reset_index(drop=True)
 
             if len(df_usr_nocut) > 0:
@@ -854,7 +863,7 @@ def reconfigure_multiprocessing(
             cobraSafetyMargin=conf["netflow"]["cobra_safety_margin"],
             apply_nir_flag=conf["netflow"]["apply_nir_flag"],
             brokenCobrasMargin=conf["netflow"]["broken_cobras_margin"],
-            fiducialsAvoidDistance=conf["netflow"]["fiducials_avoid_distance"],
+            avoidFiducials=conf["netflow"]["avoidFiducials"],
         )
 
         # Use the per-pointing observation time inside worker processes instead of
@@ -1046,6 +1055,7 @@ def reconfigure_multiprocessing(
             pfs_instdata_dir=conf["packages"]["pfs_instdata_dir"],
             obs_time=obs_time_,
             df_unassigned=df_unassigned,
+            conf=conf,
         )
 
         guidestars = designutils.generate_guidestars_from_gaiadb(
@@ -1219,6 +1229,9 @@ def reconfigure(conf, workDir=".", infile="ppp+qplan_outout.csv", clearOutput=Fa
             ],
             "pa_center": [
                 dict_pointings[p.lower()]["pa_center"] for p in list_pointings
+            ],
+            "ppc_priority": [
+                dict_pointings[p.lower()]["ppc_priority"] for p in list_pointings
             ],
             "design_filename": design_filenames,
             "observation_time": observation_times,
