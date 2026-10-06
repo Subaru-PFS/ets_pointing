@@ -195,103 +195,81 @@ def generate_fluxstds_from_targetdb(
 ):
     flux_max = (mag_min * u.ABmag).to(u.nJy).value
     flux_min = (mag_max * u.ABmag).to(u.nJy).value
+    fluxstd_version = conf.get("targetdb", {}).get("fluxstd", {}).get("version")
+    gc_remove = conf.get("sfa", {}).get("gc_remove", False)
+    search_radius = fp_radius_degree * fp_fudge_factor
 
-    try:
-        fluxstd_versions = conf["targetdb"]["fluxstd"]["version"]
-    except Exception:
-        fluxstd_versions = None
-
-    db = connect_targetdb(conf)
-    # Use try/finally to guarantee the connection is closed on any exit path,
-    # including exceptions raised during query execution or data processing.
-    try:
-        search_radius = fp_radius_degree * fp_fudge_factor
-
-        query_string = f"""SELECT *
-    FROM {tablename}
-    WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
-    """
-
-        if extra_where is None:
-            extra_where = ""
-
+    def catalog_filters():
         filters = []
+        if fluxstd_version is not None:
+            filters.append(f"AND version = '{fluxstd_version}'")
+            if gc_remove:
+                filters.extend(
+                    [
+                        "AND is_gc_neighbor = False",
+                        "AND is_dense_region = False",
+                    ]
+                )
+        return filters
 
+    def build_primary_query():
+        filters = []
         if not ignore_prob_f_star:
             filters.append(f"AND prob_f_star BETWEEN {min_prob_f_star} AND 1.0")
 
-        if good_fluxstd:
+        if good_fluxstd or flags_dist:
             filters.append("AND flags_dist IS FALSE")
+        if good_fluxstd or flags_ebv:
             filters.append("AND flags_ebv IS FALSE")
-        else:
-            if flags_dist:
-                filters.append("AND flags_dist IS FALSE")
-            if flags_ebv:
-                filters.append("AND flags_ebv IS FALSE")
 
         if select_by_flux:
-            filters.append(f"AND psf_flux_{mag_filter} BETWEEN {flux_min} AND {flux_max}")
+            filters.append(
+                f"AND psf_flux_{mag_filter} BETWEEN {flux_min} AND {flux_max}"
+            )
         else:
-            filters.append(f"AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}")
+            filters.append(
+                f"AND psf_mag_{mag_filter} BETWEEN {mag_min} AND {mag_max}"
+            )
 
-        if select_from_gaia:
-            filters.append(f"AND teff_gspphot BETWEEN {min_teff} AND {max_teff}")
-        else:
-            filters.append(f"AND teff_brutus BETWEEN {min_teff} AND {max_teff}")
+        teff_column = "teff_gspphot" if select_from_gaia else "teff_brutus"
+        filters.append(f"AND {teff_column} BETWEEN {min_teff} AND {max_teff}")
+        filters.extend(catalog_filters())
 
-        if fluxstd_versions is not None:
-            fluxstd_version = str(fluxstd_versions)
-            filters.append(f"AND (version = '{fluxstd_version}')")
+        query = f"""SELECT *
+        FROM {tablename}
+        WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
+        """
+        query += extra_where or ""
+        query += "\n" + "\n".join(filters)
+        return query + ";"
 
-            try:
-                if float(fluxstd_version) >= 3.5:
-                    filters.append("AND (is_gc_neighbor = False)")
-                    filters.append("AND (is_dense_region = False)")
-            except (TypeError, ValueError):
-                pass
+    def build_gaia_query():
+        filters = [
+            "AND filter_r = 'g_gaia'",
+            "AND is_fstar_gaia",
+            f"AND teff_gspphot BETWEEN {min_teff} AND {max_teff}",
+            f"AND psf_flux_r BETWEEN {flux_min} AND {flux_max}",
+            "AND prob_f_star::text = 'NaN'",
+        ]
+        filters.extend(catalog_filters())
+        return f"""SELECT *
+        FROM {tablename}
+        WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
+        {"\n".join(filters)};"""
 
-        query_string += extra_where
-        if filters:
-            query_string += "\n" + "\n".join(filters)
-
-        query_string += ";"
-
+    db = connect_targetdb(conf)
+    try:
+        query_string = build_primary_query()
         logger.info(f"Query string for fluxstd: \n{query_string}")
-
         t_begin = time.time()
         df = db.fetch_query(query_string)
 
         if len(df) == 0 or dec < -30:
-            # select gaia fstar when no PS1 fstar is selected
-            flux_max = (mag_min * u.ABmag).to(u.nJy).value
-            flux_min = (mag_max * u.ABmag).to(u.nJy).value
-
-            #query_string = f"""SELECT *
-            #   FROM {tablename}
-            #    WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
-            #    AND (is_gc_neighbor=False)
-            #    AND (is_dense_region=False)
-            #    AND filter_r= 'g_gaia'
-            #    AND is_fstar_gaia
-            #    AND teff_gspphot BETWEEN {min_teff} AND {max_teff}
-            #    AND psf_flux_r BETWEEN {flux_min} AND {flux_max}
-            #    AND prob_f_star::text = 'NaN';
-            #    """
-            query_string = f"""SELECT * 
-                FROM {tablename}
-                WHERE q3c_radial_query(ra, dec, {ra}, {dec}, {search_radius})
-                AND filter_r= 'g_gaia'
-                AND is_fstar_gaia
-                AND teff_gspphot BETWEEN {min_teff} AND {max_teff}
-                AND psf_flux_r BETWEEN {flux_min} AND {flux_max}
-                AND prob_f_star::text = 'NaN';
-            """
+            query_string = build_gaia_query()
             logger.info(f"Query string for fluxstd (Gaia): \n{query_string}")
-
             df = db.fetch_query(query_string)
 
-        t_end = time.time()
-        logger.info(f"Time spent for querying (s): {t_end - t_begin:.3f}")
+        logger.info(f"Time spent for querying (s): {time.time() - t_begin:.3f}")
 
         df.loc[df["pmra"].isna(), "pmra"] = 0.0
         df.loc[df["pmdec"].isna(), "pmdec"] = 0.0
@@ -299,66 +277,6 @@ def generate_fluxstds_from_targetdb(
         logger.info(f"Fetched target DataFrame: \n{df}")
     finally:
         db.close()
-
-    """
-    #Check if there are clusters of flux standards, and if so, keep only a representative subset to avoid over-representation in certain regions.
-
-    n_fluxstd_ori = len(df)
-
-    # check if there is cluster
-    ra_vals = df["ra"].values
-    dec_vals = df["dec"].values
-
-    bins = 7  # adjust for resolution (7x7 works well)
-    H, ra_edges, dec_edges = np.histogram2d(ra_vals, dec_vals, bins=bins)
-    d_ra = ra_edges[1] - ra_edges[0]
-    d_dec = dec_edges[1] - dec_edges[0]
-    local_density = H / (d_ra * d_dec)
-
-    density_global = np.mean(local_density)
-    logger.info(f"Average density ~= {density_global:.2f} / deg^2")
-
-    threshold = 5.0 * density_global  # keep regions up to 5.0 x mean
-    overdense = local_density > threshold
-
-    valid_densities = local_density[~overdense]
-    valid_nonzero_densities = valid_densities[valid_densities > 0]
-    density_global_clean = (
-        np.mean(valid_nonzero_densities)
-        if len(valid_nonzero_densities) > 0
-        else density_global
-    )
-
-    if np.any(overdense):
-        logger.warning("There may be clusters of fluxstds")
-
-        keep_idx = []
-
-        for i in range(bins):
-            for j in range(bins):
-                # points inside bin
-                in_bin = (
-                    (ra_vals >= ra_edges[i])
-                    & (ra_vals < ra_edges[i + 1])
-                    & (dec_vals >= dec_edges[j])
-                    & (dec_vals < dec_edges[j + 1])
-                )
-                idx = np.where(in_bin)[0]
-                if len(idx) == 0:
-                    continue
-
-                # expected count per bin given global density
-                expected = density_global_clean * d_ra * d_dec
-                n_expected = int(round(expected))
-
-                if len(idx) > n_expected:
-                    keep_idx.extend(np.random.choice(idx, n_expected, replace=False))
-                else:
-                    keep_idx.extend(idx)
-
-        df = df.iloc[keep_idx].reset_index(drop=True)
-        logger.info(f"Kept {len(df)} / {n_fluxstd_ori} flux standards")
-    """
 
     if write_csv:
         df.to_csv("fluxstd.csv")
